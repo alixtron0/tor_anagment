@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+
+- You can @ files here
+- You can use markdown but dont have to
+dont write more than 300 line of code at once write 300 take a rest and write 300 again ,
+do thinghs step by step for exaple you want to make a new file make the file and just make a basic skeleton than upgrade it and upgrade it slowly unti its go what user want

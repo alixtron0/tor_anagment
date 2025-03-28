@@ -24,3 +24,34 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* استایل‌های چاپ */
+@media print {
+  body {
+    background: white;
+    font-size: 12pt;
+  }
+  
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+  }
+  
+  button {
+    display: none !important;
+  }
+  
+  @page {
+    size: A4;
+    margin: 1cm;
+  }
+}

@@ -65,7 +65,7 @@ function ReservationModalComponent({
     try {
       setIsLoadingAdmins(true)
       const token = localStorage.getItem('token')
-      const response = await axios.get('http://localhost:5000/api/users/admins', {
+      const response = await axios.get('http://185.94.99.35:5000/api/users/admins', {
         headers: {
           'x-auth-token': token
         }
@@ -217,7 +217,7 @@ function ReservationModalComponent({
       })
       
       const response = await axios.post(
-        `http://localhost:5000/api/reservations/package/${packageData._id}`, 
+        `http://185.94.99.35:5000/api/reservations/package/${packageData._id}`, 
         {
           ...data,
           adults: data.count, // به جای مقدار ثابت، کل ظرفیت را به عنوان بزرگسال در نظر می‌گیریم

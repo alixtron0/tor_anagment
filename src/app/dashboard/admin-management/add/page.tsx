@@ -82,7 +82,7 @@ export default function AddAdmin() {
     
     try {
       const token = localStorage.getItem('token')
-      await axios.post('http://localhost:5000/api/users/create-admin', formData, {
+      await axios.post('http://185.94.99.35:5000/api/users/create-admin', formData, {
         headers: { Authorization: `Bearer ${token}` }
       })
       

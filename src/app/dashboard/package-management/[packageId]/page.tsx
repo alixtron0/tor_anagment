@@ -94,7 +94,7 @@ export default function PackageDetails() {
       setLoading(true)
       const token = localStorage.getItem('token')
       
-      const response = await axios.get(`http://185.94.99.35:5000/api/packages/${packageId}`, {
+      const response = await axios.get(`http://localhost:5000/api/packages/${packageId}`, {
         headers: {
           'x-auth-token': token
         }
@@ -115,7 +115,7 @@ export default function PackageDetails() {
       setLoadingReservations(true)
       const token = localStorage.getItem('token')
       
-      const response = await axios.get(`http://185.94.99.35:5000/api/reservations/package/${packageId}`, {
+      const response = await axios.get(`http://localhost:5000/api/reservations/package/${packageId}`, {
         headers: {
           'x-auth-token': token
         }
@@ -198,6 +198,7 @@ export default function PackageDetails() {
     }
   }
 
+
   // نمایش نام مسیر
   const getRouteName = (route: any) => {
     if (!route) return 'نامشخص'
@@ -211,7 +212,7 @@ export default function PackageDetails() {
       const token = localStorage.getItem('token')
       
       await axios.patch(
-        `http://185.94.99.35:5000/api/reservations/${reservationId}/status`,
+        `http://localhost:5000/api/reservations/${reservationId}/status`,
         { status: newStatus },
         {
           headers: {
@@ -303,7 +304,7 @@ export default function PackageDetails() {
           <div className="relative h-64 bg-gradient-to-r from-blue-500 to-indigo-600 overflow-hidden">
             {packageData.image ? (
               <img 
-                src={`http://185.94.99.35:5000${packageData.image}`} 
+                src={`http://localhost:5000${packageData.image}`} 
                 alt={packageData.name} 
                 className="w-full h-full object-cover"
               />
@@ -345,8 +346,7 @@ export default function PackageDetails() {
             
             <div className="bg-white p-4 flex flex-col items-center justify-center text-center">
               <FaHotel className="text-indigo-500 mb-2 text-xl" />
-              <div className="text-gray-500 text-sm mb-1">هتل‌ها</div>
-              <div className="font-bold">{packageData.hotels?.length || 0} هتل</div>
+
             </div>
             
             <div className="bg-white p-4 flex flex-col items-center justify-center text-center">

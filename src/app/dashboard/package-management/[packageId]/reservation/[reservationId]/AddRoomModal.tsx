@@ -100,7 +100,7 @@ export default function AddRoomModal({
       }
       
       // اضافه کردن توکن به هدر درخواست
-      await axios.post('http://185.94.99.35:5000/api/rooms', {
+      await axios.post('http://localhost:5000/api/rooms', {
         ...data,
         reservation
       }, {

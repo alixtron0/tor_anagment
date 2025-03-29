@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import axios from 'axios'
 import { toast } from 'react-toastify'
-import { FaPlus, FaUsers, FaBed, FaCheck, FaArrowLeft, FaUserPlus, FaPassport, FaClipboardList, FaMale, FaFemale, FaChild, FaBaby, FaFileAlt } from 'react-icons/fa'
+import { FaPlus, FaUsers, FaBed, FaCheck, FaArrowLeft, FaUserPlus, FaPassport, FaClipboardList, FaMale, FaFemale, FaChild, FaBaby, FaFileAlt, FaTicketAlt } from 'react-icons/fa'
 import Link from 'next/link'
 import RoomCard from './RoomCard'
 import PassengerModal from './PassengerModal'
@@ -12,6 +12,7 @@ import EditRoomModal from './EditRoomModal'
 import DeleteRoomModal from './DeleteRoomModal'
 import FinalizeModal from './FinalizeModal'
 import PassengerListModal from './PassengerListModal'
+import TicketGenerator from '@/components/ticket/TicketGenerator'
 
 // تعریف انواع داده
 interface Reservation {
@@ -19,12 +20,22 @@ interface Reservation {
   package: {
     _id: string
     name: string
+    title?: string
+    description?: string
     startDate: string
     endDate: string
     basePrice: number
+    route?: any
+    capacity?: number
+    airline?: string
+    hotel?: string | { name: string }
+    price?: number
   }
   type: 'self' | 'admin'
   count: number
+  adults: number
+  children: number
+  infants: number
   admin?: {
     _id: string
     fullName: string
@@ -117,7 +128,7 @@ export default function PassengerManagement() {
         return
       }
 
-      const response = await axios.get(`http://185.94.99.35:5000/api/reservations/${reservationId}`, {
+      const response = await axios.get(`http://localhost:5000/api/reservations/${reservationId}`, {
         headers: {
           'x-auth-token': token
         }
@@ -133,7 +144,7 @@ export default function PassengerManagement() {
   // بارگذاری آمار رزرو
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`http://185.94.99.35:5000/api/passengers/stats/reservation/${reservationId}`)
+      const response = await axios.get(`http://localhost:5000/api/passengers/stats/reservation/${reservationId}`)
       setStats(response.data)
     } catch (error) {
       console.error('خطا در دریافت آمار رزرو:', error)
@@ -144,7 +155,7 @@ export default function PassengerManagement() {
   // بارگذاری اتاق‌ها
   const fetchRooms = async () => {
     try {
-      const response = await axios.get(`http://185.94.99.35:5000/api/rooms/reservation/${reservationId}`)
+      const response = await axios.get(`http://localhost:5000/api/rooms/reservation/${reservationId}`)
       setRooms(response.data)
     } catch (error) {
       console.error('خطا در دریافت اتاق‌ها:', error)
@@ -155,7 +166,7 @@ export default function PassengerManagement() {
   // بارگذاری مسافران
   const fetchPassengers = async () => {
     try {
-      const response = await axios.get(`http://185.94.99.35:5000/api/passengers/reservation/${reservationId}`)
+      const response = await axios.get(`http://localhost:5000/api/passengers/reservation/${reservationId}`)
       setPassengers(response.data)
     } catch (error) {
       console.error('خطا در دریافت مسافران:', error)
@@ -178,6 +189,15 @@ export default function PassengerManagement() {
     } finally {
       setIsLoading(false)
     }
+  }
+  
+  // ثبت نهایی رزرو
+  const handleFinalSubmit = async () => {
+    if (!stats || !stats.isComplete || (reservation && reservation.status === 'confirmed')) {
+      return
+    }
+    
+    setIsFinalizeModalOpen(true)
   }
   
   // دریافت مسافران یک اتاق
@@ -205,28 +225,13 @@ export default function PassengerManagement() {
     if (!confirm('آیا از حذف این مسافر اطمینان دارید؟')) return
     
     try {
-      await axios.delete(`http://185.94.99.35:5000/api/passengers/${passengerId}`)
+      await axios.delete(`http://localhost:5000/api/passengers/${passengerId}`)
       toast.success('مسافر با موفقیت حذف شد')
       fetchAllData() // بارگذاری مجدد داده‌ها
     } catch (error) {
       console.error('خطا در حذف مسافر:', error)
       toast.error('خطا در حذف مسافر')
     }
-  }
-  
-  // ثبت نهایی رزرو
-  const handleFinalSubmit = async () => {
-    if (!stats) {
-      toast.error('اطلاعات آماری رزرو در دسترس نیست')
-      return
-    }
-    
-    if (!stats.isComplete) {
-      toast.error('تمام ظرفیت رزرو باید تکمیل شود')
-      return
-    }
-    
-    setIsFinalizeModalOpen(true)
   }
   
   // باز کردن مودال ویرایش اتاق
@@ -402,40 +407,54 @@ export default function PassengerManagement() {
       )}
       
       {/* دکمه‌های عملیات */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex justify-end gap-3 mt-6">
         <button
           onClick={() => setIsAddRoomModalOpen(true)}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
         >
-          <FaPlus className="ml-2" />
+          <FaPlus />
           افزودن اتاق
         </button>
         
-        {/* دکمه جدید لیست مسافران */}
-        {reservation && reservation.status === 'confirmed' && passengers.length > 0 && (
+        <button
+          onClick={() => setIsPassengerListModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+        >
+          <FaClipboardList />
+          لیست مسافران
+        </button>
+        
+        {stats && stats.totalPassengers >= reservation?.count && (
           <button
-            onClick={() => setIsPassengerListModalOpen(true)}
-            className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow"
+            onClick={() => setIsFinalizeModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
           >
-            <FaFileAlt className="ml-2" />
-            لیست مسافران
+            <FaCheck />
+            ثبت نهایی رزرو
           </button>
         )}
-        
-        <button
-          onClick={handleFinalSubmit}
-          disabled={!stats || !stats.isComplete || (reservation && reservation.status === 'confirmed')}
-          className={`
-            inline-flex items-center px-4 py-2 rounded-lg transition shadow
-            ${(!stats || !stats.isComplete || (reservation && reservation.status === 'confirmed')) 
-              ? 'bg-gray-300 text-gray-600 cursor-not-allowed' 
-              : 'bg-green-600 text-white hover:bg-green-700'}
-          `}
-        >
-          <FaCheck className="ml-2" />
-          {reservation && reservation.status === 'confirmed' ? 'رزرو تأیید شده است' : 'ثبت نهایی'}
-        </button>
       </div>
+      
+      {/* بخش بلیط‌ها */}
+      {reservation && reservation.status === 'confirmed' && passengers.length > 0 && (
+        <div className="mt-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
+          <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
+            <FaTicketAlt className="text-indigo-600" />
+            <span>بلیط‌های مسافران</span>
+          </h2>
+          
+          <div className="p-4 bg-white rounded-lg shadow-sm">
+            <p className="text-gray-600 mb-4">
+              می‌توانید بلیط‌های مسافران را به صورت PDF دریافت کنید. برای هر مسافر یک بلیط مجزا تولید خواهد شد.
+            </p>
+            
+            <TicketGenerator 
+              reservation={reservation} 
+              passengers={passengers}
+            />
+          </div>
+        </div>
+      )}
       
       {/* بخش اتاق‌ها */}
       <h2 className="text-xl font-bold border-r-4 border-blue-500 pr-2 mt-6">اتاق‌های رزرو شده</h2>

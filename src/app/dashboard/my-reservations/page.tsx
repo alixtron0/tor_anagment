@@ -84,7 +84,7 @@ export default function MyReservations() {
         console.log('User data:', userData)
       }
       
-      const response = await axios.get(`http://185.94.99.35:5000/api/reservations/my-reservations`, {
+      const response = await axios.get(`http://localhost:5000/api/reservations/my-reservations`, {
         headers: {
           'x-auth-token': token
         }

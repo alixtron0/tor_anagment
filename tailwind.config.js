@@ -84,5 +84,26 @@ module.exports = {
       },
     },
   },
+  future: {
+    // غیرفعال کردن رنگ‌های oklch در تیلویند
+    hoverOnlyWhenSupported: true,
+    disableColorOpacityUtilitiesByDefault: false,
+    respectDefaultRingColorOpacity: false,
+    relativeContentPathsByDefault: false,
+  },
+  corePlugins: {
+    // غیرفعال کردن تمام موارد مرتبط با رنگ‌های جدید
+    textOpacity: false,
+    backgroundOpacity: false,
+    borderOpacity: false,
+  },
   plugins: [],
+  // اضافه کردن تنظیم جدید برای غیرفعال کردن فرمت‌های رنگی جدید
+  colorFunctionSupport: false,
+  experimental: {
+    colorFunctionUtilities: false,
+    colorOpacityUtilities: false,
+    respectDefaultRingColorOpacity: false,
+    disableColorOpacityUtilitiesByDefault: true,
+  }
 }; 

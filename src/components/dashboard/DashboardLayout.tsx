@@ -20,8 +20,9 @@ import {
   FaRoute,
   FaPlaneDeparture,
   FaMapMarkedAlt,
-  FaCog
-  
+  FaCog,
+  FaChartLine,
+  FaTicketAlt
 } from 'react-icons/fa'
 
 interface DashboardLayoutProps {
@@ -46,7 +47,7 @@ const menuItemsData: MenuItem[] = [
   {
     title: 'داشبورد',
     path: '/dashboard',
-    icon: <FaTachometerAlt />,
+    icon: <FaChartLine />,
     roles: ['super-admin', 'admin', 'admin+']
   },
   {
@@ -80,6 +81,12 @@ const menuItemsData: MenuItem[] = [
     path: '/dashboard/my-reservations',
     icon: <FaList />,
     roles: ['admin+']
+  },
+  {
+    title: 'بلیط شناور',
+    path: '/dashboard/floating-ticket',
+    icon: <FaTicketAlt />,
+    roles: ['super-admin', 'admin', 'admin+']
   },
   {
     title: 'مدیریت راه‌ها',
@@ -134,6 +141,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false);
   
   const router = useRouter()
   const pathname = usePathname()
@@ -179,23 +187,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [pathname])
   
-  // تنظیم نمایش منو در حالت موبایل - مدیریت ابعاد صفحه
+  // تنظیم نمایش منو و تشخیص موبایل/دسکتاپ
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1024) {
-        setSidebarOpen(false)
+      const mobileCheck = window.innerWidth < 1024;
+      setIsMobile(mobileCheck);
+
+      if (!mobileCheck) {
+        setMobileMenuOpen(false);
+        setSidebarOpen(true);
       } else {
-        setSidebarOpen(true)
+        // Keep current mobileMenuOpen state
+        // Optionally force sidebar content closed on mobile unless manually opened?
+        // For now, let's not force sidebarOpen on mobile resize
       }
-    }
+    };
 
-    // تنظیم وضعیت اولیه
-    handleResize()
+    // Initial check
+    handleResize();
 
-    // ثبت رویداد تغییر اندازه
     window.addEventListener('resize', handleResize)
-    
-    // حذف رویداد
     return () => window.removeEventListener('resize', handleResize)
   }, [])
   
@@ -263,20 +274,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       
       {/* منوی کناری */}
       <motion.aside
-        className={`fixed lg:relative lg:block top-0 right-0 z-40 h-full bg-white shadow-xl
-          ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
+        className={`fixed lg:relative top-0 right-0 z-40 h-full bg-white shadow-xl`}
         initial={false}
-        animate={{ 
+        animate={{
           width: sidebarOpen ? 280 : 80,
-          transition: { duration: 0.4, ease: "easeInOut" }
+          x: isMobile ? (mobileMenuOpen ? 0 : '100%') : 0,
+        }}
+        transition={{
+          x: { type: "spring", stiffness: 350, damping: 35 },
+          width: { duration: 0.3, ease: "easeInOut" },
         }}
         style={{ 
           boxShadow: '0 0 25px rgba(0, 0, 0, 0.05)'
-        }}
-        transition={{ 
-          type: "spring",
-          stiffness: 400,
-          damping: 40
         }}
       >
         {/* لوگو و دکمه جمع‌کردن منو */}

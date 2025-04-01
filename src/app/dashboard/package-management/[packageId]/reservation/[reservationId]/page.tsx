@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import axios from 'axios'
 import { toast } from 'react-toastify'
-import { FaPlus, FaUsers, FaBed, FaCheck, FaArrowLeft, FaUserPlus, FaPassport, FaClipboardList, FaMale, FaFemale, FaChild, FaBaby, FaFileAlt, FaTicketAlt } from 'react-icons/fa'
+import { FaPlus, FaUsers, FaBed, FaCheck, FaArrowLeft, FaUserPlus, FaPassport, FaClipboardList, FaMale, FaFemale, FaChild, FaBaby, FaFileAlt, FaTicketAlt, FaFileExcel } from 'react-icons/fa'
 import Link from 'next/link'
 import RoomCard from './RoomCard'
 import PassengerModal from './PassengerModal'
@@ -118,6 +118,8 @@ export default function PassengerManagement() {
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false)
   const [selectedPassenger, setSelectedPassenger] = useState<Passenger | null>(null)
   const [isPassengerListModalOpen, setIsPassengerListModalOpen] = useState(false)
+  const [isDownloadingReservationExcel, setIsDownloadingReservationExcel] = useState(false)
+  const [isDownloadingTicketExcel, setIsDownloadingTicketExcel] = useState(false)
   
   // بارگذاری اطلاعات رزرو
   const fetchReservation = async () => {
@@ -246,6 +248,108 @@ export default function PassengerManagement() {
     setIsDeleteRoomModalOpen(true)
   }
   
+  // تابع دانلود اکسل مسافران رزرو
+  const handleDownloadReservationExcel = async () => {
+    if (!reservationId) return;
+    setIsDownloadingReservationExcel(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/passengers/reservation/${reservationId}/excel`,
+        {
+          responseType: 'blob', // دریافت پاسخ به صورت blob
+          headers: {
+            'x-auth-token': token,
+          },
+        }
+      );
+
+      // ایجاد لینک دانلود
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = `reservation_${reservation?.code || reservationId}_passengers.xlsx`;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+
+      // پاکسازی لینک
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('فایل اکسل با موفقیت دانلود شد');
+
+    } catch (error: any) {
+      console.error('خطا در دانلود اکسل رزرو:', error);
+      if (error.response && error.response.status === 404) {
+        toast.warn('هیچ مسافری برای دانلود در این رزرو یافت نشد.');
+      } else {
+        toast.error('خطا در دانلود فایل اکسل');
+      }
+    } finally {
+      setIsDownloadingReservationExcel(false);
+    }
+  };
+  
+  // تابع دانلود اکسل بلیط مسافران رزرو (بر اساس قالب ticket.xlsx)
+  const handleDownloadReservationTicketExcel = async () => {
+    if (!reservationId) return;
+    setIsDownloadingTicketExcel(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/passengers/reservation/${reservationId}/ticket-excel`, // <-- New API endpoint
+        {
+          responseType: 'blob', // Important: expect blob response
+          headers: {
+            'x-auth-token': token,
+          },
+        }
+      );
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      // Extract filename from content-disposition header if available, otherwise use default
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = `reservation_${reservation?.code || reservationId}_tickets.xlsx`; // Default filename
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename\*=?(UTF-8''|)?"?([^;"]+)"?/i);
+        if (fileNameMatch && fileNameMatch[2]) {
+          fileName = decodeURIComponent(fileNameMatch[2]);
+        }
+      }
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('فایل اکسل بلیط‌ها با موفقیت دانلود شد');
+
+    } catch (error: any) {
+      console.error('خطا در دانلود اکسل بلیط رزرو:', error);
+       if (error.response) {
+           if (error.response.status === 404) {
+               toast.warn('هیچ مسافری برای دانلود بلیط اکسل در این رزرو یافت نشد.');
+           } else {
+                // Try to read error message from blob response
+                try {
+                    const errorData = JSON.parse(await (error.response.data as Blob).text());
+                    toast.error(errorData.message || 'خطا در دانلود فایل اکسل بلیط‌ها');
+                } catch (parseError) {
+                    toast.error('خطا در دانلود فایل اکسل بلیط‌ها');
+                }
+           }
+      } else {
+           toast.error('خطا در ارتباط با سرور هنگام دانلود اکسل بلیط‌ها');
+      }
+    } finally {
+      setIsDownloadingTicketExcel(false);
+    }
+  };
+  
   // اجرای بارگذاری داده‌ها در شروع
   useEffect(() => {
     fetchAllData()
@@ -284,7 +388,7 @@ export default function PassengerManagement() {
           >
             <FaArrowLeft className="mr-1" /> بازگشت به صفحه پکیج
           </Link>
-          <h1 className="text-2xl font-bold">مدیریت مسافران رزرو</h1>
+          <h1 className="text-2xl font-bold text-gray-800">مدیریت مسافران رزرو <span className="text-indigo-600">{reservation?.code || '...'}</span></h1>
           {reservation && (
             <p className="text-gray-600">
               {reservation.package.name} - {formatDate(reservation.package.startDate)} تا {formatDate(reservation.package.endDate)}
@@ -433,6 +537,23 @@ export default function PassengerManagement() {
             ثبت نهایی رزرو
           </button>
         )}
+        
+        {/* دکمه دانلود اکسل رزرو */}
+        <button
+          onClick={handleDownloadReservationExcel}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm shadow-md ${isDownloadingReservationExcel
+              ? 'bg-gray-400 text-white cursor-wait'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          disabled={isDownloadingReservationExcel || rooms.length === 0}
+        >
+          {isDownloadingReservationExcel ? (
+            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+          ) : (
+            <FaFileExcel />
+          )}
+          <span>{isDownloadingReservationExcel ? 'در حال آماده سازی...' : 'دانلود اکسل مسافران'}</span>
+        </button>
       </div>
       
       {/* بخش بلیط‌ها */}

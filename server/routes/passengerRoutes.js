@@ -7,6 +7,9 @@ const Room = require('../models/Room');
 const Reservation = require('../models/Reservation');
 const mongoose = require('mongoose');
 const moment = require('moment');
+const ExcelJS = require('exceljs');
+const path = require('path');
+const Package = require('../models/Package');
 
 /**
  * @route   GET /api/passengers/room/:roomId
@@ -571,5 +574,418 @@ function calculateAgeCategory(birthDate) {
   if (age < 12) return 'child'; // کودک
   return 'adult'; // بزرگسال
 }
+
+/**
+ * @route   GET /api/passengers/package/:packageId/excel
+ * @desc    دانلود گزارش اکسل مسافران یک پکیج با exceljs
+ * @access  عمومی (یا خصوصی بر اساس نیاز)
+ */
+router.get('/package/:packageId/excel', async (req, res) => {
+  try {
+    const packageId = req.params.packageId;
+    const templatePath = path.join(__dirname, '..', 'assets', 'templates', 'bime.xlsx');
+
+    // 1. یافتن تمام رزروهای فعال (تایید شده) پکیج
+    const reservations = await Reservation.find({
+      package: packageId,
+      status: 'confirmed'
+    }).select('_id');
+
+    if (!reservations || reservations.length === 0) {
+      return res.status(404).json({ message: 'هیچ رزرو تایید شده‌ای برای این پکیج یافت نشد' });
+    }
+    const reservationIds = reservations.map(r => r._id);
+
+    // 2. یافتن تمام مسافران این رزروها
+    const passengers = await Passenger.find({
+      reservation: { $in: reservationIds }
+    })
+    .select('firstName lastName englishFirstName englishLastName nationalId birthDate passportExpiryDate')
+    .lean();
+
+    if (!passengers || passengers.length === 0) {
+      return res.status(404).json({ message: 'هیچ مسافری برای رزروهای این پکیج یافت نشد' });
+    }
+
+    // 3. آماده سازی داده ها به صورت آرایه ای از آرایه ها (برای درج سلول به سلول)
+    const excelDataRows = passengers.map(p => {
+      const birthDate = moment(p.birthDate);
+      const age = moment().diff(birthDate, 'years');
+      const isOver80 = age > 80;
+      // **ترتیب باید با ستون‌های A تا H در قالب یکی باشد**
+      return [
+        p.firstName,
+        p.lastName,
+        p.englishFirstName,
+        p.englishLastName,
+        p.nationalId,
+        birthDate.isValid() ? birthDate.format('YYYY/MM/DD') : 'نامعتبر',
+        p.passportExpiryDate ? (moment(p.passportExpiryDate).isValid() ? moment(p.passportExpiryDate).format('YYYY/MM/DD') : 'نامعتبر') : 'ندارد',
+        isOver80 ? 'بله' : 'خیر'
+      ];
+    });
+
+    // 4. خواندن قالب و اضافه کردن داده‌ها با exceljs
+    const workbook = new ExcelJS.Workbook();
+    try {
+        await workbook.xlsx.readFile(templatePath);
+    } catch (readError) {
+        console.error("خطا در خواندن فایل قالب اکسل:", readError);
+        return res.status(500).json({ message: 'خطا در خواندن فایل قالب اکسل' });
+    }
+
+    const worksheet = workbook.getWorksheet(1); // دریافت اولین شیت
+
+    if (!worksheet) {
+      console.error('شیت اول در فایل قالب یافت نشد.');
+      return res.status(500).json({ message: 'شیت مورد نظر در قالب اکسل یافت نشد' });
+    }
+
+    // شروع درج داده از ردیف 5
+    let startRow = 5;
+    excelDataRows.forEach((rowData, rowIndex) => {
+        const currentRow = worksheet.getRow(startRow + rowIndex);
+        rowData.forEach((cellValue, colIndex) => {
+            // colIndex از 0 شروع می‌شود، شماره ستون در اکسل از 1
+            currentRow.getCell(colIndex + 1).value = cellValue;
+        });
+        // اطمینان از اینکه ردیف commit می‌شود (گاهی برای حفظ استایل لازم است)
+        currentRow.commit();
+    });
+
+    // تنظیم خودکار عرض ستون‌ها بر اساس محتوا
+    worksheet.columns.forEach((column, i) => {
+      let maxLength = 0;
+      // i از 0 شروع می‌شود، شماره ستون در اکسل از 1
+      const colNumber = i + 1;
+      column.eachCell({ includeEmpty: true }, (cell, rowNumber) => {
+        // فقط سلول‌های مربوط به هدر (ردیف 4) و داده‌ها (ردیف 5 به بعد) را بررسی کن
+        if (rowNumber >= 4) { 
+          const cellLength = cell.value ? String(cell.value).length : 0;
+          if (cellLength > maxLength) {
+            maxLength = cellLength;
+          }
+        }
+      });
+      // کمی فضای اضافی برای padding
+      column.width = maxLength < 10 ? 10 : maxLength + 2; 
+    });
+
+    // تنظیم هدرها برای دانلود فایل
+    const fileName = `package_${packageId}_passengers.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`); // استفاده از encodeURIComponent
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    // 5. ارسال فایل اکسل با exceljs
+    try {
+        const buffer = await workbook.xlsx.writeBuffer();
+        res.send(buffer);
+    } catch (writeError) {
+        console.error("خطا در نوشتن بافر اکسل:", writeError);
+        res.status(500).json({ message: 'خطا در تولید فایل اکسل' });
+    }
+
+  } catch (err) {
+    console.error('خطا در ایجاد گزارش اکسل پکیج:', err);
+    res.status(500).json({ message: `خطای سرور در ایجاد گزارش اکسل: ${err.message}` });
+  }
+});
+
+/**
+ * @route   GET /api/passengers/reservation/:reservationId/excel
+ * @desc    دانلود گزارش اکسل مسافران یک رزرو با exceljs
+ * @access  عمومی (یا خصوصی بر اساس نیاز)
+ */
+router.get('/reservation/:reservationId/excel', async (req, res) => {
+  try {
+    const reservationId = req.params.reservationId;
+    const templatePath = path.join(__dirname, '..', 'assets', 'templates', 'bime.xlsx');
+
+    // 1. یافتن تمام مسافران رزرو
+    const passengers = await Passenger.find({ reservation: reservationId })
+      .select('firstName lastName englishFirstName englishLastName nationalId birthDate passportExpiryDate')
+      .lean();
+
+    if (!passengers || passengers.length === 0) {
+      return res.status(404).json({ message: 'هیچ مسافری برای این رزرو یافت نشد' });
+    }
+
+    // 2. آماده سازی داده ها به صورت آرایه ای از آرایه ها
+    const excelDataRows = passengers.map(p => {
+      const birthDate = moment(p.birthDate);
+      const age = moment().diff(birthDate, 'years');
+      const isOver80 = age > 80;
+      // **ترتیب باید با ستون‌های A تا H در قالب یکی باشد**
+      return [
+        p.firstName,
+        p.lastName,
+        p.englishFirstName,
+        p.englishLastName,
+        p.nationalId,
+        birthDate.isValid() ? birthDate.format('YYYY/MM/DD') : 'نامعتبر',
+        p.passportExpiryDate ? (moment(p.passportExpiryDate).isValid() ? moment(p.passportExpiryDate).format('YYYY/MM/DD') : 'نامعتبر') : 'ندارد',
+        isOver80 ? 'بله' : 'خیر'
+      ];
+    });
+
+    // 3. خواندن قالب و اضافه کردن داده‌ها با exceljs
+    const workbook = new ExcelJS.Workbook();
+     try {
+        await workbook.xlsx.readFile(templatePath);
+    } catch (readError) {
+        console.error("خطا در خواندن فایل قالب اکسل:", readError);
+        return res.status(500).json({ message: 'خطا در خواندن فایل قالب اکسل' });
+    }
+    const worksheet = workbook.getWorksheet(1);
+
+    if (!worksheet) {
+        console.error('شیت اول در فایل قالب یافت نشد.');
+        return res.status(500).json({ message: 'شیت مورد نظر در قالب اکسل یافت نشد' });
+    }
+
+    // شروع درج داده از ردیف 5
+    let startRow = 5;
+    excelDataRows.forEach((rowData, rowIndex) => {
+        const currentRow = worksheet.getRow(startRow + rowIndex);
+        rowData.forEach((cellValue, colIndex) => {
+            currentRow.getCell(colIndex + 1).value = cellValue;
+        });
+        currentRow.commit();
+    });
+
+    // تنظیم خودکار عرض ستون‌ها بر اساس محتوا
+    worksheet.columns.forEach((column, i) => {
+      let maxLength = 0;
+      const colNumber = i + 1;
+      column.eachCell({ includeEmpty: true }, (cell, rowNumber) => {
+        if (rowNumber >= 4) {
+          const cellLength = cell.value ? String(cell.value).length : 0;
+          if (cellLength > maxLength) {
+            maxLength = cellLength;
+          }
+        }
+      });
+      column.width = maxLength < 10 ? 10 : maxLength + 2;
+    });
+
+    // تنظیم هدرها برای دانلود فایل
+    const fileName = `reservation_${reservationId}_passengers.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    // 4. ارسال فایل اکسل با exceljs
+    try {
+        const buffer = await workbook.xlsx.writeBuffer();
+        res.send(buffer);
+    } catch (writeError) {
+        console.error("خطا در نوشتن بافر اکسل:", writeError);
+        res.status(500).json({ message: 'خطا در تولید فایل اکسل' });
+    }
+
+  } catch (err) {
+    console.error('خطا در ایجاد گزارش اکسل رزرو:', err);
+    res.status(500).json({ message: `خطای سرور در ایجاد گزارش اکسل: ${err.message}` });
+  }
+});
+
+// Helper function to format date (consider using a library like moment-jalaali)
+function formatExcelDate(dateString) {
+    if (!dateString) return '';
+    try {
+        // Assuming dateString is in ISO format or parseable by Date
+        const date = new Date(dateString);
+        // Excel stores dates as numbers, but for simplicity, we format as YYYY-MM-DD
+        // Adjust formatting as needed (e.g., to Persian date)
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+        // For Persian Date (requires a library like moment-jalaali):
+        // return moment(dateString).locale('fa').format('jYYYY/jMM/jDD');
+    } catch (e) {
+        console.error("Error formatting date for Excel:", e);
+        return dateString; // Return original on error
+    }
+}
+
+// --- Route to get Ticket Excel for all passengers in a Package ---
+router.get('/package/:packageId/ticket-excel', auth, async (req, res) => {
+    try {
+        const packageId = req.params.packageId;
+
+        // 1. Find all reservations for the package (excluding canceled)
+        const reservations = await Reservation.find({ package: packageId, status: { $ne: 'canceled' } }).select('_id');
+        if (!reservations || reservations.length === 0) {
+            return res.status(404).json({ message: 'هیچ رزرو فعالی برای این پکیج یافت نشد.' });
+        }
+        const reservationIds = reservations.map(r => r._id);
+
+        // 2. Find all passengers for these reservations
+        const passengers = await Passenger.find({ reservation: { $in: reservationIds } })
+                                        .sort({ lastName: 1, firstName: 1 }); // Optional sort
+
+        if (!passengers || passengers.length === 0) {
+            return res.status(404).json({ message: 'هیچ مسافری برای رزروهای این پکیج یافت نشد.' });
+        }
+
+        // 3. Load the Excel template
+        const templatePath = path.join(__dirname, '..', 'assets', 'templates', 'ticket.xlsx');
+        const workbook = new ExcelJS.Workbook();
+        try {
+            await workbook.xlsx.readFile(templatePath);
+        } catch (readError) {
+             console.error("Error reading Excel template:", readError);
+             return res.status(500).json({ message: 'خطا در خواندن فایل قالب اکسل.' });
+        }
+        
+        const worksheet = workbook.getWorksheet(1); // Assuming data is in the first sheet
+        if (!worksheet) {
+             return res.status(500).json({ message: 'شیت مورد نظر در قالب اکسل یافت نشد.' });
+        }
+
+        // 4. Define starting row (assuming row 5 is header)
+        let currentRow = 6;
+
+        // 5. Populate data
+        passengers.forEach(passenger => {
+            worksheet.getCell(`A${currentRow}`).value = passenger.englishFirstName || '';
+            worksheet.getCell(`B${currentRow}`).value = passenger.englishLastName || '';
+            worksheet.getCell(`C${currentRow}`).value = passenger.passportNumber || ''; // Check exact field name
+            worksheet.getCell(`D${currentRow}`).value = formatExcelDate(passenger.birthDate); // Check exact field name
+            worksheet.getCell(`E${currentRow}`).value = formatExcelDate(passenger.passportExpiryDate); // Check exact field name
+            // Add other columns if needed based on template
+            currentRow++;
+        });
+
+        // --- Add Auto Column Width --- 
+        const columnIndices = [0, 1, 2, 3, 4]; // Indices for columns A to E
+        columnIndices.forEach(colIndex => {
+            let maxLength = 0;
+            const column = worksheet.getColumn(colIndex + 1);
+            // Iterate cells from header row (5) downwards
+            column.eachCell({ includeEmpty: true }, (cell, rowNumber) => {
+                if (rowNumber >= 5) { 
+                    const cellValue = cell.value;
+                    const cellLength = cellValue ? String(cellValue).length : 0;
+                    if (cellLength > maxLength) {
+                        maxLength = cellLength;
+                    }
+                }
+            });
+            // Set column width with padding (e.g., min width 10)
+            column.width = Math.max(10, maxLength + 3); 
+        });
+        // --- End Auto Column Width ---
+
+        // 6. Set response headers for Excel download
+        const packageInfo = await Package.findById(packageId).select('name');
+        const fileName = `package_${packageInfo?.name || packageId}_tickets.xlsx`;
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${encodeURIComponent(fileName)}"`
+        );
+
+        // 7. Write the workbook to the response
+        await workbook.xlsx.write(res);
+        res.end(); // End the response
+
+    } catch (error) {
+        console.error('Error generating package ticket excel:', error);
+        res.status(500).json({ message: 'خطا در تولید فایل اکسل بلیط پکیج.' });
+    }
+});
+
+// --- Route to get Ticket Excel for all passengers in a Reservation ---
+router.get('/reservation/:reservationId/ticket-excel', auth, async (req, res) => {
+    try {
+        const reservationId = req.params.reservationId;
+
+        // 1. Find the reservation
+        const reservation = await Reservation.findById(reservationId).populate('package', 'name'); // Populate package name for filename
+        if (!reservation) {
+            return res.status(404).json({ message: 'رزرو مورد نظر یافت نشد.' });
+        }
+
+        // 2. Find all passengers for this reservation
+        const passengers = await Passenger.find({ reservation: reservationId })
+                                        .sort({ lastName: 1, firstName: 1 }); // Optional sort
+
+        if (!passengers || passengers.length === 0) {
+            return res.status(404).json({ message: 'هیچ مسافری برای این رزرو یافت نشد.' });
+        }
+
+        // 3. Load the Excel template
+        const templatePath = path.join(__dirname, '..', 'assets', 'templates', 'ticket.xlsx');
+        const workbook = new ExcelJS.Workbook();
+         try {
+            await workbook.xlsx.readFile(templatePath);
+        } catch (readError) {
+             console.error("Error reading Excel template:", readError);
+             return res.status(500).json({ message: 'خطا در خواندن فایل قالب اکسل.' });
+        }
+        const worksheet = workbook.getWorksheet(1); // Assuming data is in the first sheet
+         if (!worksheet) {
+             return res.status(500).json({ message: 'شیت مورد نظر در قالب اکسل یافت نشد.' });
+        }
+
+        // 4. Define starting row (assuming row 5 is header)
+        let currentRow = 6;
+
+        // 5. Populate data
+        passengers.forEach(passenger => {
+            worksheet.getCell(`A${currentRow}`).value = passenger.englishFirstName || '';
+            worksheet.getCell(`B${currentRow}`).value = passenger.englishLastName || '';
+            worksheet.getCell(`C${currentRow}`).value = passenger.passportNumber || ''; // Check exact field name
+            worksheet.getCell(`D${currentRow}`).value = formatExcelDate(passenger.birthDate); // Check exact field name
+            worksheet.getCell(`E${currentRow}`).value = formatExcelDate(passenger.passportExpiryDate); // Check exact field name
+             // Add other columns if needed based on template
+            currentRow++;
+        });
+
+        // --- Add Auto Column Width --- 
+        const columnIndices = [0, 1, 2, 3, 4]; // Indices for columns A to E
+        columnIndices.forEach(colIndex => {
+            let maxLength = 0;
+            const column = worksheet.getColumn(colIndex + 1);
+            // Iterate cells from header row (5) downwards
+            column.eachCell({ includeEmpty: true }, (cell, rowNumber) => {
+                if (rowNumber >= 5) { 
+                    const cellValue = cell.value;
+                    const cellLength = cellValue ? String(cellValue).length : 0;
+                    if (cellLength > maxLength) {
+                        maxLength = cellLength;
+                    }
+                }
+            });
+            // Set column width with padding (e.g., min width 10)
+            column.width = Math.max(10, maxLength + 3); 
+        });
+        // --- End Auto Column Width ---
+
+        // 6. Set response headers for Excel download
+        const packageName = reservation.package?.name || 'package';
+        const fileName = `reservation_${reservation.code || reservationId}_${packageName}_tickets.xlsx`;
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${encodeURIComponent(fileName)}"`
+        );
+
+        // 7. Write the workbook to the response
+        await workbook.xlsx.write(res);
+        res.end(); // End the response
+
+    } catch (error) {
+        console.error('Error generating reservation ticket excel:', error);
+        res.status(500).json({ message: 'خطا در تولید فایل اکسل بلیط رزرو.' });
+    }
+});
 
 module.exports = router; 

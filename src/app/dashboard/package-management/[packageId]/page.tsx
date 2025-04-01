@@ -20,7 +20,9 @@ import {
   FaTimes,
   FaClock,
   FaPrint,
-  FaUsers
+  FaUsers,
+  FaCog,
+  FaFileExcel
 } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import { Package } from '@/components/types'
@@ -51,7 +53,12 @@ interface Reservation {
       role: string;
     };
     fullName: string;
-  }
+  };
+  // فیلدهای مربوط به تعداد مسافران واقعی
+  actualAdults?: number;
+  actualChildren?: number;
+  actualInfants?: number;
+  actualCount?: number;
 }
 
 export default function PackageDetails() {
@@ -61,6 +68,8 @@ export default function PackageDetails() {
   const [loadingReservations, setLoadingReservations] = useState(false)
   const [remainingCapacity, setRemainingCapacity] = useState(0)
   const [isReservationModalOpen, setIsReservationModalOpen] = useState(false)
+  const [isDownloadingPackageExcel, setIsDownloadingPackageExcel] = useState(false)
+  const [isDownloadingTicketExcel, setIsDownloadingTicketExcel] = useState(false)
   const [userRole, setUserRole] = useState<string>('')
   const [userId, setUserId] = useState<string>('')
   const params = useParams()
@@ -147,8 +156,47 @@ export default function PackageDetails() {
       }
       
       console.log('Filtered Reservations:', filteredReservations)
+
+      // دریافت تعداد مسافران برای هر رزرو
+      const reservationsWithPassengerCounts = await Promise.all(
+        filteredReservations.map(async (reservation: Reservation) => {
+          try {
+            // دریافت مسافران مرتبط با این رزرو
+            const passengersResponse = await axios.get(`http://localhost:5000/api/passengers/reservation/${reservation._id}`, {
+              headers: {
+                'x-auth-token': token
+              }
+            });
+
+            // محاسبه تعداد مسافران بر اساس دسته‌بندی سنی
+            const passengers = passengersResponse.data;
+            const adultCount = passengers.filter((p: any) => p.ageCategory === 'adult').length;
+            const childCount = passengers.filter((p: any) => p.ageCategory === 'child').length;
+            const infantCount = passengers.filter((p: any) => p.ageCategory === 'infant').length;
+
+            // اضافه کردن تعداد مسافران واقعی به آبجکت رزرو
+            return {
+              ...reservation,
+              actualAdults: adultCount,
+              actualChildren: childCount,
+              actualInfants: infantCount,
+              actualCount: adultCount + childCount + infantCount
+            };
+          } catch (error) {
+            console.error(`خطا در دریافت مسافران رزرو ${reservation._id}:`, error);
+            // در صورت خطا، همان رزرو بدون اطلاعات مسافران را برگردان
+            return {
+              ...reservation,
+              actualAdults: 0,
+              actualChildren: 0,
+              actualInfants: 0,
+              actualCount: 0
+            };
+          }
+        })
+      );
       
-      setReservations(filteredReservations)
+      setReservations(reservationsWithPassengerCounts)
       
       // محاسبه ظرفیت باقی‌مانده
       if (packageData) {
@@ -236,6 +284,108 @@ export default function PackageDetails() {
     }
   }
 
+  // تابع دانلود اکسل مسافران پکیج
+  const handleDownloadPackageExcel = async () => {
+    if (!packageId) return;
+    setIsDownloadingPackageExcel(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/passengers/package/${packageId}/excel`,
+        {
+          responseType: 'blob', // مهم: دریافت پاسخ به صورت blob
+          headers: {
+            'x-auth-token': token,
+          },
+        }
+      );
+
+      // ایجاد لینک دانلود
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = `package_${packageData?.name || packageId}_passengers.xlsx`;
+      link.setAttribute('download', fileName); // نام فایل دانلودی
+      document.body.appendChild(link);
+      link.click();
+
+      // پاکسازی لینک
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('فایل اکسل با موفقیت دانلود شد');
+
+    } catch (error: any) {
+      console.error('خطا در دانلود اکسل پکیج:', error);
+      if (error.response && error.response.status === 404) {
+        toast.warn('هیچ مسافری برای دانلود در این پکیج یافت نشد.');
+      } else {
+        toast.error('خطا در دانلود فایل اکسل');
+      }
+    } finally {
+      setIsDownloadingPackageExcel(false);
+    }
+  };
+
+  // تابع دانلود اکسل بلیط مسافران پکیج (بر اساس قالب ticket.xlsx)
+  const handleDownloadPackageTicketExcel = async () => {
+    if (!packageId) return;
+    setIsDownloadingTicketExcel(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/passengers/package/${packageId}/ticket-excel`, // <-- New API endpoint
+        {
+          responseType: 'blob', // Important: expect blob response
+          headers: {
+            'x-auth-token': token,
+          },
+        }
+      );
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      // Extract filename from content-disposition header if available, otherwise use default
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = `package_${packageData?.name || packageId}_tickets.xlsx`; // Default filename
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename\*=?(UTF-8''|)?"?([^;"]+)"?/i);
+        if (fileNameMatch && fileNameMatch[2]) {
+          fileName = decodeURIComponent(fileNameMatch[2]);
+        }
+      }
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('فایل اکسل بلیط‌ها با موفقیت دانلود شد');
+
+    } catch (error: any) {
+      console.error('خطا در دانلود اکسل بلیط پکیج:', error);
+      if (error.response) {
+           if (error.response.status === 404) {
+               toast.warn('هیچ مسافری برای دانلود بلیط اکسل در این پکیج یافت نشد.');
+           } else {
+                // Try to read error message from blob response if backend sends JSON error as blob
+                try {
+                    const errorData = JSON.parse(await (error.response.data as Blob).text());
+                    toast.error(errorData.message || 'خطا در دانلود فایل اکسل بلیط‌ها');
+                } catch (parseError) {
+                    toast.error('خطا در دانلود فایل اکسل بلیط‌ها');
+                }
+           }
+      } else {
+           toast.error('خطا در ارتباط با سرور هنگام دانلود اکسل بلیط‌ها');
+      }
+    } finally {
+      setIsDownloadingTicketExcel(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -289,8 +439,47 @@ export default function PackageDetails() {
             </button>
             
             <button
+              onClick={handleDownloadPackageExcel}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors shadow-md ${
+                isDownloadingPackageExcel
+                  ? 'bg-gray-400 text-white cursor-wait'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              disabled={isDownloadingPackageExcel}
+            >
+              {isDownloadingPackageExcel ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+              ) : (
+                <FaFileExcel />
+              )}
+              <span>{isDownloadingPackageExcel ? 'در حال آماده سازی...' : 'دانلود اکسل مسافران'}</span>
+            </button>
+            
+            <button
+              onClick={handleDownloadPackageTicketExcel}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors shadow-md ${
+                isDownloadingTicketExcel
+                  ? 'bg-gray-400 text-white cursor-wait'
+                  : 'bg-purple-600 text-white hover:bg-purple-700' // Different color
+              }`}
+              disabled={isDownloadingTicketExcel}
+            >
+              {isDownloadingTicketExcel ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+              ) : (
+                <FaFileExcel className="text-purple-100"/> // Maybe different icon or color
+              )}
+              <span>{isDownloadingTicketExcel ? 'در حال آماده سازی...' : 'دانلود اکسل بلیط'}</span>
+            </button>
+            
+            <button
               onClick={() => setIsReservationModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                remainingCapacity > 0 
+                  ? 'bg-green-600 text-white hover:bg-green-700' 
+                  : 'bg-gray-400 text-white cursor-not-allowed'
+              }`}
+              disabled={remainingCapacity <= 0}
             >
               <FaPlus />
               <span>افزودن رزرو جدید</span>
@@ -365,6 +554,9 @@ export default function PackageDetails() {
               <FaUserFriends className="text-indigo-500 mb-2 text-xl" />
               <div className="text-gray-500 text-sm mb-1">ظرفیت</div>
               <div className="font-bold">{packageData.capacity} نفر</div>
+              <div className={`text-sm mt-1 ${remainingCapacity > 10 ? 'text-green-600' : remainingCapacity > 0 ? 'text-orange-500' : 'text-red-600'}`}>
+                باقی‌مانده: {remainingCapacity} نفر
+              </div>
             </div>
           </div>
         </div>
@@ -496,13 +688,27 @@ export default function PackageDetails() {
                   <FaUserFriends className="ml-2 text-indigo-500" />
                   رزروهای پکیج
                 </h2>
-                <button
-                  onClick={() => setIsReservationModalOpen(true)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md flex items-center text-sm"
-                >
-                  <FaPlus className="ml-1" />
-                  افزودن رزرو
-                </button>
+                <div className="flex items-center gap-4">
+                  <div className={`text-sm px-3 py-1 rounded-full ${
+                    remainingCapacity > 10 ? 'bg-green-100 text-green-700' : 
+                    remainingCapacity > 0 ? 'bg-orange-100 text-orange-700' : 
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    ظرفیت باقی‌مانده: {remainingCapacity} نفر
+                  </div>
+                  <button
+                    onClick={() => setIsReservationModalOpen(true)}
+                    className={`px-4 py-2 rounded-lg shadow-md flex items-center text-sm ${
+                      remainingCapacity > 0 
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                        : 'bg-gray-400 text-white cursor-not-allowed'
+                    }`}
+                    disabled={remainingCapacity <= 0}
+                  >
+                    <FaPlus className="ml-1" />
+                    افزودن رزرو
+                  </button>
+                </div>
               </div>
               
               <div className="p-6">
@@ -521,7 +727,7 @@ export default function PackageDetails() {
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-full divide-y divide-gray-200">
+                    <table className="w-full min-w-full divide-y divide-gray-200 rounded-lg shadow-sm border border-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نوع رزرو</th>
@@ -530,74 +736,149 @@ export default function PackageDetails() {
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">وضعیت</th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">رزرو کننده</th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاریخ ثبت</th>
-                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">عملیات</th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <div className="flex items-center justify-center">
+                              <FaCog className="ml-1" />
+                              عملیات
+                            </div>
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {reservations.map((reservation) => (
                           <tr 
                             key={reservation._id} 
-                            className="hover:bg-gray-50 cursor-pointer"
+                            className="hover:bg-indigo-50/50 transition-colors cursor-pointer border-b border-gray-100 last:border-b-0"
                             onClick={() => goToPassengerManagement(reservation._id)}
                           >
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  reservation.type === 'self' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                                <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${
+                                  reservation.type === 'self' ? 'bg-blue-100 text-blue-800 border border-blue-300' : 'bg-purple-100 text-purple-800 border border-purple-300'
                                 }`}>
-                                  {reservation.type === 'self' ? 'شخصی' : 'ادمین'}
+                                  {reservation.type === 'self' ? (
+                                    <>
+                                      <FaUserAlt className="ml-1.5 text-xs" />
+                                      شخصی
+                                    </>
+                                  ) : (
+                                    <>
+                                      <FaUserFriends className="ml-1.5 text-xs" />
+                                      ادمین
+                                    </>
+                                  )}
                                 </span>
                                 {reservation.type === 'admin' && reservation.admin && (
-                                  <span className="mr-2 text-gray-700">{reservation.admin.fullName}</span>
+                                  <span className="mr-2 text-gray-700 text-xs bg-gray-100 px-2 py-1 rounded">{reservation.admin.fullName}</span>
                                 )}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                              {reservation.count} نفر
-                              <div className="text-xs text-gray-500 mt-1">
-                                {reservation.adults} بزرگسال،
-                                {reservation.children > 0 && ` ${reservation.children} کودک،`}
-                                {reservation.infants > 0 && ` ${reservation.infants} نوزاد`}
+                              <div className="flex flex-col">
+                                <span className="font-bold text-gray-900">
+                                  {reservation.count} نفر
+                                  {((reservation.actualAdults ?? 0) + (reservation.actualChildren ?? 0) + (reservation.actualInfants ?? 0)) > 0 && (
+                                    <span className="mr-1 font-normal text-xs text-gray-500">
+                                      (ظرفیت)
+                                    </span>
+                                  )}
+                                </span>
+                                <div className="flex mt-1 gap-1.5">
+                                  {(reservation.actualAdults ?? 0) > 0 && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-indigo-50 text-indigo-700">
+                                      <FaUserAlt className="ml-1 text-[10px]" />
+                                      {reservation.actualAdults} بزرگسال
+                                    </span>
+                                  )}
+                                  {(reservation.actualChildren ?? 0) > 0 && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-50 text-green-700">
+                                      <FaChild className="ml-1 text-[10px]" />
+                                      {reservation.actualChildren} کودک
+                                    </span>
+                                  )}
+                                  {(reservation.actualInfants ?? 0) > 0 && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-pink-50 text-pink-700">
+                                      <FaBaby className="ml-1 text-[10px]" />
+                                      {reservation.actualInfants} نوزاد
+                                    </span>
+                                  )}
+                                  {((reservation.actualAdults ?? 0) === 0 && (reservation.actualChildren ?? 0) === 0 && (reservation.actualInfants ?? 0) === 0) && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-yellow-50 text-yellow-700 border border-yellow-200">
+                                      <FaUserFriends className="ml-1 text-[10px]" />
+                                      هنوز مسافری ثبت نشده
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {reservation.totalPrice.toLocaleString('fa-IR')} تومان
+                              <div className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg">
+                                <FaMoneyBillWave className="text-green-600 ml-2" />
+                                <span className="font-bold">{reservation.totalPrice.toLocaleString('fa-IR')} تومان</span>
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                reservation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                reservation.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                                'bg-red-100 text-red-800'
+                              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${
+                                reservation.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' :
+                                reservation.status === 'confirmed' ? 'bg-green-100 text-green-800 border border-green-300' :
+                                'bg-red-100 text-red-800 border border-red-300'
                               }`}>
+                                <span className={`w-2 h-2 rounded-full mr-1.5 ${
+                                  reservation.status === 'pending' ? 'bg-yellow-500' :
+                                  reservation.status === 'confirmed' ? 'bg-green-500' :
+                                  'bg-red-500'
+                                }`}></span>
                                 {reservation.status === 'pending' ? 'در انتظار تایید' :
                                   reservation.status === 'confirmed' ? 'تایید شده' : 'لغو شده'}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              {reservation.createdBy?.fullName}
+                              <div className="flex items-center">
+                                <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center ml-2 text-indigo-600">
+                                  {reservation.createdBy?.fullName?.charAt(0) || '?'}
+                                </div>
+                                <span className="text-gray-700">{reservation.createdBy?.fullName}</span>
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatDate(reservation.createdAt)}
+                              <div className="flex items-center">
+                                <FaClock className="text-gray-400 ml-1.5" />
+                                <span>{formatDate(reservation.createdAt)}</span>
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleStatusChange(reservation._id, 'confirmed')
-                                }}
-                                className="text-indigo-600 hover:text-indigo-900 mr-2"
-                              >
-                                <FaCheck />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleStatusChange(reservation._id, 'canceled')
-                                }}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                <FaTimes />
-                              </button>
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleStatusChange(reservation._id, 'confirmed')
+                                  }}
+                                  className={`inline-flex items-center justify-center p-2 rounded-full transition-all ${
+                                    reservation.status === 'confirmed' 
+                                      ? 'bg-green-100 text-green-600 cursor-default' 
+                                      : 'bg-gray-100 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-md'
+                                  }`}
+                                  disabled={reservation.status === 'confirmed'}
+                                  title="تایید رزرو"
+                                >
+                                  <FaCheck className="text-sm" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleStatusChange(reservation._id, 'canceled')
+                                  }}
+                                  className={`inline-flex items-center justify-center p-2 rounded-full transition-all ${
+                                    reservation.status === 'canceled' 
+                                      ? 'bg-red-100 text-red-600 cursor-default' 
+                                      : 'bg-gray-100 text-red-600 hover:bg-red-100 hover:text-red-700 hover:shadow-md'
+                                  }`}
+                                  disabled={reservation.status === 'canceled'}
+                                  title="لغو رزرو"
+                                >
+                                  <FaTimes className="text-sm" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -618,6 +899,7 @@ export default function PackageDetails() {
             isOpen={isReservationModalOpen}
             onClose={() => setIsReservationModalOpen(false)}
             packageData={packageData}
+            remainingCapacity={remainingCapacity}
             onSuccess={() => {
               console.log('Reservation added successfully, refreshing reservations...')
               // تضمین به روزرسانی با استفاده از استراتژی تأخیر کوتاه

@@ -19,6 +19,7 @@ interface ReservationModalProps {
   isOpen: boolean
   onClose: () => void
   packageData: Package
+  remainingCapacity: number
   onSuccess: () => void
 }
 
@@ -34,6 +35,7 @@ function ReservationModalComponent({
   isOpen,
   onClose,
   packageData,
+  remainingCapacity,
   onSuccess
 }: ReservationModalProps) {
   const [availableAdmins, setAvailableAdmins] = useState<Admin[]>([])
@@ -198,6 +200,12 @@ function ReservationModalComponent({
         return
       }
       
+      // بررسی ظرفیت
+      if (data.count > remainingCapacity) {
+        toast.error(`ظرفیت کافی برای رزرو وجود ندارد. ظرفیت باقیمانده: ${remainingCapacity} نفر`)
+        return
+      }
+      
       // تبدیل اطلاعات کاربر از JSON به آبجکت
       const parsedUser = JSON.parse(storedUser)
       
@@ -244,7 +252,13 @@ function ReservationModalComponent({
       if (error.response) {
         console.error('Error response data:', error.response.data);
         console.error('Error response status:', error.response.status);
-        toast.error(`خطا در ثبت رزرو: ${error.response.data.message || error.response.statusText}`)
+        
+        // نمایش خطای ظرفیت از سرور
+        if (error.response.data && error.response.data.message && error.response.data.message.includes('ظرفیت کافی')) {
+          toast.error(error.response.data.message)
+        } else {
+          toast.error(`خطا در ثبت رزرو: ${error.response.data.message || error.response.statusText}`)
+        }
       } else if (error.request) {
         toast.error('خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.')
       } else {
@@ -395,18 +409,18 @@ function ReservationModalComponent({
             <div className="flex justify-between items-center mb-2">
               <label className="block text-gray-700 font-medium">تعداد رزرو</label>
               <span className="text-sm text-gray-500">
-                ظرفیت باقیمانده: {packageData.capacity} نفر
+                ظرفیت باقی‌مانده: {remainingCapacity} نفر
               </span>
             </div>
             <input
               type="number"
               min="1"
-              max={packageData.capacity}
+              max={remainingCapacity}
               className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all"
               {...register("count", {
                 required: "تعداد رزرو الزامی است",
                 min: { value: 1, message: "تعداد رزرو باید حداقل ۱ باشد" },
-                max: { value: packageData.capacity, message: `تعداد رزرو نمی‌تواند بیشتر از ${packageData.capacity} باشد` }
+                max: { value: remainingCapacity, message: `تعداد رزرو نمی‌تواند بیشتر از ${remainingCapacity} باشد` }
               })}
             />
             {errors.count && <div className="text-red-500 text-sm mt-1">{errors.count.message}</div>}

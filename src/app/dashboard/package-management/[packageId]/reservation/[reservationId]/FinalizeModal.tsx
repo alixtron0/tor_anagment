@@ -74,7 +74,7 @@ export default function FinalizeModal({
       const code = generateReservationCode()
       
       // ثبت نهایی رزرو
-      await axios.put(`http://localhost:5000/api/reservations/${reservationId}/finalize`, { 
+      await axios.put(`http://185.94.99.35:5000/api/reservations/${reservationId}/finalize`, { 
         code,
         status: 'confirmed'
       }, {

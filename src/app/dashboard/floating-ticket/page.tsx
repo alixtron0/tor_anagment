@@ -75,10 +75,10 @@ export default function FloatingTicket() {
         if (!token) return
         
         const [airlinesRes, aircraftRes] = await Promise.all([
-          axios.get('http://185.94.99.35:5000/api/floating-ticket/airlines', {
+          axios.get('http://localhost:5000/api/floating-ticket/airlines', {
             headers: { 'x-auth-token': token }
           }),
-          axios.get('http://185.94.99.35:5000/api/floating-ticket/aircraft', {
+          axios.get('http://localhost:5000/api/floating-ticket/aircraft', {
             headers: { 'x-auth-token': token }
           })
         ])
@@ -155,7 +155,7 @@ export default function FloatingTicket() {
 
       // ارسال درخواست به بک‌اند
       const response = await axios.post(
-        'http://185.94.99.35:5000/api/floating-ticket/generate',
+        'http://localhost:5000/api/floating-ticket/generate',
         {
           passengers, // ارسال کل لیست مسافران (بک‌اند فعلا فقط اولی را استفاده می‌کند)
           flightInfo,

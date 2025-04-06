@@ -46,7 +46,7 @@ export default function DeleteRoomModal({
       }
       
       // اضافه کردن توکن به هدر درخواست
-      await axios.delete(`http://185.94.99.35:5000/api/rooms/${room._id}`, {
+      await axios.delete(`http://localhost:5000/api/rooms/${room._id}`, {
         headers: {
           'x-auth-token': token
         }

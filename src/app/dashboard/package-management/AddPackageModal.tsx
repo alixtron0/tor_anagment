@@ -166,7 +166,7 @@ export default function AddPackageModal({
       try {
         setRouteLoading(true)
         const token = localStorage.getItem('token')
-        const response = await axios.get(`http://185.94.99.35:5000/api/routes`, {
+        const response = await axios.get(`http://localhost:5000/api/routes`, {
           headers: {
             'x-auth-token': token
           }
@@ -186,7 +186,7 @@ export default function AddPackageModal({
       try {
         setHotelLoading(true)
         const token = localStorage.getItem('token')
-        const response = await axios.get(`http://185.94.99.35:5000/api/hotels`, {
+        const response = await axios.get(`http://localhost:5000/api/hotels`, {
           headers: {
             'x-auth-token': token
           }
@@ -210,7 +210,7 @@ export default function AddPackageModal({
       if (isOpen && isEditing && packageToEdit?._id) {
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get(`http://185.94.99.35:5000/api/packages/${packageToEdit._id}`, {
+          const response = await axios.get(`http://localhost:5000/api/packages/${packageToEdit._id}`, {
             headers: {
               'x-auth-token': token
             }
@@ -266,7 +266,7 @@ export default function AddPackageModal({
           
           // نمایش پیش‌نمایش تصویر
           if (packageData.image) {
-            setImagePreview(`http://185.94.99.35:5000${packageData.image}`);
+            setImagePreview(`http://localhost:5000${packageData.image}`);
           }
           
           // فراخوانی تابع کالبک
@@ -455,7 +455,7 @@ export default function AddPackageModal({
       if (isEditing && packageData?._id) {
         // ویرایش پکیج موجود
         await axios.put(
-          `http://185.94.99.35:5000/api/packages/${packageData._id}`,
+          `http://localhost:5000/api/packages/${packageData._id}`,
           packageData,
           {
             headers: {
@@ -468,7 +468,7 @@ export default function AddPackageModal({
       } else {
         // افزودن پکیج جدید
         const response = await axios.post(
-          `http://185.94.99.35:5000/api/packages`,
+          `http://localhost:5000/api/packages`,
           packageData,
           {
             headers: {
@@ -538,7 +538,7 @@ export default function AddPackageModal({
 
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        'http://185.94.99.35:5000/api/upload',
+        'http://localhost:5000/api/upload',
         formData,
         {
           headers: {

@@ -84,7 +84,7 @@ export default function AircraftManagement() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/aircrafts', {
+      const response = await axios.get('http://localhost:5000/api/aircraft', {
         headers: { 'x-auth-token': token }
       });
       setAircrafts(response.data);
@@ -173,7 +173,7 @@ export default function AircraftManagement() {
 
       if (editMode && currentAircraftId) {
         // به‌روزرسانی هواپیما
-        await axios.put(`http://localhost:5000/api/aircrafts/${currentAircraftId}`, formData, {
+        await axios.put(`http://localhost:5000/api/aircraft/${currentAircraftId}`, formData, {
           headers: { 
             'x-auth-token': token,
             'Content-Type': 'multipart/form-data'
@@ -182,7 +182,7 @@ export default function AircraftManagement() {
         toast.success('هواپیما با موفقیت به‌روزرسانی شد');
       } else {
         // ایجاد هواپیمای جدید
-        await axios.post('http://localhost:5000/api/aircrafts', formData, {
+        await axios.post('http://localhost:5000/api/aircraft', formData, {
           headers: { 
             'x-auth-token': token,
             'Content-Type': 'multipart/form-data'
@@ -269,7 +269,7 @@ export default function AircraftManagement() {
       formData.append('description', aircraft.description || '');
       formData.append('isActive', (!currentStatus).toString());
       
-      await axios.put(`http://localhost:5000/api/aircrafts/${id}`, formData, {
+      await axios.put(`http://localhost:5000/api/aircraft/${id}`, formData, {
         headers: { 
           'x-auth-token': token,
           'Content-Type': 'multipart/form-data'
@@ -290,7 +290,7 @@ export default function AircraftManagement() {
     
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/aircrafts/${id}`, {
+      await axios.delete(`http://localhost:5000/api/aircraft/${id}`, {
         headers: { 'x-auth-token': token }
       });
       

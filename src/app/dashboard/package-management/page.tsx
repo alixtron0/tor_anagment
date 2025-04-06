@@ -432,17 +432,31 @@ export default function PackageManagement() {
                             {pkg.hotels?.length || 0} هتل
                           </span>
                         </div>
-                        <div className="flex items-center">
-                          <div className="bg-indigo-100 p-2 rounded-full">
-                            {pkg.transportation?.departure === 'havaii' ? (
-                              <FaPlane className="text-indigo-600" />
-                            ) : (
-                              <FaBus className="text-indigo-600" />
-                            )}
+                        <div className="flex flex-col items-center">
+                          <div className="flex items-center mb-1">
+                            <div className="bg-indigo-100 p-2 rounded-full">
+                              {pkg.transportation?.departure === 'havaii' ? (
+                                <FaPlane className="text-indigo-600" />
+                              ) : (
+                                <FaBus className="text-indigo-600" />
+                              )}
+                            </div>
+                            <span className="mr-2 text-gray-700">
+                              رفت: {pkg.transportation?.departure === 'havaii' ? 'هوایی' : 'زمینی'}
+                            </span>
                           </div>
-                          <span className="mr-2 text-gray-700">
-                            {pkg.transportation?.departure === 'havaii' ? 'هوایی' : 'زمینی'}
-                          </span>
+                          <div className="flex items-center">
+                            <div className="bg-indigo-100 p-2 rounded-full">
+                              {pkg.transportation?.return === 'havaii' ? (
+                                <FaPlane className="text-indigo-600" />
+                              ) : (
+                                <FaBus className="text-indigo-600" />
+                              )}
+                            </div>
+                            <span className="mr-2 text-gray-700">
+                              برگشت: {pkg.transportation?.return === 'havaii' ? 'هوایی' : 'زمینی'}
+                            </span>
+                          </div>
                         </div>
                         <div className="flex items-center">
                           <div className="bg-indigo-100 p-2 rounded-full">

@@ -138,9 +138,8 @@ export default function AddPackageModal({
 
   // بررسی اعتبار تعداد روزهای اقامت
   const isStayDurationValid = () => {
-    const totalDays = calculateTotalDays()
-    const totalStayDuration = calculateTotalStayDuration()
-    return totalStayDuration <= totalDays
+    // حذف محدودیت - همیشه معتبر است
+    return true
   }
 
   // اضافه کردن محاسبه قیمت کل
@@ -352,10 +351,11 @@ export default function AddPackageModal({
 
   // آماده‌سازی و ارسال داده‌ها به سرور
   const onSubmit = async (data: Package) => {
-    // بررسی اعتبار تعداد روزهای اقامت
-    if (!isStayDurationValid()) {
-      toast.error('مجموع روزهای اقامت در هتل‌ها بیشتر از کل مدت پکیج است.');
-      return;
+    // بررسی تعداد روزهای اقامت و نمایش هشدار (بدون توقف فرآیند)
+    const totalDays = calculateTotalDays();
+    const totalStayDuration = calculateTotalStayDuration();
+    if (totalStayDuration > totalDays) {
+      toast.warning('مجموع روزهای اقامت در هتل‌ها بیشتر از کل مدت پکیج است. در صورت نیاز می‌توانید ادامه دهید.');
     }
 
     try {

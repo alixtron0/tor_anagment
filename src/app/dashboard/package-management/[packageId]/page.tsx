@@ -535,18 +535,38 @@ export default function PackageDetails() {
             
             <div className="bg-white p-4 flex flex-col items-center justify-center text-center">
               <FaHotel className="text-indigo-500 mb-2 text-xl" />
-
+              <div className="text-gray-500 text-sm mb-1">هتل‌ها</div>
+              <div className="font-bold flex flex-col">
+                {packageData.hotels && packageData.hotels.length > 0 ? (
+                  <>
+                    <span>
+                      {packageData.hotels.length} هتل
+                    </span>
+                    <span className="text-xs text-indigo-500 mt-1">مشاهده جزئیات</span>
+                  </>
+                ) : (
+                  <span>بدون هتل</span>
+                )}
+              </div>
             </div>
             
             <div className="bg-white p-4 flex flex-col items-center justify-center text-center">
-              {packageData.transportation?.departure === 'havaii' ? (
-                <FaPlane className="text-indigo-500 mb-2 text-xl" />
-              ) : (
-                <FaBus className="text-indigo-500 mb-2 text-xl" />
-              )}
+              <div className="flex gap-2 mb-2">
+                {packageData.transportation?.departure === 'havaii' ? (
+                  <FaPlane className="text-indigo-500 text-xl" />
+                ) : (
+                  <FaBus className="text-indigo-500 text-xl" />
+                )}
+                {packageData.transportation?.return === 'havaii' ? (
+                  <FaPlane className="text-indigo-500 text-xl" />
+                ) : (
+                  <FaBus className="text-indigo-500 text-xl" />
+                )}
+              </div>
               <div className="text-gray-500 text-sm mb-1">نوع حمل و نقل</div>
-              <div className="font-bold">
-                {packageData.transportation?.departure === 'havaii' ? 'هوایی' : 'زمینی'}
+              <div className="flex flex-col text-sm font-bold">
+                <span>رفت: {packageData.transportation?.departure === 'havaii' ? 'هوایی' : 'زمینی'}</span>
+                <span>برگشت: {packageData.transportation?.return === 'havaii' ? 'هوایی' : 'زمینی'}</span>
               </div>
             </div>
             
@@ -657,6 +677,87 @@ export default function PackageDetails() {
                 </div>
               </div>
             </div>
+            
+            {/* بخش هتل‌های پکیج */}
+            {packageData.hotels && packageData.hotels.length > 0 && (
+              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="bg-indigo-50 p-4 border-r-4 border-indigo-500">
+                  <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                    <FaHotel className="ml-2 text-indigo-500" />
+                    هتل‌های پکیج
+                  </h2>
+                </div>
+                
+                <div className="p-6">
+                  <div className="space-y-4">
+                    {packageData.hotels.map((hotelItem: any, index: number) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4 hover:border-indigo-300 transition-colors">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center">
+                            <div className="bg-indigo-100 p-2 rounded-full ml-3">
+                              <FaHotel className="text-indigo-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-gray-800">
+                                {hotelItem.hotel && typeof hotelItem.hotel === 'object' && 'name' in hotelItem.hotel 
+                                  ? hotelItem.hotel.name 
+                                  : `هتل ${index + 1}`}
+                              </h3>
+                              {hotelItem.hotel && typeof hotelItem.hotel === 'object' && 'city' in hotelItem.hotel && (
+                                <div className="text-sm text-gray-500">
+                                  {hotelItem.hotel.city}{hotelItem.hotel.country ? `, ${hotelItem.hotel.country}` : ''}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="bg-blue-50 px-3 py-1 rounded-full text-blue-700 text-sm font-medium">
+                            {hotelItem.stayDuration} روز اقامت
+                          </div>
+                        </div>
+                        
+                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="bg-gray-50 p-3 rounded-lg">
+                            <div className="text-xs text-gray-500 mb-1">وعده‌های غذایی روز اول</div>
+                            <div className="flex gap-2">
+                              {hotelItem.firstMeal?.sobhane && (
+                                <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">صبحانه</span>
+                              )}
+                              {hotelItem.firstMeal?.nahar && (
+                                <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded">ناهار</span>
+                              )}
+                              {hotelItem.firstMeal?.sham && (
+                                <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded">شام</span>
+                              )}
+                              {!hotelItem.firstMeal?.sobhane && !hotelItem.firstMeal?.nahar && !hotelItem.firstMeal?.sham && (
+                                <span className="text-gray-500 text-xs">بدون وعده غذایی</span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="bg-gray-50 p-3 rounded-lg">
+                            <div className="text-xs text-gray-500 mb-1">وعده‌های غذایی روز آخر</div>
+                            <div className="flex gap-2">
+                              {hotelItem.lastMeal?.sobhane && (
+                                <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">صبحانه</span>
+                              )}
+                              {hotelItem.lastMeal?.nahar && (
+                                <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded">ناهار</span>
+                              )}
+                              {hotelItem.lastMeal?.sham && (
+                                <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded">شام</span>
+                              )}
+                              {!hotelItem.lastMeal?.sobhane && !hotelItem.lastMeal?.nahar && !hotelItem.lastMeal?.sham && (
+                                <span className="text-gray-500 text-xs">بدون وعده غذایی</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* بخش خدمات اضافی */}
             {packageData.services && packageData.services.length > 0 && (

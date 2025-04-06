@@ -11,7 +11,9 @@ import {
   FaPassport,
   FaFileDownload,
   FaCalendarAlt,
-  FaSpinner
+  FaSpinner,
+  FaRoute,
+  FaUsers
 } from 'react-icons/fa'
 import axios from 'axios'
 import { toast as reactToastify } from 'react-toastify'
@@ -27,6 +29,7 @@ interface Passenger {
   documentType: 'nationalId' | 'passport';
   documentNumber: string;
   nationality?: string;
+  customNationality?: boolean;
 }
 
 interface Airline {
@@ -42,7 +45,15 @@ interface Aircraft {
   manufacturer: string;
 }
 
+interface Route {
+  _id: string;
+  origin: string;
+  destination: string;
+  estimatedDuration: number;
+}
+
 interface FlightInfo {
+  routeId?: string;
   origin: string;
   destination: string;
   date: string;
@@ -54,6 +65,7 @@ interface FlightInfo {
 export default function FloatingTicket() {
   // استیت‌ها
   const [passengers, setPassengers] = useState<Passenger[]>([])
+  const [passengerCount, setPassengerCount] = useState<number>(1)
   const [flightInfo, setFlightInfo] = useState<FlightInfo>({
     origin: '',
     destination: '',
@@ -63,31 +75,40 @@ export default function FloatingTicket() {
   })
   const [airlines, setAirlines] = useState<Airline[]>([])
   const [aircraft, setAircraft] = useState<Aircraft[]>([])
+  const [routes, setRoutes] = useState<Route[]>([])
   const [selectedAirline, setSelectedAirline] = useState<Airline | null>(null)
   const [selectedAircraft, setSelectedAircraft] = useState<Aircraft | null>(null)
+  const [selectedRoute, setSelectedRoute] = useState<Route | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [nationalities] = useState<string[]>([
+    'Iranian', 'Afghan', 'Iraqi', 'Turkish', 'Pakistani', 'Arabic', 'Other'
+  ])
   
-  // دریافت لیست شرکت‌های هواپیمایی و هواپیماها
+  // دریافت لیست شرکت‌های هواپیمایی، هواپیماها و مسیرها
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('token')
         if (!token) return
         
-        const [airlinesRes, aircraftRes] = await Promise.all([
+        const [airlinesRes, aircraftRes, routesRes] = await Promise.all([
           axios.get('http://localhost:5000/api/floating-ticket/airlines', {
             headers: { 'x-auth-token': token }
           }),
           axios.get('http://localhost:5000/api/floating-ticket/aircraft', {
+            headers: { 'x-auth-token': token }
+          }),
+          axios.get('http://localhost:5000/api/floating-ticket/routes', {
             headers: { 'x-auth-token': token }
           })
         ])
         
         setAirlines(airlinesRes.data)
         setAircraft(aircraftRes.data)
+        setRoutes(routesRes.data)
       } catch (err: any) {
         console.error('خطا در دریافت اطلاعات:', err)
-        reactToastify.error('خطا در دریافت اطلاعات هواپیمایی')
+        reactToastify.error('خطا در دریافت اطلاعات')
       }
     }
     
@@ -101,10 +122,32 @@ export default function FloatingTicket() {
       englishFirstName: '',
       englishLastName: '',
       documentType: 'passport',
-      documentNumber: ''
+      documentNumber: '',
+      nationality: 'Iranian',
+      customNationality: false
     }
     
     setPassengers([...passengers, newPassenger])
+  }
+
+  // اضافه کردن چندین مسافر به صورت یکجا
+  const addMultiplePassengers = () => {
+    const count = passengerCount > 0 ? passengerCount : 1;
+    const newPassengers: Passenger[] = [];
+    
+    for (let i = 0; i < count; i++) {
+      newPassengers.push({
+        id: `${Date.now()}-${i}`,
+        englishFirstName: '',
+        englishLastName: '',
+        documentType: 'passport',
+        documentNumber: '',
+        nationality: 'Iranian',
+        customNationality: false
+      });
+    }
+    
+    setPassengers([...passengers, ...newPassengers]);
   }
 
   // حذف مسافر
@@ -124,6 +167,22 @@ export default function FloatingTicket() {
     setFlightInfo({ ...flightInfo, [field]: value })
   }
 
+  // تغییر مسیر انتخاب شده
+  const handleRouteChange = (routeId: string) => {
+    const route = routes.find(r => r._id === routeId);
+    if (route) {
+      setSelectedRoute(route);
+      setFlightInfo({
+        ...flightInfo,
+        routeId: route._id,
+        origin: route.origin,
+        destination: route.destination
+      });
+    } else {
+      setSelectedRoute(null);
+    }
+  };
+
   // تولید و دانلود بلیط
   const generateAndDownloadTicket = async () => {
     // اعتبارسنجی داده‌ها
@@ -141,8 +200,9 @@ export default function FloatingTicket() {
       return reactToastify.error('لطفاً اطلاعات همه مسافران را کامل کنید')
     }
     
-    if (!flightInfo.origin.trim() || !flightInfo.destination.trim() || !flightInfo.date.trim()) {
-      return reactToastify.error('لطفاً اطلاعات پرواز را کامل کنید')
+    // بررسی انتخاب مسیر یا وارد کردن مبدا و مقصد
+    if ((!selectedRoute && (!flightInfo.origin.trim() || !flightInfo.destination.trim())) || !flightInfo.date.trim()) {
+      return reactToastify.error('لطفاً مسیر و تاریخ پرواز را مشخص کنید')
     }
     
     try {
@@ -157,56 +217,47 @@ export default function FloatingTicket() {
       const response = await axios.post(
         'http://localhost:5000/api/floating-ticket/generate',
         {
-          passengers, // ارسال کل لیست مسافران (بک‌اند فعلا فقط اولی را استفاده می‌کند)
+          passengers,
           flightInfo,
-          airline: selectedAirline, // ارسال اطلاعات ایرلاین انتخابی
-          aircraft: selectedAircraft // ارسال اطلاعات هواپیما انتخابی
+          airline: selectedAirline,
+          aircraft: selectedAircraft,
+          route: selectedRoute
         },
         {
           headers: {
             'x-auth-token': token
-          },
-          responseType: 'blob' // مهم: دریافت پاسخ به صورت blob
+          }
         }
       );
 
-      // ایجاد لینک دانلود برای Blob دریافتی
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      // استخراج نام فایل از هدر یا تولید نام پیش‌فرض
-      const contentDisposition = response.headers['content-disposition'];
-      let fileName = `ticket-${Date.now()}.pdf`;
-      if (contentDisposition) {
-        const fileNameMatch = contentDisposition.match(/filename="?(.+)"?/i);
-        if (fileNameMatch && fileNameMatch.length === 2)
-          fileName = decodeURIComponent(fileNameMatch[1]);
+      // بررسی پاسخ سرور
+      if (response.data && response.data.downloadUrl) {
+        // استفاده از URL دانلود مستقیم
+        const downloadUrl = `http://localhost:5000${response.data.downloadUrl}`;
+        
+        // ایجاد لینک دانلود و کلیک روی آن
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.setAttribute('target', '_blank');
+        
+        // اگر نمی‌خواهید صفحه‌ی جدید باز شود، از دستور زیر استفاده کنید
+        // link.setAttribute('download', 'ticket.pdf');
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        reactToastify.success('PDF بلیط با موفقیت تولید شد');
+      } else {
+        throw new Error('پاسخ سرور حاوی آدرس دانلود نیست');
       }
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-
-      // پاکسازی لینک
-      link.parentNode?.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      reactToastify.success('PDF بلیط با موفقیت دانلود شد');
-
     } catch (err: any) {
       console.error('خطا در تولید یا دانلود بلیط PDF:', err);
-      // نمایش پیام خطای سرور اگر وجود داشت
-      if (err.response && err.response.data instanceof Blob) {
-         try {
-            const errorBlob = await err.response.data.text();
-            const errorJson = JSON.parse(errorBlob);
-            reactToastify.error(errorJson.message || 'خطا در تولید PDF در سرور');
-         } catch(parseError) {
-             reactToastify.error('خطای ناشناخته در دریافت پاسخ خطا از سرور');
-         }
-      } else if (err.response && err.response.data?.message) {
-           reactToastify.error(err.response.data.message);
+      
+      if (err.response && err.response.data?.message) {
+        reactToastify.error(err.response.data.message);
       } else {
-          reactToastify.error('خطا در ارتباط با سرور یا تولید بلیط');
+        reactToastify.error('خطا در ارتباط با سرور یا تولید بلیط');
       }
     } finally {
       setIsGenerating(false)
@@ -235,26 +286,31 @@ export default function FloatingTicket() {
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-gray-700 mb-2">مبدأ</label>
-              <input
-                type="text"
-                value={flightInfo.origin}
-                onChange={(e) => updateFlightInfo('origin', e.target.value)}
-                className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="مثال: تهران (IKA)"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 mb-2">مقصد</label>
-              <input
-                type="text"
-                value={flightInfo.destination}
-                onChange={(e) => updateFlightInfo('destination', e.target.value)}
-                className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="مثال: استانبول (IST)"
-              />
+            <div className="lg:col-span-2">
+              <label className="block text-gray-700 mb-2">انتخاب مسیر</label>
+              <div className="flex flex-col space-y-2">
+                <select
+                  value={selectedRoute?._id || ''}
+                  onChange={(e) => handleRouteChange(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">انتخاب مسیر پروازی</option>
+                  {routes.map(route => (
+                    <option key={route._id} value={route._id}>
+                      {route.origin} به {route.destination}
+                    </option>
+                  ))}
+                </select>
+                {selectedRoute && (
+                  <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                    <div className="flex items-center gap-2 text-indigo-700">
+                      <FaRoute />
+                      <span className="font-semibold">مسیر انتخاب شده:</span>
+                      <span>{selectedRoute.origin} به {selectedRoute.destination}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             
             <div>
@@ -353,18 +409,47 @@ export default function FloatingTicket() {
               اطلاعات مسافران
             </h2>
             
-            <button
-              onClick={addPassenger}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors"
-            >
-              <FaPlus />
-              افزودن مسافر
-            </button>
+            <div className="flex gap-2 items-center">
+              {passengers.length === 0 && (
+                <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-lg border border-gray-200">
+                  <label className="text-gray-700 font-medium flex items-center gap-2">
+                    <FaUsers className="text-indigo-500" />
+                    <span>تعداد مسافران:</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="30"
+                    value={passengerCount}
+                    onChange={(e) => setPassengerCount(parseInt(e.target.value) || 1)}
+                    className="w-16 bg-white border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center"
+                  />
+                  
+                  <button
+                    onClick={addMultiplePassengers}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors"
+                  >
+                    <FaPlus />
+                    افزودن
+                  </button>
+                </div>
+              )}
+              
+              {passengers.length > 0 && (
+                <button
+                  onClick={addPassenger}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors"
+                >
+                  <FaPlus />
+                  افزودن مسافر
+                </button>
+              )}
+            </div>
           </div>
           
           {passengers.length === 0 ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-              <p className="text-gray-500">لطفاً با کلیک بر روی دکمه «افزودن مسافر»، مسافران خود را اضافه کنید.</p>
+              <p className="text-gray-500">لطفاً تعداد مسافران را مشخص کنید و دکمه افزودن را کلیک کنید.</p>
             </div>
           ) : (
             <AnimatePresence>
@@ -457,15 +542,67 @@ export default function FloatingTicket() {
                     </div>
                     
                     <div>
-                      <label className="block text-gray-700 mb-2">ملیت (اختیاری)</label>
-                      <input
-                        type="text"
-                        value={passenger.nationality || ''}
-                        onChange={(e) => updatePassenger(passenger.id, 'nationality', e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="مثال: Iranian"
-                        dir="ltr"
-                      />
+                      <label className="block text-gray-700 mb-2">ملیت</label>
+                      {!passenger.customNationality ? (
+                        <select
+                          value={passenger.nationality || 'Iranian'}
+                          onChange={(e) => {
+                            if (e.target.value === 'Other') {
+                              const updatedPassengers = passengers.map(p => {
+                                if (p.id === passenger.id) {
+                                  return { 
+                                    ...p, 
+                                    customNationality: true, 
+                                    nationality: '' 
+                                  };
+                                }
+                                return p;
+                              });
+                              setPassengers(updatedPassengers);
+                            } else {
+                              updatePassenger(passenger.id, 'nationality', e.target.value);
+                            }
+                          }}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          dir="ltr"
+                        >
+                          {nationalities.map(nat => (
+                            <option key={nat} value={nat === 'Other' ? 'Other' : nat}>
+                              {nat === 'Other' ? 'سایر...' : nat}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="flex flex-row-reverse">
+                          <input
+                            type="text"
+                            value={passenger.nationality || ''}
+                            onChange={(e) => updatePassenger(passenger.id, 'nationality', e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-300 rounded-r-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            placeholder="ملیت را وارد کنید..."
+                            dir="ltr"
+                          />
+                          <button 
+                            onClick={() => {
+                              const updatedPassengers = passengers.map(p => {
+                                if (p.id === passenger.id) {
+                                  return { 
+                                    ...p, 
+                                    customNationality: false, 
+                                    nationality: 'Iranian' 
+                                  };
+                                }
+                                return p;
+                              });
+                              setPassengers(updatedPassengers);
+                            }}
+                            className="bg-gray-200 px-3 rounded-l-lg text-gray-700 hover:bg-gray-300"
+                            title="بازگشت به حالت انتخابی"
+                          >
+                            ↩
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </motion.div>

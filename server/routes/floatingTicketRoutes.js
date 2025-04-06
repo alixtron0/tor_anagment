@@ -4,6 +4,7 @@ const { check, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const Airline = require('../models/Airline');
 const Aircraft = require('../models/Aircraft');
+const Route = require('../models/Route');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fontkit = require('@pdf-lib/fontkit');
 const fs = require('fs');
@@ -41,6 +42,21 @@ router.get('/aircraft', auth, async (req, res) => {
 });
 
 /**
+ * @route   GET /api/floating-ticket/routes
+ * @desc    دریافت لیست مسیرهای فعال
+ * @access  خصوصی
+ */
+router.get('/routes', auth, async (req, res) => {
+  try {
+    const routes = await Route.find({ isActive: true }).select('origin destination estimatedDuration');
+    res.json(routes);
+  } catch (err) {
+    console.error('خطا در دریافت مسیرها:', err.message);
+    res.status(500).json({ message: `خطای سرور در دریافت مسیرها: ${err.message}` });
+  }
+});
+
+/**
  * @route   POST /api/floating-ticket/generate
  * @desc    تولید بلیط PDF با استفاده از قالب و فیلدهای فرم
  * @access  خصوصی
@@ -53,9 +69,8 @@ router.post('/generate', [
     check('passengers.*.englishLastName', 'نام خانوادگی انگلیسی الزامی است').notEmpty(),
     check('passengers.*.documentNumber', 'شماره سند الزامی است').notEmpty(),
     check('flightInfo', 'اطلاعات پرواز الزامی است').isObject(),
-    check('flightInfo.origin', 'مبدأ پرواز الزامی است').notEmpty(),
-    check('flightInfo.destination', 'مقصد پرواز الزامی است').notEmpty(),
     check('flightInfo.date', 'تاریخ پرواز الزامی است').notEmpty(),
+    // مبدأ و مقصد اجباری نیستند اگر route ارسال شده باشد
   ]
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -64,8 +79,30 @@ router.post('/generate', [
   }
 
   try {
-    const { passengers, flightInfo } = req.body;
-    const passenger = passengers[0]; 
+    const { passengers, flightInfo, route } = req.body;
+    
+    // بررسی مقادیر مبدأ و مقصد
+    let origin = flightInfo.origin;
+    let destination = flightInfo.destination;
+
+    // اگر مسیر ارسال شده باشد، از آن استفاده می‌کنیم
+    if (route && route._id) {
+      try {
+        const routeData = await Route.findById(route._id);
+        if (routeData) {
+          origin = routeData.origin;
+          destination = routeData.destination;
+        }
+      } catch (routeError) {
+        console.error('خطا در دریافت اطلاعات مسیر:', routeError);
+        // در صورت خطا، از مقادیر ارسالی استفاده می‌کنیم
+      }
+    }
+
+    // اطمینان از وجود مبدأ و مقصد
+    if (!origin || !destination) {
+      return res.status(400).json({ message: 'مبدأ و مقصد پرواز الزامی است' });
+    }
 
     // تنظیم هدرهای CORS قبل از هدرهای دیگر
     res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); // اجازه به فرانت‌اند شما
@@ -95,107 +132,116 @@ router.post('/generate', [
         vazirFontBytes = null; // ادامه بدون فونت وزیر
     }
 
-    // --- بارگذاری PDF و ثبت Fontkit --- 
-    let pdfDoc;
-    try {
-      pdfDoc = await PDFDocument.load(templateBytes);
-      pdfDoc.registerFontkit(fontkit); 
-      console.log('PDF Template loaded and fontkit registered successfully.'); // لاگ موفقیت
-    } catch (loadError) {
-      console.error('CRITICAL: Error loading PDF template or registering fontkit:', loadError);
-      return res.status(500).json({ message: 'خطای حیاتی در بارگذاری قالب PDF.' });
-    }
-    
-    // --- جاسازی فونت --- 
-    let vazirFont = null; // مقداردهی اولیه
+    // ایجاد یک فایل PDF خروجی نهایی که همه صفحات مسافران را در آن قرار خواهیم داد
+    const finalPdfDoc = await PDFDocument.create();
     if (vazirFontBytes) {
+      finalPdfDoc.registerFontkit(fontkit);
+    }
+
+    // پردازش هر مسافر و ایجاد صفحه مربوط به آن
+    for (const passenger of passengers) {
+      // --- بارگذاری PDF و ثبت Fontkit برای هر مسافر --- 
+      let pdfDoc;
       try {
-        vazirFont = await pdfDoc.embedFont(vazirFontBytes);
-        console.log('Vazir font embedded successfully.'); // لاگ موفقیت
-      } catch (fontEmbedError) {
-          console.error("ERROR: Could not embed Vazir font:", fontEmbedError);
-      }
-      } else {
-        console.log("Vazir font bytes not available, using default font.");
+        pdfDoc = await PDFDocument.load(templateBytes);
+        pdfDoc.registerFontkit(fontkit); 
+        console.log(`PDF Template loaded for passenger ${passenger.englishFirstName} ${passenger.englishLastName}`);
+      } catch (loadError) {
+        console.error('CRITICAL: Error loading PDF template or registering fontkit:', loadError);
+        return res.status(500).json({ message: 'خطای حیاتی در بارگذاری قالب PDF.' });
       }
       
-    // --- دریافت فرم و فیلدها --- 
-    let form;
-    try {
-       form = pdfDoc.getForm();
-       console.log('PDF form retrieved successfully.'); // لاگ موفقیت
-    } catch (formError) {
-        console.error('CRITICAL: Error getting form from PDF:', formError);
-        if (formError.message.includes('does not contain a form')) {
-             console.warn("The PDF template does not seem to contain an AcroForm. Check if fields were added correctly using 'Prepare Form' tool.");
+      // --- جاسازی فونت --- 
+      let vazirFont = null; // مقداردهی اولیه
+      if (vazirFontBytes) {
+        try {
+          vazirFont = await pdfDoc.embedFont(vazirFontBytes);
+        } catch (fontEmbedError) {
+            console.error("ERROR: Could not embed Vazir font:", fontEmbedError);
         }
-        return res.status(500).json({ message: 'خطای حیاتی در پردازش فرم PDF.' });
-    }
-    
-    // --- نگاشت داده‌ها به نام فیلدها --- 
-    const fieldDataMap = {
-      'route1': flightInfo.origin || '',
-      'route2': flightInfo.destination || '',
-      'flightDate': flightInfo.date ? formatPersianDate(flightInfo.date) : '',
-      'flightTime': flightInfo.time || '',
-      'ticket code': `TC-${uuidv4().substring(0, 8)}`,
-      'name': passenger.englishFirstName || '',
-      'fname': passenger.englishLastName || '',
-      'docnumber': passenger.documentNumber || ''
-    };
-
-    // --- پر کردن فیلدها و تنظیم فونت --- 
-    console.log('Attempting to fill form fields...'); // لاگ شروع
-    let fieldsFound = 0;
-    for (const fieldName in fieldDataMap) {
+      }
+        
+      // --- دریافت فرم و فیلدها --- 
+      let form;
       try {
-        const field = form.getField(fieldName);
-        if (field) {
-          fieldsFound++;
-          const valueToSet = String(fieldDataMap[fieldName]);
-          console.log(`Setting field '${fieldName}' with value: "${valueToSet}"`);
-
-          if (field.constructor.name === 'PDFTextField') {
-              field.setText(valueToSet);
-              if (vazirFont) {
-                 try {
-                     field.updateAppearances(vazirFont);
-                 } catch (appearanceError) {
-                     console.error(`ERROR: Could not update appearances for field '${fieldName}' with Vazir font:`, appearanceError);
-        }
-              } // else { maybe update with default font }
+         form = pdfDoc.getForm();
+      } catch (formError) {
+          console.error('CRITICAL: Error getting form from PDF:', formError);
+          if (formError.message.includes('does not contain a form')) {
+               console.warn("The PDF template does not seem to contain an AcroForm.");
           }
-          // else if (field.constructor.name === 'PDFCheckBox') { ... }
+          return res.status(500).json({ message: 'خطای حیاتی در پردازش فرم PDF.' });
+      }
+      
+      // --- نگاشت داده‌ها به نام فیلدها --- 
+      const fieldDataMap = {
+        'route1': origin || '',
+        'route2': destination || '',
+        'flightDate': flightInfo.date ? formatPersianDate(flightInfo.date) : '',
+        'flightTime': flightInfo.time || '',
+        'ticket code': `TC-${uuidv4().substring(0, 8)}`,
+        'name': passenger.englishFirstName || '',
+        'fname': passenger.englishLastName || '',
+        'docnumber': passenger.documentNumber || ''
+      };
 
+      // --- پر کردن فیلدها و تنظیم فونت --- 
+      console.log(`Filling fields for passenger ${passenger.englishFirstName} ${passenger.englishLastName}`);
+      let fieldsFound = 0;
+      for (const fieldName in fieldDataMap) {
+        try {
+          const field = form.getField(fieldName);
+          if (field) {
+            fieldsFound++;
+            const valueToSet = String(fieldDataMap[fieldName]);
+
+            if (field.constructor.name === 'PDFTextField') {
+                field.setText(valueToSet);
+                if (vazirFont) {
+                   try {
+                       field.updateAppearances(vazirFont);
+                   } catch (appearanceError) {
+                       console.error(`ERROR: Could not update appearances for field '${fieldName}' with Vazir font:`, appearanceError);
+                   }
+                }
+            }
           } else {
-           console.warn(`Field with name '${fieldName}' not found in PDF template.`);
+            console.warn(`Field with name '${fieldName}' not found in PDF template.`);
           }
-      } catch (fieldError) {
-          console.error(`CRITICAL: Error processing field '${fieldName}':`, fieldError);
+        } catch (fieldError) {
+            console.error(`CRITICAL: Error processing field '${fieldName}':`, fieldError);
+        }
+      }
+          
+      // --- Flatten کردن فرم --- 
+      try {
+        form.flatten();
+        console.log(`Form flattened for passenger ${passenger.englishFirstName} ${passenger.englishLastName}`);
+      } catch (flattenError) {
+         console.error('CRITICAL: Error flattening the PDF form:', flattenError);
+         return res.status(500).json({ message: 'خطای حیاتی در نهایی‌سازی فرم PDF.' });
+      }
+
+      // --- اضافه کردن صفحات این مسافر به PDF نهایی ---
+      try {
+        const pdfBytes = await pdfDoc.save();
+        const loadedPdf = await PDFDocument.load(pdfBytes);
+        const [passengerPage] = await finalPdfDoc.copyPages(loadedPdf, [0]); // کپی صفحه اول (و تنها صفحه) از فایل مسافر
+        finalPdfDoc.addPage(passengerPage);
+        console.log(`Page added to final PDF for passenger ${passenger.englishFirstName} ${passenger.englishLastName}`);
+      } catch (err) {
+        console.error(`Error adding page for passenger ${passenger.englishFirstName}:`, err);
       }
     }
-     if (fieldsFound === 0) {
-         console.error("CRITICAL: No form fields were found or processed. Check field names in template and fieldDataMap.");
-     }
-    console.log(`Finished filling form fields. ${fieldsFound} fields processed.`);
-        
-    // --- Flatten کردن فرم --- 
+    
+    // --- ذخیره PDF نهایی ---
+    let finalPdfBytes;
     try {
-      form.flatten();
-      console.log('Form flattened successfully.'); // لاگ موفقیت
-    } catch (flattenError) {
-       console.error('CRITICAL: Error flattening the PDF form:', flattenError);
-       return res.status(500).json({ message: 'خطای حیاتی در نهایی‌سازی فرم PDF.' });
-    }
-
-    // --- سریالایز کردن PDF و ارسال --- 
-    let pdfBytes;
-    try {
-       pdfBytes = await pdfDoc.save();
-       console.log('PDF saved to bytes successfully.'); // لاگ موفقیت
+      finalPdfBytes = await finalPdfDoc.save();
+      console.log('Final PDF with all passengers saved successfully.');
     } catch (saveError) {
-        console.error('CRITICAL: Error saving PDF to bytes:', saveError);
-        return res.status(500).json({ message: 'خطای حیاتی در ذخیره‌سازی PDF.' });
+      console.error('CRITICAL: Error saving final PDF:', saveError);
+      return res.status(500).json({ message: 'خطای حیاتی در ذخیره‌سازی PDF نهایی.' });
     }
     
     // --- ذخیره فایل PDF در سرور --- 
@@ -209,8 +255,8 @@ router.post('/generate', [
     const filePath = path.join(generatedDir, uniqueFilename);
 
     try {
-        fs.writeFileSync(filePath, pdfBytes);
-        console.log(`Generated PDF saved to: ${filePath}`);
+        fs.writeFileSync(filePath, finalPdfBytes);
+        console.log(`Generated PDF with ${passengers.length} passengers saved to: ${filePath}`);
 
         // --- زمان‌بندی حذف فایل پس از 10 دقیقه ---
         const delayMinutes = 10;
@@ -220,9 +266,9 @@ router.post('/generate', [
                 if (fs.existsSync(filePath)) {
                     fs.unlinkSync(filePath);
                     console.log(`Deleted temporary file: ${filePath}`);
-        } else {
+                } else {
                     console.log(`File already deleted or moved: ${filePath}`);
-        }
+                }
             } catch (deleteError) {
                 console.error(`Error deleting temporary file ${filePath}:`, deleteError);
             }
@@ -230,7 +276,7 @@ router.post('/generate', [
         
         // --- ارسال لینک دانلود به فرانت‌اند ---
         const downloadUrl = `/api/floating-ticket/download/${uniqueFilename}`;
-        res.json({ downloadUrl }); // ارسال پاسخ JSON حاوی URL
+        res.json({ downloadUrl, passengerCount: passengers.length }); // ارسال پاسخ JSON حاوی URL و تعداد مسافران
 
     } catch (writeError) {
         console.error(`CRITICAL: Error writing PDF file to ${filePath}:`, writeError);
@@ -248,22 +294,23 @@ router.post('/generate', [
  * @desc    دریافت بلیط با شناسه
  * @access  عمومی
  */
-router.get('/:fileName', (req, res) => {
-  try {
-    const filePath = path.join(__dirname, '..', 'uploads', req.params.fileName);
-    
-    // بررسی وجود فایل
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'بلیط مورد نظر یافت نشد' });
-    }
-    
-    // ارسال فایل
-    res.sendFile(filePath);
-  } catch (err) {
-    console.error('خطا در دریافت بلیط:', err.message);
-    res.status(500).json({ message: `خطای سرور در دریافت بلیط: ${err.message}` });
-  }
-});
+// این مسیر دیگر مورد نیاز نیست و با مسیر /download/:filename تداخل دارد
+// router.get('/:fileName', (req, res) => {
+//   try {
+//     const filePath = path.join(__dirname, '..', 'uploads', req.params.fileName);
+//     
+//     // بررسی وجود فایل
+//     if (!fs.existsSync(filePath)) {
+//       return res.status(404).json({ message: 'بلیط مورد نظر یافت نشد' });
+//     }
+//     
+//     // ارسال فایل
+//     res.sendFile(filePath);
+//   } catch (err) {
+//     console.error('خطا در دریافت بلیط:', err.message);
+//     res.status(500).json({ message: `خطای سرور در دریافت بلیط: ${err.message}` });
+//   }
+// });
 
 /**
  * تبدیل متن انگلیسی به فارسی
@@ -337,34 +384,46 @@ function formatPersianDate(dateString) {
   }
 }
 
-// مسیر GET برای دانلود فایل ذخیره شده
+/**
+ * @route   GET /api/floating-ticket/download/:filename
+ * @desc    دانلود بلیط PDF ذخیره شده
+ * @access  عمومی
+ */
 router.get('/download/:filename', (req, res) => {
-    const filename = req.params.filename;
-    // اعتبارسنجی اولیه نام فایل (جلوگیری از path traversal)
-    if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-        return res.status(400).send('نام فایل نامعتبر است.');
+  const filename = req.params.filename;
+  
+  // اعتبارسنجی اولیه نام فایل (جلوگیری از path traversal)
+  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).json({ message: 'نام فایل نامعتبر است' });
+  }
+
+  const generatedDir = path.join(__dirname, '..', 'assets', 'generated');
+  const filePath = path.join(generatedDir, filename);
+
+  console.log(`Download request received for: ${filename}`);
+  console.log(`Attempting to download from path: ${filePath}`);
+
+  // بررسی وجود فایل
+  if (!fs.existsSync(filePath)) {
+    console.error(`File not found: ${filePath}`);
+    return res.status(404).json({ message: 'فایل یافت نشد' });
+  }
+
+  // تنظیم هدرهای CORS
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,x-auth-token,Authorization');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+  res.setHeader('Access-Control-Allow-Credentials', true);
+
+  // ارسال فایل برای دانلود با نام مشخص
+  res.download(filePath, `tickets-${Date.now()}.pdf`, (err) => {
+    if (err) {
+      console.error(`Error sending file ${filename} for download:`, err);
+      return res.status(500).json({ message: 'خطا در دانلود فایل' });
     }
-
-    const generatedDir = path.join(__dirname, '..', 'assets', 'generated');
-    const filePath = path.join(generatedDir, filename);
-
-    console.log(`Download request received for: ${filename}`);
-    console.log(`Attempting to download from path: ${filePath}`);
-
-    // بررسی وجود فایل
-    if (fs.existsSync(filePath)) {
-        res.download(filePath, filename, (err) => {
-            if (err) {
-                console.error(`Error sending file ${filename} for download:`, err);
-            } else {
-                console.log(`File ${filename} sent successfully for download.`);
-            }
-        });
-    } else {
-        console.warn(`File not found for download request: ${filePath}`);
-        res.status(404).send('فایل مورد نظر یافت نشد. ممکن است منقضی شده باشد.');
-    }
+    console.log(`File ${filename} sent successfully for download.`);
+  });
 });
 
-module.exports = router; 
 module.exports = router; 

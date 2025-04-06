@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_ENV=development concurrently \"next dev --turbopack\" \"cd server && node server.js\"",
+    "dev": "cross-env NODE_ENV=development concurrently \"next dev --turbopack\" ",
     "build": "next build ",
     "start": "next start",
-    "lint": "next lint",
-    "server": "cd server && node server.js"
+    "lint": "next lint \"cd server && node server.js\"",
+    "server": "cd server && node server.js "
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",

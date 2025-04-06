@@ -92,13 +92,13 @@ export default function FloatingTicket() {
         if (!token) return
         
         const [airlinesRes, aircraftRes, routesRes] = await Promise.all([
-          axios.get('http://localhost:5000/api/floating-ticket/airlines', {
+          axios.get('http://185.94.99.35:5000/api/floating-ticket/airlines', {
             headers: { 'x-auth-token': token }
           }),
-          axios.get('http://localhost:5000/api/floating-ticket/aircraft', {
+          axios.get('http://185.94.99.35:5000/api/floating-ticket/aircraft', {
             headers: { 'x-auth-token': token }
           }),
-          axios.get('http://localhost:5000/api/floating-ticket/routes', {
+          axios.get('http://185.94.99.35:5000/api/floating-ticket/routes', {
             headers: { 'x-auth-token': token }
           })
         ])
@@ -215,7 +215,7 @@ export default function FloatingTicket() {
 
       // ارسال درخواست به بک‌اند
       const response = await axios.post(
-        'http://localhost:5000/api/floating-ticket/generate',
+        'http://185.94.99.35:5000/api/floating-ticket/generate',
         {
           passengers,
           flightInfo,
@@ -233,7 +233,7 @@ export default function FloatingTicket() {
       // بررسی پاسخ سرور
       if (response.data && response.data.downloadUrl) {
         // استفاده از URL دانلود مستقیم
-        const downloadUrl = `http://localhost:5000${response.data.downloadUrl}`;
+        const downloadUrl = `http://185.94.99.35:5000${response.data.downloadUrl}`;
         
         // ایجاد لینک دانلود و کلیک روی آن
         const link = document.createElement('a');

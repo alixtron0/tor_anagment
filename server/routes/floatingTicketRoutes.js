@@ -105,7 +105,7 @@ router.post('/generate', [
     }
 
     // تنظیم هدرهای CORS قبل از هدرهای دیگر
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); // اجازه به فرانت‌اند شما
+    res.setHeader('Access-Control-Allow-Origin', 'http://185.94.99.35:3000'); // اجازه به فرانت‌اند شما
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); // متدهای مجاز
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,x-auth-token,Authorization'); // هدرهای مجاز در درخواست
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition'); // اجازه به مرورگر برای خواندن Content-Disposition
@@ -410,7 +410,7 @@ router.get('/download/:filename', (req, res) => {
   }
 
   // تنظیم هدرهای CORS
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+  res.setHeader('Access-Control-Allow-Origin', 'http://185.94.99.35:3000');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,x-auth-token,Authorization');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');

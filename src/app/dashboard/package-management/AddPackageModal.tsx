@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { FaTimes, FaPlus, FaCalendarAlt, FaChevronDown, FaHotel, FaConciergeBell, FaBed, FaMapMarkerAlt, FaUpload, FaImage, FaGlobe, FaLock } from 'react-icons/fa'
+import { FaTimes, FaPlus, FaCalendarAlt, FaChevronDown, FaHotel, FaConciergeBell, FaBed, FaMapMarkerAlt, FaUpload, FaImage, FaGlobe, FaLock, FaExchangeAlt } from 'react-icons/fa'
 import axios from 'axios'
 import { useForm, Controller } from 'react-hook-form'
 import { toast } from 'react-toastify'
@@ -9,7 +9,6 @@ import { Package, HotelStay, MealOptions } from '@/components/types'
 import PriceInput from '@/components/PriceInput'
 import CustomCheckbox from '@/components/CustomCheckbox'
 import AirlineSelect from '@/components/AirlineSelect'
-import AircraftSelect from '@/components/AircraftSelect'
 import PersianDatePicker from '@/components/PersianDatePicker'
 
 interface Route {
@@ -17,6 +16,11 @@ interface Route {
   name: string
   origin: string
   destination: string
+}
+
+interface City {
+  _id: string
+  name: string
 }
 
 interface Hotel {
@@ -52,9 +56,11 @@ export default function AddPackageModal({
   onPackageLoaded
 }: AddPackageModalProps) {
   const [routes, setRoutes] = useState<Route[]>([])
+  const [cities, setCities] = useState<City[]>([])
   const [hotels, setHotels] = useState<Hotel[]>([])
   const [loading, setLoading] = useState(false)
   const [routeLoading, setRouteLoading] = useState(true)
+  const [cityLoading, setCityLoading] = useState(true)
   const [hotelLoading, setHotelLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<string>('basic')
   const [services, setServices] = useState<ServiceItem[]>([
@@ -70,6 +76,9 @@ export default function AddPackageModal({
   const [showReturnAirline, setShowReturnAirline] = useState(false)
   const [selectedDepartureAirline, setSelectedDepartureAirline] = useState<string>('')
   const [selectedReturnAirline, setSelectedReturnAirline] = useState<string>('')
+  const [routeSelectionType, setRouteSelectionType] = useState<'predefined' | 'custom'>('predefined')
+  const [originCity, setOriginCity] = useState<string>('')
+  const [destinationCity, setDestinationCity] = useState<string>('')
   
   const defaultValues: Package = {
     name: '',
@@ -142,20 +151,28 @@ export default function AddPackageModal({
     return true
   }
 
-  // اضافه کردن محاسبه قیمت کل
+  // اضافه کردن محاسبه قیمت کل با بهره‌گیری از watchAllFields
   useEffect(() => {
-    const calculateTotalPrice = () => {
-      const base = watchAllFields.basePrice || 0;
+    try {
+      // دریافت مستقیم مقدار قیمت پایه
+      const baseRaw = watchAllFields.basePrice;
+      const base = typeof baseRaw === 'number' ? baseRaw : parseFloat(baseRaw) || 0;
+      console.log('قیمت پایه خام:', baseRaw, 'تبدیل شده:', base);
+      
       const servicesTotal = services.reduce((total, service) => {
         if (service.calculateInPackage) {
           return total + (service.price || 0);
         }
         return total;
       }, 0);
-      setTotalPrice(base + servicesTotal);
-    };
-    
-    calculateTotalPrice();
+      
+      // محاسبه و تنظیم قیمت کل
+      const total = base + servicesTotal;
+      console.log('قیمت پایه:', base, 'قیمت سرویس‌ها:', servicesTotal, 'قیمت کل:', total);
+      setTotalPrice(total);
+    } catch (error) {
+      console.error('خطا در محاسبه قیمت کل:', error);
+    }
   }, [watchAllFields.basePrice, services]);
 
   // بارگذاری داده‌ها
@@ -180,6 +197,25 @@ export default function AddPackageModal({
       }
     }
 
+    // بارگذاری شهرها
+    const fetchCities = async () => {
+      try {
+        setCityLoading(true)
+        const token = localStorage.getItem('token')
+        const response = await axios.get(`http://185.94.99.35:5000/api/cities`, {
+          headers: {
+            'x-auth-token': token
+          }
+        })
+        setCities(response.data)
+        setCityLoading(false)
+      } catch (error) {
+        console.error('خطا در بارگذاری شهرها:', error)
+        toast.error('خطا در بارگذاری لیست شهرها')
+        setCityLoading(false)
+      }
+    }
+
     // بارگذاری هتل‌ها
     const fetchHotels = async () => {
       try {
@@ -200,6 +236,7 @@ export default function AddPackageModal({
     }
 
     fetchRoutes()
+    fetchCities()
     fetchHotels()
   }, [isEditing, packageData])
 
@@ -349,6 +386,13 @@ export default function AddPackageModal({
     setActiveTab(tab)
   }
 
+  // جابجایی مبدا و مقصد
+  const swapOriginDestination = () => {
+    const temp = originCity;
+    setOriginCity(destinationCity);
+    setDestinationCity(temp);
+  }
+
   // آماده‌سازی و ارسال داده‌ها به سرور
   const onSubmit = async (data: Package) => {
     // بررسی تعداد روزهای اقامت و نمایش هشدار (بدون توقف فرآیند)
@@ -375,6 +419,31 @@ export default function AddPackageModal({
         return;
       }
 
+      // بررسی و ترکیب داده‌های مسیر
+      let routeData = data.route;
+      if (routeSelectionType === 'custom' && originCity && destinationCity) {
+        // ارسال درخواست ایجاد مسیر جدید یا دریافت مسیر موجود
+        try {
+          const routeResponse = await axios.post(
+            `http://185.94.99.35:5000/api/routes/find-or-create`,
+            { 
+              origin: originCity, 
+              destination: destinationCity 
+            },
+            {
+              headers: { 'x-auth-token': token }
+            }
+          );
+          
+          routeData = routeResponse.data._id;
+        } catch (routeError: any) {
+          console.error('خطا در ثبت مسیر:', routeError);
+          toast.error(routeError.response?.data?.message || 'خطا در ثبت مسیر');
+          setLoading(false);
+          return;
+        }
+      }
+
       // تنظیم سرویس‌ها
       const packageServices = services.map(service => ({
         name: service.name,
@@ -388,6 +457,7 @@ export default function AddPackageModal({
       // ترکیب داده‌ها
       const packageData = {
         ...data,
+        route: routeData,
         basePrice: Number(data.basePrice) || 0,
         infantPrice: Number(data.infantPrice) || 0,
         servicesFee: Number(data.servicesFee) || 0,
@@ -403,9 +473,7 @@ export default function AddPackageModal({
           departure: data.transportation?.departure || 'zamini',
           return: data.transportation?.return || 'zamini',
           departureAirline: data.transportation?.departureAirline || undefined,
-          departureAircraft: data.transportation?.departureAircraft || undefined,
-          returnAirline: data.transportation?.returnAirline || undefined,
-          returnAircraft: data.transportation?.returnAircraft || undefined
+          returnAirline: data.transportation?.returnAirline || undefined
         },
         rooms: {
           single: { 
@@ -432,14 +500,14 @@ export default function AddPackageModal({
       };
       
       // اطمینان از وجود مقادیر الزامی
-      if (!packageData.route) {
+      if (!packageData.route && routeSelectionType === 'predefined') {
         toast.error('انتخاب مسیر الزامی است');
         setLoading(false);
         return;
       }
       
-      if (!packageData.startDate || !packageData.endDate) {
-        toast.error('تاریخ شروع و پایان الزامی است');
+      if (routeSelectionType === 'custom' && (!originCity || !destinationCity)) {
+        toast.error('انتخاب شهر مبدا و مقصد الزامی است');
         setLoading(false);
         return;
       }
@@ -735,25 +803,110 @@ export default function AddPackageModal({
 
                 {/* مسیر */}
                 <div>
-                  <label className="block mb-2 font-medium text-gray-700">مسیر</label>
-                  <div className="relative">
-                    <select
-                      {...register('route', { required: 'انتخاب مسیر الزامی است' })}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all appearance-none bg-white text-gray-900"
-                      disabled={routeLoading}
-                    >
-                      <option value="">انتخاب مسیر</option>
-                      {routes.map((route) => (
-                        <option key={route._id} value={route._id} className="text-gray-900">
-                          {route.origin} به {route.destination}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                      <FaChevronDown className="text-primary" />
-                    </div>
+                  <label className="block mb-2 font-medium text-gray-700">نوع انتخاب مسیر</label>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <label className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer
+                      ${routeSelectionType === 'predefined' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                      onClick={() => setRouteSelectionType('predefined')}>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
+                        ${routeSelectionType === 'predefined' ? 'border-blue-500' : 'border-gray-300'}`}>
+                        {routeSelectionType === 'predefined' && (
+                          <div className="w-3 h-3 rounded-full bg-blue-500" />
+                        )}
+                      </div>
+                      <span className={`font-medium ${routeSelectionType === 'predefined' ? 'text-blue-700' : 'text-gray-600'}`}>
+                        انتخاب از مسیرهای موجود
+                      </span>
+                    </label>
+                    
+                    <label className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer
+                      ${routeSelectionType === 'custom' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                      onClick={() => setRouteSelectionType('custom')}>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
+                        ${routeSelectionType === 'custom' ? 'border-blue-500' : 'border-gray-300'}`}>
+                        {routeSelectionType === 'custom' && (
+                          <div className="w-3 h-3 rounded-full bg-blue-500" />
+                        )}
+                      </div>
+                      <span className={`font-medium ${routeSelectionType === 'custom' ? 'text-blue-700' : 'text-gray-600'}`}>
+                        انتخاب شهر مبدا و مقصد
+                      </span>
+                    </label>
                   </div>
-                  {errors.route && (
+
+                  {routeSelectionType === 'predefined' ? (
+                    <div className="relative">
+                      <select
+                        {...register('route', { required: routeSelectionType === 'predefined' })}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all appearance-none bg-white text-gray-900"
+                        disabled={routeLoading}
+                      >
+                        <option value="">انتخاب مسیر</option>
+                        {routes.map((route) => (
+                          <option key={route._id} value={route._id} className="text-gray-900">
+                            {route.origin} به {route.destination}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <FaChevronDown className="text-primary" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="relative">
+                        <label className="block mb-2 font-medium text-gray-700">شهر مبدا</label>
+                        <select
+                          value={originCity}
+                          onChange={(e) => setOriginCity(e.target.value)}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all appearance-none bg-white text-gray-900"
+                          disabled={cityLoading}
+                        >
+                          <option value="">انتخاب شهر مبدا</option>
+                          {cities.map((city) => (
+                            <option key={city._id} value={city.name} className="text-gray-900">
+                              {city.name}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 left-0 top-8 flex items-center pl-3 pointer-events-none">
+                          <FaChevronDown className="text-primary" />
+                        </div>
+                      </div>
+                      
+                      <div className="relative">
+                        <label className="block mb-2 font-medium text-gray-700 flex items-center justify-between">
+                          شهر مقصد
+                          <button
+                            type="button"
+                            onClick={swapOriginDestination}
+                            className="text-indigo-500 hover:text-indigo-700 p-1 bg-indigo-50 rounded-full"
+                            title="جابجایی مبدا و مقصد"
+                          >
+                            <FaExchangeAlt size={16} />
+                          </button>
+                        </label>
+                        <select
+                          value={destinationCity}
+                          onChange={(e) => setDestinationCity(e.target.value)}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all appearance-none bg-white text-gray-900"
+                          disabled={cityLoading}
+                        >
+                          <option value="">انتخاب شهر مقصد</option>
+                          {cities.map((city) => (
+                            <option key={city._id} value={city.name} className="text-gray-900">
+                              {city.name}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 left-0 top-8 flex items-center pl-3 pointer-events-none">
+                          <FaChevronDown className="text-primary" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {errors.route && routeSelectionType === 'predefined' && (
                     <p className="mt-1 text-red-500 text-sm">{errors.route.message}</p>
                   )}
                 </div>
@@ -885,12 +1038,6 @@ export default function AddPackageModal({
                           register={register}
                           onAirlineChange={(airlineId) => setSelectedDepartureAirline(airlineId)}
                         />
-                        <AircraftSelect
-                          label="هواپیما (رفت)"
-                          name="transportation.departureAircraft"
-                          register={register}
-                          airlineId={selectedDepartureAirline}
-                        />
                       </div>
                     )}
                   </div>
@@ -934,12 +1081,6 @@ export default function AddPackageModal({
                           register={register}
                           onAirlineChange={(airlineId) => setSelectedReturnAirline(airlineId)}
                         />
-                        <AircraftSelect
-                          label="هواپیما (برگشت)"
-                          name="transportation.returnAircraft"
-                          register={register}
-                          airlineId={selectedReturnAirline}
-                        />
                       </div>
                     )}
                   </div>
@@ -952,6 +1093,22 @@ export default function AddPackageModal({
                     name="basePrice"
                     register={register}
                     error={errors.basePrice?.message}
+                    onChange={(value) => {
+                      console.log('قیمت پایه تغییر کرد:', value);
+                      // به‌روزرسانی مقدار در فرم
+                      setValue('basePrice', value);
+                      
+                      // محاسبه و به‌روزرسانی مستقیم قیمت کل
+                      const servicesTotal = services.reduce((total, service) => {
+                        if (service.calculateInPackage) {
+                          return total + (service.price || 0);
+                        }
+                        return total;
+                      }, 0);
+                      const newTotal = value + servicesTotal;
+                      console.log('قیمت پایه:', value, 'قیمت سرویس‌ها:', servicesTotal, 'قیمت کل جدید:', newTotal);
+                      setTotalPrice(newTotal);
+                    }}
                   />
                   <PriceInput
                     label="قیمت نوزاد"

@@ -40,6 +40,7 @@ connectDB();
 app.use('/api/users', require('./routes/users'));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/routes', require('./routes/routeRoutes'));
+app.use('/api/cities', require('./routes/cityRoutes'));
 app.use('/api/airlines', require('./routes/airlineRoutes'));
 app.use('/api/aircraft', require('./routes/aircraftRoutes'));
 app.use('/api/hotels', require('./routes/hotelRoutes'));

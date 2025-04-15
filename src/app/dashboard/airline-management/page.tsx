@@ -3,21 +3,16 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { FaPlus, FaPen, FaTrash, FaEye, FaEyeSlash, FaUpload, FaSearch, FaPlane, FaGlobe } from 'react-icons/fa';
+import { FaPlus, FaPen, FaTrash, FaEye, FaEyeSlash, FaUpload, FaSearch, FaPlane } from 'react-icons/fa';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import Image from 'next/image';
+import { motion } from 'framer-motion';
 
 // تعریف طرح اعتبارسنجی فرم
 const airlineSchema = z.object({
   name: z.string().min(2, { message: 'نام شرکت هواپیمایی باید حداقل 2 کاراکتر باشد' }),
-  code: z.string().min(2, { message: 'کد شرکت هواپیمایی باید حداقل 2 کاراکتر باشد' }),
-  country: z.string().min(2, { message: 'کشور باید حداقل 2 کاراکتر باشد' }),
-  website: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email({ message: 'فرمت ایمیل صحیح نیست' }).optional().or(z.literal('')),
-  address: z.string().optional(),
+  aircraftModel: z.string().optional(),
   description: z.string().optional(),
 });
 
@@ -26,15 +21,8 @@ type AirlineFormData = z.infer<typeof airlineSchema>;
 interface Airline {
   _id: string;
   name: string;
-  code: string;
-  country: string;
   logo: string;
-  website?: string;
-  contactInfo: {
-    phone?: string;
-    email?: string;
-    address?: string;
-  };
+  aircraftModel?: string;
   description?: string;
   isActive: boolean;
   createdAt: string;
@@ -58,12 +46,7 @@ export default function AirlineManagement() {
     resolver: zodResolver(airlineSchema),
     defaultValues: {
       name: '',
-      code: '',
-      country: '',
-      website: '',
-      phone: '',
-      email: '',
-      address: '',
+      aircraftModel: '',
       description: '',
     }
   });
@@ -99,8 +82,7 @@ export default function AirlineManagement() {
     } else {
       const filtered = airlines.filter(airline =>
         airline.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        airline.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        airline.country.toLowerCase().includes(searchTerm.toLowerCase())
+        (airline.aircraftModel && airline.aircraftModel.toLowerCase().includes(searchTerm.toLowerCase()))
       );
       setFilteredAirlines(filtered);
     }
@@ -129,12 +111,7 @@ export default function AirlineManagement() {
       // ایجاد فرم‌دیتا برای ارسال فایل
       const formData = new FormData();
       formData.append('name', data.name);
-      formData.append('code', data.code);
-      formData.append('country', data.country);
-      formData.append('website', data.website || '');
-      formData.append('phone', data.phone || '');
-      formData.append('email', data.email || '');
-      formData.append('address', data.address || '');
+      formData.append('aircraftModel', data.aircraftModel || '');
       formData.append('description', data.description || '');
       
       if (logoFile) {
@@ -182,12 +159,7 @@ export default function AirlineManagement() {
     setEditMode(true);
     setCurrentAirlineId(airline._id);
     setValue('name', airline.name);
-    setValue('code', airline.code);
-    setValue('country', airline.country);
-    setValue('website', airline.website || '');
-    setValue('phone', airline.contactInfo.phone || '');
-    setValue('email', airline.contactInfo.email || '');
-    setValue('address', airline.contactInfo.address || '');
+    setValue('aircraftModel', airline.aircraftModel || '');
     setValue('description', airline.description || '');
     
     // تنظیم پیش‌نمایش لوگو
@@ -228,12 +200,7 @@ export default function AirlineManagement() {
       // ایجاد فرم‌دیتا برای ارسال
       const formData = new FormData();
       formData.append('name', airline.name);
-      formData.append('code', airline.code);
-      formData.append('country', airline.country);
-      formData.append('website', airline.website || '');
-      formData.append('phone', airline.contactInfo.phone || '');
-      formData.append('email', airline.contactInfo.email || '');
-      formData.append('address', airline.contactInfo.address || '');
+      formData.append('aircraftModel', airline.aircraftModel || '');
       formData.append('description', airline.description || '');
       formData.append('isActive', (!currentStatus).toString());
       
@@ -271,141 +238,96 @@ export default function AirlineManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-6">
+    <div className="min-h-screen bg-white p-8">
       <div className="max-w-7xl mx-auto">
-        {/* هدر صفحه */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 bg-white rounded-2xl p-6 shadow-lg border-b-4 border-blue-500">
-          <div className="flex items-center mb-4 md:mb-0">
-            <div className="bg-blue-500 p-3 rounded-full mr-4 text-white">
-              <FaPlane size={24} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">مدیریت شرکت‌های هواپیمایی</h1>
-              <p className="text-gray-500 text-sm">مدیریت و مشاهده اطلاعات شرکت‌های هواپیمایی</p>
+        {/* هدر صفحه - طراحی جدید */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-12 text-center"
+        >
+          <div className="inline-flex items-center justify-center mb-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-blue-500 rounded-full blur-lg opacity-20 transform scale-150"></div>
+              <div className="relative bg-white p-5 rounded-full shadow-xl border-2 border-blue-100">
+                <FaPlane size={40} className="text-blue-600" />
+              </div>
             </div>
           </div>
-          <div className="relative">
+          <h1 className="text-4xl font-bold text-gray-800 mb-3">مدیریت شرکت‌های هواپیمایی</h1>
+          <p className="text-gray-500 max-w-2xl mx-auto">
+            در این بخش می‌توانید شرکت‌های هواپیمایی را مدیریت کنید، اطلاعات آن‌ها را ویرایش کنید و شرکت‌های جدید اضافه نمایید.
+          </p>
+          
+          <div className="mt-8 max-w-xl mx-auto relative">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="جستجو در شرکت‌های هواپیمایی..."
-              className="w-full md:w-64 px-4 py-2 pl-10 bg-blue-50 border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-700 placeholder-gray-500 transition-all"
+              className="w-full px-6 py-4 pl-12 bg-white border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-700 placeholder-gray-400 transition-all shadow-md"
             />
-            <span className="absolute left-3 top-2.5 text-blue-400">
-              <FaSearch />
+            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-500">
+              <FaSearch size={18} />
             </span>
           </div>
-        </div>
+        </motion.div>
         
         {/* فرم افزودن/ویرایش شرکت هواپیمایی */}
-        <div className="bg-white rounded-2xl shadow-lg mb-8 overflow-hidden transition-all duration-300 transform hover:shadow-xl">
-          <div className={`p-1 ${editMode ? 'bg-yellow-500' : 'bg-blue-500'}`}></div>
-          <div className="p-6">
-            <h2 className="text-xl font-bold flex items-center mb-6 text-gray-800">
-              <div className={`p-2 rounded-full mr-2 ${editMode ? 'bg-yellow-100 text-yellow-600' : 'bg-blue-100 text-blue-600'}`}>
-                {editMode ? <FaPen size={14} /> : <FaPlus size={14} />}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="bg-white rounded-3xl mb-8 overflow-hidden transition-all duration-300 transform hover:shadow-xl border border-gray-200 shadow-lg"
+        >
+          <div className={`p-1 ${editMode ? 'bg-gradient-to-r from-yellow-400 to-amber-500' : 'bg-gradient-to-r from-blue-500 to-indigo-600'}`}></div>
+          <div className="p-8">
+            <h2 className="text-2xl font-bold flex items-center mb-8 text-gray-800">
+              <div className={`p-4 rounded-xl mr-5 ${editMode ? 'bg-yellow-100 text-yellow-600' : 'bg-blue-100 text-blue-600'}`}>
+                {editMode ? <FaPen size={22} /> : <FaPlus size={22} />}
               </div>
-              {editMode ? 'ویرایش شرکت هواپیمایی' : 'افزودن شرکت هواپیمایی جدید'}
+              <span className="mr-4">{editMode ? 'ویرایش شرکت هواپیمایی' : 'افزودن شرکت هواپیمایی جدید'}</span>
             </h2>
             
-            <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">نام شرکت</label>
+            <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-2">
+                <label className="block text-lg font-medium text-gray-700">نام شرکت هواپیمایی</label>
                 <input
                   type="text"
                   {...register('name')}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
                   placeholder="مثال: ایران ایر"
                 />
                 {errors.name && (
-                  <span className="text-red-500 text-xs">{errors.name.message}</span>
+                  <span className="text-red-500 text-sm">{errors.name.message}</span>
                 )}
               </div>
               
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">کد شرکت</label>
+              <div className="space-y-2">
+                <label className="block text-lg font-medium text-gray-700">مدل هواپیما</label>
                 <input
                   type="text"
-                  {...register('code')}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
-                  placeholder="مثال: IR"
-                />
-                {errors.code && (
-                  <span className="text-red-500 text-xs">{errors.code.message}</span>
-                )}
-              </div>
-              
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">کشور</label>
-                <input
-                  type="text"
-                  {...register('country')}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
-                  placeholder="مثال: ایران"
-                />
-                {errors.country && (
-                  <span className="text-red-500 text-xs">{errors.country.message}</span>
-                )}
-              </div>
-              
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">وب‌سایت</label>
-                <input
-                  type="text"
-                  {...register('website')}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
-                  placeholder="مثال: https://www.iranair.com"
-                />
-              </div>
-              
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">شماره تماس</label>
-                <input
-                  type="text"
-                  {...register('phone')}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
-                  placeholder="مثال: 021-12345678"
-                />
-              </div>
-              
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">ایمیل</label>
-                <input
-                  type="text"
-                  {...register('email')}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
-                  placeholder="مثال: info@iranair.com"
-                />
-                {errors.email && (
-                  <span className="text-red-500 text-xs">{errors.email.message}</span>
-                )}
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">آدرس</label>
-                <input
-                  type="text"
-                  {...register('address')}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
-                  placeholder="آدرس دفتر مرکزی..."
+                  {...register('aircraftModel')}
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
+                  placeholder="مثال: Airbus A320"
                 />
               </div>
               
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">توضیحات</label>
+                <label className="block text-lg font-medium text-gray-700 mb-2">توضیحات</label>
                 <textarea
                   {...register('description')}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
-                  rows={3}
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
+                  rows={4}
                   placeholder="توضیحات اضافی درباره این شرکت هواپیمایی..."
                 ></textarea>
               </div>
               
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">لوگو</label>
-                <div className="flex flex-wrap items-center gap-4">
-                  <div>
+                <label className="block text-lg font-medium text-gray-700 mb-2">لوگو</label>
+                <div className="flex flex-wrap items-center gap-6">
+                  <div className="relative group">
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -416,16 +338,21 @@ export default function AirlineManagement() {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all flex items-center shadow-sm"
+                      className="px-6 py-4 bg-blue-100 text-blue-600 rounded-xl hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all flex items-center group-hover:shadow-lg"
                     >
-                      <FaUpload className="ml-2" />
-                      انتخاب فایل لوگو
+                      <FaUpload className="ml-3" size={18} />
+                      <span>انتخاب فایل لوگو</span>
                     </button>
-                    {logoFile && <span className="text-gray-700 mr-2 text-sm">{logoFile.name}</span>}
                   </div>
                   
+                  {logoFile && (
+                    <span className="text-gray-600 text-sm px-4 py-2 bg-gray-100 rounded-lg border border-gray-200">
+                      {logoFile.name}
+                    </span>
+                  )}
+                  
                   {logoPreview && (
-                    <div className="relative w-20 h-20 border border-gray-200 rounded-lg overflow-hidden bg-white p-1 shadow-sm">
+                    <div className="relative w-24 h-24 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 p-2 shadow-lg">
                       <img 
                         src={logoPreview} 
                         alt="Logo Preview" 
@@ -438,7 +365,7 @@ export default function AirlineManagement() {
                           setLogoFile(null);
                           if (fileInputRef.current) fileInputRef.current.value = '';
                         }}
-                        className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-bl-lg text-xs"
+                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-md text-xs"
                         title="حذف تصویر"
                       >
                         <FaTrash size={10} />
@@ -448,76 +375,93 @@ export default function AirlineManagement() {
                 </div>
               </div>
               
-              <div className="md:col-span-2 flex items-center justify-end gap-2 mt-4">
+              <div className="md:col-span-2 flex items-center justify-end gap-4 mt-4">
                 {editMode && (
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-all"
+                    className="px-8 py-4 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-all flex items-center"
                   >
-                    انصراف
+                    <span className="ml-2">انصراف</span>
                   </button>
                 )}
                 <button
                   type="submit"
-                  className={`px-6 py-3 ${editMode ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${editMode ? 'focus:ring-yellow-400' : 'focus:ring-blue-400'} transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02]`}
+                  className={`px-8 py-4 ${
+                    editMode 
+                      ? 'bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600' 
+                      : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
+                  } text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02] flex items-center`}
                 >
-                  {editMode ? 'به‌روزرسانی شرکت هواپیمایی' : 'افزودن شرکت هواپیمایی'}
+                  {editMode ? <FaPen className="ml-3" size={18} /> : <FaPlus className="ml-3" size={18} />}
+                  <span>{editMode ? 'به‌روزرسانی شرکت هواپیمایی' : 'افزودن شرکت هواپیمایی'}</span>
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </motion.div>
         
         {/* جدول شرکت‌های هواپیمایی */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-1 bg-blue-500"></div>
-          <div className="p-6">
-            <h2 className="text-xl font-bold mb-6 text-gray-800 flex items-center">
-              <span className="bg-blue-100 text-blue-600 p-2 rounded-full mr-2">
-                <FaGlobe size={14} />
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-200"
+        >
+          <div className="p-1 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+          <div className="p-8">
+            <h2 className="text-2xl font-bold mb-8 text-gray-800 flex items-center">
+              <span className="bg-blue-100 text-blue-600 p-4 rounded-xl mr-5">
+                <FaPlane size={22} />
               </span>
-              لیست شرکت‌های هواپیمایی
-              <span className="mr-2 text-sm text-gray-500 font-normal">({filteredAirlines.length} شرکت)</span>
+              <span className="mr-4">لیست شرکت‌های هواپیمایی</span>
+              <span className="mr-4 text-base text-gray-500 font-normal bg-gray-100 px-4 py-1.5 rounded-full">
+                {filteredAirlines.length} شرکت
+              </span>
             </h2>
             
             {loading ? (
-              <div className="flex items-center justify-center py-10">
-                <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-t-blue-500 border-r-blue-500 border-b-transparent border-l-transparent"></div>
-                <p className="mr-4 text-gray-600">در حال بارگذاری...</p>
+              <div className="flex items-center justify-center py-20">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-t-blue-500 border-r-blue-500 border-b-transparent border-l-transparent"></div>
+                <p className="mr-4 text-gray-600 text-lg">در حال بارگذاری...</p>
               </div>
             ) : error ? (
-              <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-100 flex items-center">
-                <span className="ml-2">❌</span>
-                {error}
+              <div className="bg-red-100 text-red-600 p-6 rounded-xl border border-red-200 flex items-center">
+                <span className="ml-3 text-2xl">⚠️</span>
+                <span>{error}</span>
               </div>
             ) : (
               <>
                 {filteredAirlines.length === 0 ? (
-                  <div className="bg-gray-50 text-gray-500 p-6 rounded-lg border border-gray-100 text-center">
-                    <div className="text-4xl mb-3">🔍</div>
-                    <p>هیچ شرکت هواپیمایی یافت نشد.</p>
-                    <p className="text-sm mt-2">می‌توانید با افزودن یک شرکت هواپیمایی به لیست بالا اضافه کنید.</p>
+                  <div className="bg-gray-100 text-gray-600 p-12 rounded-xl border border-gray-200 text-center">
+                    <div className="text-6xl mb-4">🔍</div>
+                    <p className="text-xl">هیچ شرکت هواپیمایی یافت نشد</p>
+                    <p className="text-gray-500 mt-3">می‌توانید با کلیک بر روی «افزودن شرکت هواپیمایی جدید» شروع کنید</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="min-w-full">
+                    <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
-                        <tr className="border-b border-gray-200">
-                          <th className="py-4 px-6 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">لوگو</th>
-                          <th className="py-4 px-6 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نام شرکت</th>
-                          <th className="py-4 px-6 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">کد</th>
-                          <th className="py-4 px-6 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">کشور</th>
-                          <th className="py-4 px-6 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">وضعیت</th>
-                          <th className="py-4 px-6 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عملیات</th>
+                        <tr>
+                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider">لوگو</th>
+                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider">نام شرکت</th>
+                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider">مدل هواپیما</th>
+                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider">وضعیت</th>
+                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider">عملیات</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-200">
+                      <tbody className="divide-y divide-gray-200 bg-white">
                         {filteredAirlines.map((airline, index) => (
-                          <tr key={airline._id} className={`hover:bg-blue-50 transition-colors ${index % 2 === 0 ? 'bg-gray-50/30' : 'bg-white'}`}>
-                            <td className="py-4 px-6 whitespace-nowrap">
+                          <motion.tr 
+                            key={airline._id} 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 + 0.5 }}
+                            className="hover:bg-gray-50 transition-colors"
+                          >
+                            <td className="py-5 px-6">
                               {airline.logo ? (
-                                <div className="w-14 h-14 relative border border-gray-200 rounded-lg overflow-hidden bg-white p-1 shadow-sm">
+                                <div className="w-16 h-16 relative border border-gray-200 rounded-xl overflow-hidden bg-white p-2 shadow-md">
                                   <img 
                                     src={`http://185.94.99.35:5000${airline.logo}`} 
                                     alt={airline.name} 
@@ -525,46 +469,62 @@ export default function AirlineManagement() {
                                   />
                                 </div>
                               ) : (
-                                <div className="w-14 h-14 bg-gray-100 flex items-center justify-center rounded-lg">
+                                <div className="w-16 h-16 bg-gray-100 flex items-center justify-center rounded-xl border border-gray-200">
                                   <span className="text-gray-400 text-xs">بدون لوگو</span>
                                 </div>
                               )}
                             </td>
-                            <td className="py-4 px-6 whitespace-nowrap font-medium text-gray-800">{airline.name}</td>
-                            <td className="py-4 px-6 whitespace-nowrap font-mono bg-blue-50 text-blue-700 rounded-lg text-center font-bold w-16">{airline.code}</td>
-                            <td className="py-4 px-6 whitespace-nowrap text-gray-600">{airline.country}</td>
-                            <td className="py-4 px-6 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${airline.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                <span className={`w-2 h-2 mr-1 rounded-full ${airline.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                            <td className="py-5 px-6 font-medium text-gray-800 text-lg">{airline.name}</td>
+                            <td className="py-5 px-6 text-gray-600">
+                              {airline.aircraftModel || (
+                                <span className="text-gray-400 text-sm">مشخص نشده</span>
+                              )}
+                            </td>
+                            <td className="py-5 px-6">
+                              <span className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium ${
+                                airline.isActive 
+                                  ? 'bg-green-100 text-green-700 border border-green-200' 
+                                  : 'bg-red-100 text-red-700 border border-red-200'
+                              }`}>
+                                <span className={`w-2 h-2 ml-2 rounded-full ${
+                                  airline.isActive ? 'bg-green-500' : 'bg-red-500'
+                                }`}></span>
                                 {airline.isActive ? 'فعال' : 'غیرفعال'}
                               </span>
                             </td>
-                            <td className="py-4 px-6 whitespace-nowrap text-right text-sm font-medium">
-                              <div className="flex items-center justify-center gap-2">
+                            <td className="py-5 px-6 text-right text-sm font-medium">
+                              <div className="flex items-center justify-center gap-3">
                                 <button
                                   onClick={() => handleEdit(airline)}
-                                  className="p-2 bg-yellow-50 text-yellow-600 rounded-full hover:bg-yellow-100 transition-all"
+                                  className="p-3 bg-yellow-100 text-yellow-600 rounded-lg hover:bg-yellow-200 transition-all flex items-center"
                                   title="ویرایش"
                                 >
                                   <FaPen size={14} />
+                                  <span className="mr-3 text-xs hidden lg:inline">ویرایش</span>
                                 </button>
                                 <button
                                   onClick={() => toggleAirlineStatus(airline._id, airline.isActive)}
-                                  className={`p-2 rounded-full transition-all ${airline.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
+                                  className={`p-3 rounded-lg transition-all flex items-center ${
+                                    airline.isActive 
+                                      ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                                      : 'bg-green-100 text-green-600 hover:bg-green-200'
+                                  }`}
                                   title={airline.isActive ? 'غیرفعال کردن' : 'فعال کردن'}
                                 >
                                   {airline.isActive ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+                                  <span className="mr-3 text-xs hidden lg:inline">{airline.isActive ? 'غیرفعال' : 'فعال'}</span>
                                 </button>
                                 <button
                                   onClick={() => handleDelete(airline._id)}
-                                  className="p-2 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition-all"
+                                  className="p-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all flex items-center"
                                   title="حذف"
                                 >
                                   <FaTrash size={14} />
+                                  <span className="mr-3 text-xs hidden lg:inline">حذف</span>
                                 </button>
                               </div>
                             </td>
-                          </tr>
+                          </motion.tr>
                         ))}
                       </tbody>
                     </table>
@@ -573,7 +533,7 @@ export default function AirlineManagement() {
               </>
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

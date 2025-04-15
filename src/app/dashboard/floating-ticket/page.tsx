@@ -13,7 +13,9 @@ import {
   FaCalendarAlt,
   FaSpinner,
   FaRoute,
-  FaUsers
+  FaUsers,
+  FaFileExcel,
+  FaUpload
 } from 'react-icons/fa'
 import axios from 'axios'
 import { toast as reactToastify } from 'react-toastify'
@@ -60,6 +62,8 @@ interface FlightInfo {
   time?: string;
   flightNumber?: string;
   airline?: string;
+  originCityId?: string;
+  destinationCityId?: string;
 }
 
 export default function FloatingTicket() {
@@ -83,6 +87,14 @@ export default function FloatingTicket() {
   const [nationalities] = useState<string[]>([
     'Iranian', 'Afghan', 'Iraqi', 'Turkish', 'Pakistani', 'Arabic', 'Other'
   ])
+  // افزودن استیت‌های جدید
+  const [sourceType, setSourceType] = useState<'route' | 'city'>('route')
+  const [cities, setCities] = useState<{_id: string; name: string}[]>([])
+  const [originCity, setOriginCity] = useState<{_id: string; name: string} | null>(null)
+  const [destinationCity, setDestinationCity] = useState<{_id: string; name: string} | null>(null)
+  // استیت‌های جدید برای مدیریت وضعیت صادر و وارد کردن
+  const [isExporting, setIsExporting] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
   
   // دریافت لیست شرکت‌های هواپیمایی، هواپیماها و مسیرها
   useEffect(() => {
@@ -91,7 +103,7 @@ export default function FloatingTicket() {
         const token = localStorage.getItem('token')
         if (!token) return
         
-        const [airlinesRes, aircraftRes, routesRes] = await Promise.all([
+        const [airlinesRes, aircraftRes, routesRes, citiesRes] = await Promise.all([
           axios.get('http://185.94.99.35:5000/api/floating-ticket/airlines', {
             headers: { 'x-auth-token': token }
           }),
@@ -100,12 +112,16 @@ export default function FloatingTicket() {
           }),
           axios.get('http://185.94.99.35:5000/api/floating-ticket/routes', {
             headers: { 'x-auth-token': token }
+          }),
+          axios.get('http://185.94.99.35:5000/api/floating-ticket/cities', {
+            headers: { 'x-auth-token': token }
           })
         ])
         
         setAirlines(airlinesRes.data)
         setAircraft(aircraftRes.data)
         setRoutes(routesRes.data)
+        setCities(citiesRes.data)
       } catch (err: any) {
         console.error('خطا در دریافت اطلاعات:', err)
         reactToastify.error('خطا در دریافت اطلاعات')
@@ -183,6 +199,180 @@ export default function FloatingTicket() {
     }
   };
 
+  // مدیریت تغییر شهر مبدا
+  const handleOriginCityChange = (cityId: string) => {
+    const city = cities.find(c => c._id === cityId);
+    if (city) {
+      setOriginCity(city);
+      setFlightInfo({
+        ...flightInfo,
+        originCityId: city._id,
+        origin: city.name
+      });
+    } else {
+      setOriginCity(null);
+      setFlightInfo({
+        ...flightInfo,
+        originCityId: undefined,
+        origin: ''
+      });
+    }
+  };
+
+  // مدیریت تغییر شهر مقصد
+  const handleDestinationCityChange = (cityId: string) => {
+    const city = cities.find(c => c._id === cityId);
+    if (city) {
+      setDestinationCity(city);
+      setFlightInfo({
+        ...flightInfo,
+        destinationCityId: city._id,
+        destination: city.name
+      });
+    } else {
+      setDestinationCity(null);
+      setFlightInfo({
+        ...flightInfo,
+        destinationCityId: undefined,
+        destination: ''
+      });
+    }
+  };
+
+  // صادر کردن اطلاعات مسافران به صورت فایل اکسل
+  const handleExportExcel = async () => {
+    // اعتبارسنجی داده‌ها
+    if (passengers.length === 0) {
+      return reactToastify.error('حداقل یک مسافر اضافه کنید')
+    }
+
+    try {
+      setIsExporting(true);
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setIsExporting(false);
+        return reactToastify.error('لطفا ابتدا وارد شوید');
+      }
+
+      reactToastify.info('در حال آماده‌سازی فایل اکسل...', { autoClose: 2000 });
+
+      // ارسال درخواست به بک‌اند
+      const response = await axios.post(
+        'http://185.94.99.35:5000/api/floating-ticket/export-passengers',
+        {
+          passengers,
+          flightInfo,
+          airline: selectedAirline,
+          aircraft: selectedAircraft,
+          sourceType
+        },
+        {
+          headers: {
+            'x-auth-token': token
+          },
+          responseType: 'blob'  // برای دریافت داده به صورت بلاب
+        }
+      );
+
+      // ایجاد آبجکت بلاب و لینک دانلود
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `passengers-${Date.now()}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      reactToastify.success('فایل اکسل با موفقیت دانلود شد');
+    } catch (err: any) {
+      console.error('خطا در صادر کردن اطلاعات به اکسل:', err);
+      reactToastify.error('خطا در صادر کردن اطلاعات به اکسل');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // وارد کردن اطلاعات مسافران از فایل اکسل
+  const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    // بررسی پسوند فایل
+    const file = files[0];
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    if (fileExtension !== 'xlsx') {
+      reactToastify.error('لطفاً فقط فایل Excel با پسوند .xlsx آپلود کنید');
+      event.target.value = '';
+      return;
+    }
+
+    // بررسی حجم فایل (حداکثر 5 مگابایت)
+    const fileSizeInMB = file.size / (1024 * 1024);
+    if (fileSizeInMB > 5) {
+      reactToastify.error('حجم فایل باید کمتر از 5 مگابایت باشد');
+      event.target.value = '';
+      return;
+    }
+
+    try {
+      setIsImporting(true);
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setIsImporting(false);
+        event.target.value = '';
+        return reactToastify.error('لطفا ابتدا وارد شوید');
+      }
+
+      reactToastify.info('در حال پردازش فایل اکسل...', { autoClose: 2000 });
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // ارسال درخواست به بک‌اند
+      const response = await axios.post(
+        'http://185.94.99.35:5000/api/floating-ticket/import-passengers',
+        formData,
+        {
+          headers: {
+            'x-auth-token': token,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (response.data?.passengers?.length > 0) {
+        // به‌روزرسانی لیست مسافران
+        setPassengers(response.data.passengers);
+        reactToastify.success(`${response.data.passengers.length} مسافر با موفقیت بارگذاری شد`);
+
+        // اگر اطلاعات پرواز هم وجود داشت، آن را هم به‌روز می‌کنیم
+        if (response.data.flightInfo) {
+          setFlightInfo(prev => ({
+            ...prev,
+            ...response.data.flightInfo
+          }));
+        }
+      } else {
+        reactToastify.warning('هیچ مسافری در فایل یافت نشد');
+      }
+    } catch (err: any) {
+      console.error('خطا در وارد کردن اطلاعات از اکسل:', err);
+      
+      if (err.response && err.response.data?.message) {
+        reactToastify.error(err.response.data.message);
+      } else {
+        reactToastify.error('خطا در وارد کردن اطلاعات از اکسل');
+      }
+    } finally {
+      setIsImporting(false);
+      // پاک کردن مقدار ورودی فایل برای امکان انتخاب مجدد همان فایل
+      event.target.value = '';
+    }
+  };
+
   // تولید و دانلود بلیط
   const generateAndDownloadTicket = async () => {
     // اعتبارسنجی داده‌ها
@@ -201,7 +391,11 @@ export default function FloatingTicket() {
     }
     
     // بررسی انتخاب مسیر یا وارد کردن مبدا و مقصد
-    if ((!selectedRoute && (!flightInfo.origin.trim() || !flightInfo.destination.trim())) || !flightInfo.date.trim()) {
+    if (
+      (sourceType === 'route' && !selectedRoute) || 
+      (sourceType === 'city' && (!originCity || !destinationCity)) || 
+      !flightInfo.date.trim()
+    ) {
       return reactToastify.error('لطفاً مسیر و تاریخ پرواز را مشخص کنید')
     }
     
@@ -219,9 +413,10 @@ export default function FloatingTicket() {
         {
           passengers,
           flightInfo,
+          route: selectedRoute,
           airline: selectedAirline,
           aircraft: selectedAircraft,
-          route: selectedRoute
+          sourceType
         },
         {
           headers: {
@@ -285,33 +480,118 @@ export default function FloatingTicket() {
             اطلاعات پرواز
           </h2>
           
+          {/* تب انتخاب نوع مسیر */}
+          <div className="flex mb-6 bg-gray-100 p-1 rounded-lg w-fit">
+            <button
+              onClick={() => {
+                setSourceType('route');
+                if (sourceType !== 'route') {
+                  // بازنشانی انتخاب‌های شهر
+                  setOriginCity(null);
+                  setDestinationCity(null);
+                  setFlightInfo(prev => ({
+                    ...prev,
+                    origin: '',
+                    destination: '',
+                    originCityId: undefined,
+                    destinationCityId: undefined
+                  }));
+                }
+              }}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                sourceType === 'route'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-transparent text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              مسیرهای آماده
+            </button>
+            <button
+              onClick={() => {
+                setSourceType('city');
+                if (sourceType !== 'city') {
+                  // بازنشانی انتخاب مسیر
+                  setSelectedRoute(null);
+                  setFlightInfo(prev => ({
+                    ...prev,
+                    routeId: undefined,
+                    origin: '',
+                    destination: ''
+                  }));
+                }
+              }}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                sourceType === 'city'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-transparent text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              انتخاب شهر
+            </button>
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <label className="block text-gray-700 mb-2">انتخاب مسیر</label>
-              <div className="flex flex-col space-y-2">
-                <select
-                  value={selectedRoute?._id || ''}
-                  onChange={(e) => handleRouteChange(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">انتخاب مسیر پروازی</option>
-                  {routes.map(route => (
-                    <option key={route._id} value={route._id}>
-                      {route.origin} به {route.destination}
-                    </option>
-                  ))}
-                </select>
-                {selectedRoute && (
-                  <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-                    <div className="flex items-center gap-2 text-indigo-700">
-                      <FaRoute />
-                      <span className="font-semibold">مسیر انتخاب شده:</span>
-                      <span>{selectedRoute.origin} به {selectedRoute.destination}</span>
+            {sourceType === 'route' ? (
+              <div className="lg:col-span-2">
+                <label className="block text-gray-700 mb-2">انتخاب مسیر</label>
+                <div className="flex flex-col space-y-2">
+                  <select
+                    value={selectedRoute?._id || ''}
+                    onChange={(e) => handleRouteChange(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">انتخاب مسیر پروازی</option>
+                    {routes.map(route => (
+                      <option key={route._id} value={route._id}>
+                        {route.origin} به {route.destination}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedRoute && (
+                    <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                      <div className="flex items-center gap-2 text-indigo-700">
+                        <FaRoute />
+                        <span className="font-semibold">مسیر انتخاب شده:</span>
+                        <span>{selectedRoute.origin} به {selectedRoute.destination}</span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-gray-700 mb-2">شهر مبدأ</label>
+                  <select
+                    value={originCity?._id || ''}
+                    onChange={(e) => handleOriginCityChange(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">انتخاب شهر مبدأ</option>
+                    {cities.map(city => (
+                      <option key={city._id} value={city._id}>
+                        {city.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-700 mb-2">شهر مقصد</label>
+                  <select
+                    value={destinationCity?._id || ''}
+                    onChange={(e) => handleDestinationCityChange(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">انتخاب شهر مقصد</option>
+                    {cities.map(city => (
+                      <option key={city._id} value={city._id}>
+                        {city.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
             
             <div>
               <label className="block text-gray-700 mb-2">تاریخ پرواز</label>
@@ -372,32 +652,7 @@ export default function FloatingTicket() {
               </select>
             </div>
             
-            <div>
-              <label className="block text-gray-700 mb-2">مدل هواپیما (اختیاری)</label>
-              <select
-                value={selectedAircraft?._id || ''}
-                onChange={(e) => {
-                  const aircraftId = e.target.value;
-                  if (!aircraftId) {
-                    setSelectedAircraft(null);
-                    return;
-                  }
-                  
-                  const selectedAircraft = aircraft.find(a => a._id === aircraftId);
-                  if (selectedAircraft) {
-                    setSelectedAircraft(selectedAircraft);
-                  }
-                }}
-                className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">انتخاب مدل هواپیما</option>
-                {aircraft.map(a => (
-                  <option key={a._id} value={a._id}>
-                    {a.manufacturer} {a.model}
-                  </option>
-                ))}
-              </select>
-            </div>
+            
           </div>
         </div>
         
@@ -410,7 +665,7 @@ export default function FloatingTicket() {
             </h2>
             
             <div className="flex gap-2 items-center">
-              {passengers.length === 0 && (
+              {passengers.length === 0 ? (
                 <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-lg border border-gray-200">
                   <label className="text-gray-700 font-medium flex items-center gap-2">
                     <FaUsers className="text-indigo-500" />
@@ -433,16 +688,58 @@ export default function FloatingTicket() {
                     افزودن
                   </button>
                 </div>
-              )}
-              
-              {passengers.length > 0 && (
-                <button
-                  onClick={addPassenger}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors"
-                >
-                  <FaPlus />
-                  افزودن مسافر
-                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {/* دکمه صادر کردن اکسل */}
+                  <button
+                    onClick={handleExportExcel}
+                    disabled={isExporting || isGenerating || passengers.length === 0}
+                    className={`flex items-center justify-center gap-3 px-8 py-5 rounded-full text-xl font-semibold transition-colors shadow-xl ${
+                      isExporting || isGenerating || passengers.length === 0
+                        ? 'bg-gray-400 text-white cursor-not-allowed' 
+                        : 'bg-emerald-600 text-white hover:bg-emerald-700 transform hover:scale-105'
+                    }`}
+                  >
+                    {isExporting ? (
+                      <FaSpinner className="animate-spin text-2xl" />
+                    ) : (
+                      <FaFileExcel className="text-2xl" />
+                    )}
+                    <span>{isExporting ? 'در حال صادر کردن...' : 'صادر کردن به اکسل'}</span>
+                  </button>
+                  
+                  {/* دکمه وارد کردن اکسل */}
+                  <label
+                    className={`flex items-center justify-center gap-3 px-8 py-5 rounded-full text-xl font-semibold transition-all duration-300 shadow-xl ${
+                      isImporting || isGenerating
+                        ? 'bg-gray-400 text-white cursor-wait' 
+                        : 'bg-amber-600 text-white hover:bg-amber-700 cursor-pointer transform hover:scale-105'
+                    }`}
+                  >
+                    {isImporting ? (
+                      <FaSpinner className="animate-spin text-2xl" />
+                    ) : (
+                      <FaUpload className="text-2xl" />
+                    )}
+                    <span>{isImporting ? 'در حال وارد کردن...' : 'بارگذاری از اکسل'}</span>
+                    <input
+                      type="file"
+                      accept=".xlsx"
+                      onChange={handleImportExcel}
+                      disabled={isImporting || isGenerating}
+                      className="hidden"
+                    />
+                  </label>
+                  
+                  {/* دکمه افزودن مسافر */}
+                  <button
+                    onClick={addPassenger}
+                    className="bg-indigo-600 text-white px-3 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors"
+                  >
+                    <FaPlus />
+                    <span className="hidden sm:inline">افزودن مسافر</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -612,13 +909,54 @@ export default function FloatingTicket() {
         </div>
         
         {/* دکمه تولید و دانلود */}
-        <div className="mt-10 flex justify-center">
+        <div className="mt-10 flex justify-center gap-4 flex-wrap">
+          {/* دکمه‌های صادر کردن و وارد کردن */}
+          <button
+            onClick={handleExportExcel}
+            disabled={isExporting || isGenerating || passengers.length === 0}
+            className={`flex items-center justify-center gap-3 px-8 py-5 rounded-full text-xl font-semibold transition-colors shadow-xl ${
+              isExporting || isGenerating || passengers.length === 0
+                ? 'bg-gray-400 text-white cursor-not-allowed' 
+                : 'bg-emerald-600 text-white hover:bg-emerald-700 transform hover:scale-105'
+            }`}
+          >
+            {isExporting ? (
+              <FaSpinner className="animate-spin text-2xl" />
+            ) : (
+              <FaFileExcel className="text-2xl" />
+            )}
+            <span>{isExporting ? 'در حال صادر کردن...' : 'صادر کردن به اکسل'}</span>
+          </button>
+          
+          <label
+            className={`flex items-center justify-center gap-3 px-8 py-5 rounded-full text-xl font-semibold transition-all duration-300 shadow-xl ${
+              isImporting || isGenerating
+                ? 'bg-gray-400 text-white cursor-wait' 
+                : 'bg-amber-600 text-white hover:bg-amber-700 cursor-pointer transform hover:scale-105'
+            }`}
+          >
+            {isImporting ? (
+              <FaSpinner className="animate-spin text-2xl" />
+            ) : (
+              <FaUpload className="text-2xl" />
+            )}
+            <span>{isImporting ? 'در حال وارد کردن...' : 'بارگذاری از اکسل'}</span>
+            <input
+              type="file"
+              accept=".xlsx"
+              onChange={handleImportExcel}
+              disabled={isImporting || isGenerating}
+              className="hidden"
+            />
+          </label>
+          
+          {/* دکمه تولید و دانلود PDF */}
           <button
             onClick={generateAndDownloadTicket}
             disabled={isGenerating || passengers.length === 0}
             className={`flex items-center justify-center gap-3 px-8 py-4 rounded-full text-lg font-semibold transition-colors shadow-lg ${ 
-              isGenerating
-                ? 'bg-gray-400 text-white cursor-wait'
+              isGenerating || passengers.length === 0
+                ? 'bg-gray-400 text-white cursor-not-allowed'
                 : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700'
             }`}
           >

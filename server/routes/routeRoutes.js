@@ -66,7 +66,7 @@ router.post('/', [
     return res.status(403).json({ message: 'دسترسی غیر مجاز' });
   }
 
-  const { origin, destination, distance, estimatedDuration, description } = req.body;
+  const { origin, destination, description } = req.body;
 
   try {
     // بررسی تکراری بودن مسیر
@@ -79,8 +79,6 @@ router.post('/', [
     const newRoute = new Route({
       origin,
       destination,
-      distance: distance || 0,
-      estimatedDuration: estimatedDuration || 0,
       description,
       createdBy: req.user.id
     });
@@ -119,7 +117,7 @@ router.put('/:id', [
     return res.status(403).json({ message: 'دسترسی غیر مجاز' });
   }
 
-  const { origin, destination, distance, estimatedDuration, description, isActive } = req.body;
+  const { origin, destination, description, isActive } = req.body;
 
   try {
     let route = await Route.findById(req.params.id);
@@ -139,8 +137,6 @@ router.put('/:id', [
     // به‌روزرسانی فیلدهای مسیر
     route.origin = origin;
     route.destination = destination;
-    route.distance = distance || route.distance;
-    route.estimatedDuration = estimatedDuration || route.estimatedDuration;
     route.description = description !== undefined ? description : route.description;
     route.isActive = isActive !== undefined ? isActive : route.isActive;
     route.updatedAt = Date.now();
@@ -214,6 +210,62 @@ router.get('/search/:term', async (req, res) => {
     res.json(routes);
   } catch (err) {
     console.error('Error searching routes:', err);
+    res.status(500).send('خطا در سرور');
+  }
+});
+
+/**
+ * @route   POST /api/routes/find-or-create
+ * @desc    پیدا کردن مسیر یا ایجاد آن (اگر وجود نداشته باشد)
+ * @access  خصوصی (همه کاربران)
+ */
+router.post('/find-or-create', [
+  auth,
+  [
+    check('origin', 'مبدا الزامی است').not().isEmpty(),
+    check('destination', 'مقصد الزامی است').not().isEmpty()
+  ]
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { origin, destination } = req.body;
+
+  try {
+    // بررسی وجود مسیر
+    let route = await Route.findOne({ 
+      origin, 
+      destination,
+      isActive: true 
+    });
+
+    // اگر مسیر یافت شد، آن را برگردان
+    if (route) {
+      return res.json(route);
+    }
+
+    // بررسی دسترسی برای ایجاد مسیر جدید
+    if (!['admin', 'admin+', 'super-admin', 'agent'].includes(req.user.role)) {
+      return res.status(403).json({ 
+        message: 'دسترسی غیر مجاز. شما اجازه ایجاد مسیر جدید را ندارید' 
+      });
+    }
+
+    // ایجاد مسیر جدید
+    const newRoute = new Route({
+      origin,
+      destination,
+      description: `مسیر ${origin} به ${destination}`,
+      createdBy: req.user.id
+    });
+
+    route = await newRoute.save();
+
+    res.json(route);
+  } catch (err) {
+    console.error('Error in find or create route:', err);
     res.status(500).send('خطا در سرور');
   }
 });

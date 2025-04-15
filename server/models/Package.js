@@ -37,6 +37,14 @@ const PackageSchema = new mongoose.Schema({
       type: String,
       enum: ['zamini', 'havaii'],
       required: true
+    },
+    departureAirline: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Airline'
+    },
+    returnAirline: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Airline'
     }
   },
   basePrice: {

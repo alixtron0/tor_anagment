@@ -89,9 +89,7 @@ router.post('/', [
   auth,
   upload.single('logo'),
   [
-    check('name', 'نام شرکت هواپیمایی الزامی است').not().isEmpty(),
-    check('code', 'کد شرکت هواپیمایی الزامی است').not().isEmpty(),
-    check('country', 'کشور شرکت هواپیمایی الزامی است').not().isEmpty()
+    check('name', 'نام شرکت هواپیمایی الزامی است').not().isEmpty()
   ]
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -104,29 +102,21 @@ router.post('/', [
     return res.status(403).json({ message: 'دسترسی غیر مجاز' });
   }
 
-  const { name, code, country, website, description } = req.body;
-  const contactInfo = {
-    phone: req.body.phone || '',
-    email: req.body.email || '',
-    address: req.body.address || ''
-  };
+  const { name, aircraftModel, description } = req.body;
 
   try {
-    // بررسی تکراری بودن نام یا کد شرکت هواپیمایی
-    let airline = await Airline.findOne({ $or: [{ name }, { code }] });
+    // بررسی تکراری بودن نام شرکت هواپیمایی
+    let airline = await Airline.findOne({ name });
     if (airline) {
-      return res.status(400).json({ message: 'این نام یا کد شرکت هواپیمایی قبلاً ثبت شده است' });
+      return res.status(400).json({ message: 'این نام شرکت هواپیمایی قبلاً ثبت شده است' });
     }
 
     // ایجاد شرکت هواپیمایی جدید
     const newAirline = new Airline({
       name,
-      code,
-      country,
       logo: req.file ? `/uploads/airlines/${req.file.filename}` : '',
-      website,
-      contactInfo,
-      description,
+      aircraftModel: aircraftModel || '',
+      description: description || '',
       createdBy: req.user.id
     });
 
@@ -151,9 +141,7 @@ router.put('/:id', [
   auth,
   upload.single('logo'),
   [
-    check('name', 'نام شرکت هواپیمایی الزامی است').not().isEmpty(),
-    check('code', 'کد شرکت هواپیمایی الزامی است').not().isEmpty(),
-    check('country', 'کشور شرکت هواپیمایی الزامی است').not().isEmpty()
+    check('name', 'نام شرکت هواپیمایی الزامی است').not().isEmpty()
   ]
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -166,12 +154,7 @@ router.put('/:id', [
     return res.status(403).json({ message: 'دسترسی غیر مجاز' });
   }
 
-  const { name, code, country, website, description, isActive } = req.body;
-  const contactInfo = {
-    phone: req.body.phone || '',
-    email: req.body.email || '',
-    address: req.body.address || ''
-  };
+  const { name, aircraftModel, description, isActive } = req.body;
 
   try {
     let airline = await Airline.findById(req.params.id);
@@ -180,17 +163,17 @@ router.put('/:id', [
       return res.status(404).json({ message: 'شرکت هواپیمایی یافت نشد' });
     }
 
-    // بررسی تکراری بودن نام یا کد شرکت هواپیمایی
-    if (name !== airline.name || code !== airline.code) {
+    // بررسی تکراری بودن نام شرکت هواپیمایی
+    if (name !== airline.name) {
       const existingAirline = await Airline.findOne({
         $and: [
           { _id: { $ne: req.params.id } },
-          { $or: [{ name }, { code }] }
+          { name }
         ]
       });
       
       if (existingAirline) {
-        return res.status(400).json({ message: 'این نام یا کد شرکت هواپیمایی قبلاً ثبت شده است' });
+        return res.status(400).json({ message: 'این نام شرکت هواپیمایی قبلاً ثبت شده است' });
       }
     }
 
@@ -204,14 +187,11 @@ router.put('/:id', [
 
     // به‌روزرسانی فیلدهای شرکت هواپیمایی
     airline.name = name;
-    airline.code = code;
-    airline.country = country;
     if (req.file) {
       airline.logo = `/uploads/airlines/${req.file.filename}`;
     }
-    airline.website = website;
-    airline.contactInfo = contactInfo;
-    airline.description = description;
+    airline.aircraftModel = aircraftModel || airline.aircraftModel;
+    airline.description = description || airline.description;
     airline.isActive = isActive !== undefined ? isActive : airline.isActive;
     airline.updatedAt = Date.now();
 
@@ -250,7 +230,7 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'شرکت هواپیمایی یافت نشد' });
     }
 
-    // حذف لوگوی شرکت هواپیمایی از سرور
+    // حذف فایل لوگو
     if (airline.logo) {
       const logoPath = path.join(__dirname, '..', airline.logo);
       if (fs.existsSync(logoPath)) {
@@ -258,7 +238,7 @@ router.delete('/:id', auth, async (req, res) => {
       }
     }
 
-    await Airline.findByIdAndDelete(req.params.id);
+    await airline.deleteOne();
 
     res.json({ message: 'شرکت هواپیمایی با موفقیت حذف شد' });
   } catch (err) {
@@ -285,8 +265,7 @@ router.get('/search/:term', async (req, res) => {
     const airlines = await Airline.find({
       $or: [
         { name: regex },
-        { code: regex },
-        { country: regex }
+        { aircraftModel: regex }
       ]
     }).sort({ name: 1 });
 

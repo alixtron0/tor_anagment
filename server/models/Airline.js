@@ -11,42 +11,19 @@ const AirlineSchema = new mongoose.Schema({
     trim: true,
     unique: true
   },
-  code: {
-    type: String,
-    required: true,
-    trim: true,
-    unique: true
-  },
-  country: {
-    type: String,
-    required: true,
-    trim: true
-  },
   logo: {
     type: String,
     trim: true
   },
-  website: {
+  aircraftModel: {
     type: String,
-    trim: true
-  },
-  contactInfo: {
-    phone: {
-      type: String,
-      trim: true
-    },
-    email: {
-      type: String,
-      trim: true
-    },
-    address: {
-      type: String,
-      trim: true
-    }
+    trim: true,
+    default: ''
   },
   description: {
     type: String,
-    trim: true
+    trim: true,
+    default: ''
   },
   isActive: {
     type: Boolean,

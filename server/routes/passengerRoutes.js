@@ -12,6 +12,74 @@ const path = require('path');
 const Package = require('../models/Package');
 
 /**
+ * @route   GET /api/passengers/all
+ * @desc    دریافت لیست تمام مسافران با اطلاعات بسته و رزرو
+ * @access  عمومی
+ */
+router.get('/all', async (req, res) => {
+  try {
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const page = parseInt(req.query.page) || 1;
+    const searchQuery = req.query.search || '';
+    const sortBy = req.query.sortBy || 'createdAt';
+    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
+    
+    // ساخت شرط جستجو
+    let searchCondition = {};
+    if (searchQuery) {
+      searchCondition = {
+        $or: [
+          { firstName: { $regex: searchQuery, $options: 'i' } },
+          { lastName: { $regex: searchQuery, $options: 'i' } },
+          { englishFirstName: { $regex: searchQuery, $options: 'i' } },
+          { englishLastName: { $regex: searchQuery, $options: 'i' } },
+          { nationalId: { $regex: searchQuery, $options: 'i' } },
+          { passportNumber: { $regex: searchQuery, $options: 'i' } }
+        ]
+      };
+    }
+    
+    // محاسبه تعداد کل نتایج برای صفحه‌بندی
+    const totalPassengers = await Passenger.countDocuments(searchCondition);
+    
+    // دریافت داده‌ها با populate کردن رزرو و پکیج
+    const passengers = await Passenger.find(searchCondition)
+      .sort({ [sortBy]: sortOrder })
+      .skip((page - 1) * pageSize)
+      .limit(pageSize)
+      .populate({
+        path: 'reservation',
+        select: 'adults children infants room totalPrice status code',
+        populate: {
+          path: 'package',
+          select: 'name startDate endDate route',
+          populate: {
+            path: 'route',
+            select: 'originCity destinationCity name'
+          }
+        }
+      })
+      .populate({
+        path: 'room',
+        select: 'roomNumber capacity'
+      });
+    
+    res.json({
+      passengers,
+      pagination: {
+        page,
+        pageSize,
+        totalPages: Math.ceil(totalPassengers / pageSize),
+        totalItems: totalPassengers
+      }
+    });
+  } catch (err) {
+    console.error('خطا در دریافت لیست مسافران:', err.message);
+    res.status(500).json({ message: `خطای سرور در دریافت لیست مسافران: ${err.message}` });
+  }
+});
+
+/**
  * @route   GET /api/passengers/room/:roomId
  * @desc    دریافت تمام مسافران یک اتاق
  * @access  عمومی
@@ -64,29 +132,6 @@ router.get('/reservation/:reservationId', async (req, res) => {
       return res.status(404).json({ message: 'رزرو مورد نظر یافت نشد' });
     }
     res.status(500).json({ message: `خطای سرور در دریافت مسافران: ${err.message}` });
-  }
-});
-
-/**
- * @route   GET /api/passengers/:id
- * @desc    دریافت یک مسافر با شناسه
- * @access  عمومی
- */
-router.get('/:id', async (req, res) => {
-  try {
-    const passenger = await Passenger.findById(req.params.id);
-    
-    if (!passenger) {
-      return res.status(404).json({ message: 'مسافر مورد نظر یافت نشد' });
-    }
-    
-    res.json(passenger);
-  } catch (err) {
-    console.error('خطا در دریافت مسافر:', err.message);
-    if (err.kind === 'ObjectId') {
-      return res.status(404).json({ message: 'مسافر مورد نظر یافت نشد' });
-    }
-    res.status(500).json({ message: `خطای سرور در دریافت مسافر: ${err.message}` });
   }
 });
 
@@ -987,5 +1032,211 @@ router.get('/reservation/:reservationId/ticket-excel', auth, async (req, res) =>
         res.status(500).json({ message: 'خطا در تولید فایل اکسل بلیط رزرو.' });
     }
 });
+
+/**
+ * @route   POST /api/passengers/export-excel
+ * @desc    صدور اطلاعات مسافران به فرمت اکسل
+ * @access  عمومی
+ */
+router.post('/export-excel', async (req, res) => {
+  try {
+    const { searchQuery, sortBy = 'createdAt', sortOrder = 'desc' } = req.body;
+    
+    // ساخت شرط جستجو
+    let searchCondition = {};
+    if (searchQuery) {
+      searchCondition = {
+        $or: [
+          { firstName: { $regex: searchQuery, $options: 'i' } },
+          { lastName: { $regex: searchQuery, $options: 'i' } },
+          { englishFirstName: { $regex: searchQuery, $options: 'i' } },
+          { englishLastName: { $regex: searchQuery, $options: 'i' } },
+          { nationalId: { $regex: searchQuery, $options: 'i' } },
+          { passportNumber: { $regex: searchQuery, $options: 'i' } }
+        ]
+      };
+    }
+    
+    // دریافت همه مسافران که با شرط جستجو مطابقت دارند (بدون محدودیت صفحه‌بندی)
+    const passengers = await Passenger.find(searchCondition)
+      .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+      .populate({
+        path: 'reservation',
+        select: 'adults children infants room totalPrice status code',
+        populate: {
+          path: 'package',
+          select: 'name startDate endDate route',
+          populate: {
+            path: 'route',
+            select: 'originCity destinationCity name'
+          }
+        }
+      })
+      .populate({
+        path: 'room',
+        select: 'roomNumber capacity'
+      });
+    
+    // ایجاد فایل اکسل
+    const workbook = new ExcelJS.Workbook();
+    
+    // تنظیم ویژگی‌های فایل
+    workbook.creator = 'Tour Management System';
+    workbook.lastModifiedBy = 'Tour Management System';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+    
+    // افزودن شیت مسافران
+    const passengersSheet = workbook.addWorksheet('مسافران', {
+      properties: { tabColor: { argb: '4167B2' }, rtl: true } // فعال‌سازی راست به چپ
+    });
+    
+    // تنظیم ستون‌های صفحه مسافران
+    passengersSheet.columns = [
+      { header: 'ردیف', key: 'rowNumber', width: 8 },
+      { header: 'نام', key: 'firstName', width: 15 },
+      { header: 'نام خانوادگی', key: 'lastName', width: 18 },
+      { header: 'نام انگلیسی', key: 'englishFirstName', width: 15 },
+      { header: 'نام خانوادگی انگلیسی', key: 'englishLastName', width: 18 },
+      { header: 'کد ملی', key: 'nationalId', width: 15 },
+      { header: 'شماره پاسپورت', key: 'passportNumber', width: 15 },
+      { header: 'جنسیت', key: 'gender', width: 10 },
+      { header: 'بسته سفر', key: 'packageName', width: 20 },
+      { header: 'کد رزرو', key: 'reservationCode', width: 15 },
+      { header: 'وضعیت رزرو', key: 'reservationStatus', width: 12 },
+      { header: 'تاریخ شروع سفر', key: 'startDate', width: 15 },
+      { header: 'تاریخ پایان سفر', key: 'endDate', width: 15 },
+      { header: 'یادداشت', key: 'notes', width: 25 }
+    ];
+    
+    // استایل هدر مسافران
+    passengersSheet.getRow(1).font = { bold: true, size: 12, color: { argb: 'FFFFFF' } };
+    passengersSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '4167B2' } };
+    passengersSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
+    
+    // افزودن داده‌های مسافران
+    passengers.forEach((passenger, index) => {
+      // تاریخ‌های فارسی
+      const startDate = passenger.reservation?.package?.startDate 
+        ? formatPersianDate(passenger.reservation.package.startDate) 
+        : 'نامشخص';
+      
+      const endDate = passenger.reservation?.package?.endDate 
+        ? formatPersianDate(passenger.reservation.package.endDate) 
+        : 'نامشخص';
+      
+      // وضعیت رزرو به فارسی
+      let reservationStatus = 'نامشخص';
+      if (passenger.reservation) {
+        switch (passenger.reservation.status) {
+          case 'confirmed': reservationStatus = 'تایید شده'; break;
+          case 'pending': reservationStatus = 'در انتظار تایید'; break;
+          case 'canceled': reservationStatus = 'لغو شده'; break;
+        }
+      }
+
+      // جنسیت به فارسی
+      const gender = passenger.gender === 'male' ? 'مرد' : 'زن';
+      
+      passengersSheet.addRow({
+        rowNumber: index + 1,
+        firstName: passenger.firstName,
+        lastName: passenger.lastName,
+        englishFirstName: passenger.englishFirstName,
+        englishLastName: passenger.englishLastName,
+        nationalId: passenger.nationalId,
+        passportNumber: passenger.passportNumber,
+        gender: gender,
+        packageName: passenger.reservation?.package?.name || 'نامشخص',
+        reservationCode: passenger.reservation?.code || 'نامشخص',
+        reservationStatus: reservationStatus,
+        startDate: startDate,
+        endDate: endDate,
+        notes: passenger.notes || ''
+      });
+    });
+    
+    // اضافه کردن عنوان برای شیت مسافران (به عنوان سطر ثابت)
+    passengersSheet.spliceRows(1, 0, []); // افزودن یک ردیف خالی در ابتدا
+    
+    // مرج سلول‌ها برای عنوان
+    passengersSheet.mergeCells('A1:N1');
+    const titleCell = passengersSheet.getCell('A1');
+    titleCell.value = 'اطلاعات مسافران سیستم'; 
+    titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '3949AB' } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
+    passengersSheet.getRow(1).height = 30; // ارتفاع ردیف عنوان
+    
+    // تنظیم استایل برای همه سلول‌های مسافران
+    passengersSheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 2) { // به جز هدر و عنوان
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', rtl: true };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+          
+          // تنظیم فونت
+          cell.font = { name: 'Tahoma', size: 11 };
+        });
+        
+        // خطوط متناوب
+        if (rowNumber % 2 === 1) {
+          row.eachCell((cell) => {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'F2F6FC' }
+            };
+          });
+        }
+      }
+    });
+    
+    // تنظیم فریز پنل برای ستون‌های هدر
+    passengersSheet.views = [
+      { state: 'frozen', xSplit: 0, ySplit: 2, activeCell: 'A3', zoomScale: 100 }
+    ];
+    
+    // تنظیم اندازه صفحه برای چاپ
+    passengersSheet.pageSetup.paperSize = 9; // A4
+    passengersSheet.pageSetup.orientation = 'landscape';
+    passengersSheet.pageSetup.fitToPage = true;
+    
+    // گرفتن بافر فایل اکسل
+    const buffer = await workbook.xlsx.writeBuffer();
+    
+    // تنظیم هدرهای CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,x-auth-token,Authorization');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    
+    // تنظیم هدرهای پاسخ برای دانلود
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=passenger-list-${Date.now()}.xlsx`);
+    res.setHeader('Content-Length', buffer.length);
+    
+    // ارسال بافر
+    res.send(buffer);
+    
+  } catch (err) {
+    console.error('خطا در صادرکردن اطلاعات مسافران به اکسل:', err);
+    res.status(500).json({ message: 'خطا در ایجاد فایل اکسل' });
+  }
+});
+
+// تبدیل تاریخ میلادی به شمسی برای فایل اکسل
+function formatPersianDate(dateString) {
+  const date = new Date(dateString);
+  
+  // استفاده از API داخلی Intl برای فرمت تاریخ فارسی
+  return new Intl.DateTimeFormat('fa-IR').format(date);
+}
 
 module.exports = router; 

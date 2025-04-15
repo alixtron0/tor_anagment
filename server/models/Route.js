@@ -15,14 +15,6 @@ const RouteSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  distance: {
-    type: Number,
-    default: 0 // مسافت به کیلومتر
-  },
-  estimatedDuration: {
-    type: Number,
-    default: 0 // مدت زمان تخمینی به دقیقه
-  },
   isActive: {
     type: Boolean,
     default: true

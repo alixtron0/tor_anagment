@@ -5,11 +5,14 @@ const auth = require('../middleware/auth');
 const Airline = require('../models/Airline');
 const Aircraft = require('../models/Aircraft');
 const Route = require('../models/Route');
+const City = require('../models/City');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fontkit = require('@pdf-lib/fontkit');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const ExcelJS = require('exceljs');
+const multer = require('multer');
 
 /**
  * @route   GET /api/floating-ticket/airlines
@@ -57,6 +60,21 @@ router.get('/routes', auth, async (req, res) => {
 });
 
 /**
+ * @route   GET /api/floating-ticket/cities
+ * @desc    دریافت لیست شهرهای فعال برای انتخاب مبدا و مقصد
+ * @access  خصوصی
+ */
+router.get('/cities', auth, async (req, res) => {
+  try {
+    const cities = await City.find({ isActive: true }).select('name').sort({ name: 1 });
+    res.json(cities);
+  } catch (err) {
+    console.error('خطا در دریافت شهرها:', err.message);
+    res.status(500).json({ message: `خطای سرور در دریافت شهرها: ${err.message}` });
+  }
+});
+
+/**
  * @route   POST /api/floating-ticket/generate
  * @desc    تولید بلیط PDF با استفاده از قالب و فیلدهای فرم
  * @access  خصوصی
@@ -79,14 +97,14 @@ router.post('/generate', [
   }
 
   try {
-    const { passengers, flightInfo, route } = req.body;
+    const { passengers, flightInfo, route, airline, aircraft, sourceType } = req.body;
     
     // بررسی مقادیر مبدأ و مقصد
     let origin = flightInfo.origin;
     let destination = flightInfo.destination;
 
-    // اگر مسیر ارسال شده باشد، از آن استفاده می‌کنیم
-    if (route && route._id) {
+    // اگر مسیر ارسال شده باشد و نوع منبع "route" باشد، از آن استفاده می‌کنیم
+    if (sourceType === 'route' && route && route._id) {
       try {
         const routeData = await Route.findById(route._id);
         if (routeData) {
@@ -96,6 +114,31 @@ router.post('/generate', [
       } catch (routeError) {
         console.error('خطا در دریافت اطلاعات مسیر:', routeError);
         // در صورت خطا، از مقادیر ارسالی استفاده می‌کنیم
+      }
+    } 
+    // اگر نوع منبع "city" باشد، مقادیر ارسالی را استفاده می‌کنیم
+    else if (sourceType === 'city') {
+      // بررسی معتبر بودن شهرهای ارسالی
+      if (flightInfo.originCityId) {
+        try {
+          const originCity = await City.findById(flightInfo.originCityId);
+          if (originCity) {
+            origin = originCity.name;
+          }
+        } catch (cityError) {
+          console.error('خطا در دریافت اطلاعات شهر مبدا:', cityError);
+        }
+      }
+      
+      if (flightInfo.destinationCityId) {
+        try {
+          const destinationCity = await City.findById(flightInfo.destinationCityId);
+          if (destinationCity) {
+            destination = destinationCity.name;
+          }
+        } catch (cityError) {
+          console.error('خطا در دریافت اطلاعات شهر مقصد:', cityError);
+        }
       }
     }
 
@@ -424,6 +467,383 @@ router.get('/download/:filename', (req, res) => {
     }
     console.log(`File ${filename} sent successfully for download.`);
   });
+});
+
+// تنظیمات multer برای آپلود فایل
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // محدودیت 5 مگابایت
+  fileFilter: (req, file, cb) => {
+    // فقط فایل‌های اکسل اجازه داده شوند
+    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+        file.mimetype === 'application/vnd.ms-excel') {
+      cb(null, true);
+    } else {
+      cb(new Error('فقط فایل‌های اکسل پشتیبانی می‌شوند'), false);
+    }
+  }
+});
+
+/**
+ * @route   POST /api/floating-ticket/export-passengers
+ * @desc    صادر کردن اطلاعات مسافران به عنوان فایل اکسل
+ * @access  خصوصی
+ */
+router.post('/export-passengers', [
+  auth,
+  [
+    check('passengers', 'اطلاعات مسافران الزامی است').isArray({ min: 1 }),
+    check('flightInfo', 'اطلاعات پرواز الزامی است').isObject(),
+  ]
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { passengers, flightInfo, airline, aircraft, sourceType } = req.body;
+
+    // ایجاد فایل اکسل
+    const workbook = new ExcelJS.Workbook();
+    
+    // تنظیم ویژگی‌های فایل
+    workbook.creator = 'Tour Management System';
+    workbook.lastModifiedBy = 'Tour Management System';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+    
+    // افزودن شیت اطلاعات پرواز
+    const flightSheet = workbook.addWorksheet('اطلاعات پرواز', {
+      properties: { tabColor: { argb: '4167B2' }, rtl: true } // فعال‌سازی راست به چپ
+    });
+    
+    // تنظیم ستون‌های صفحه اطلاعات پرواز
+    flightSheet.columns = [
+      { header: 'ویژگی', key: 'property', width: 25 },
+      { header: 'مقدار', key: 'value', width: 40 }
+    ];
+    
+    // استایل هدر
+    flightSheet.getRow(1).font = { bold: true, size: 12, color: { argb: 'FFFFFF' } };
+    flightSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '4167B2' } };
+    flightSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
+    
+    // افزودن داده‌های اطلاعات پرواز
+    const flightData = [
+      { property: 'نوع انتخاب مسیر', value: sourceType === 'route' ? 'مسیر آماده' : 'انتخاب شهر' },
+      { property: 'مبدأ', value: flightInfo.origin },
+      { property: 'مقصد', value: flightInfo.destination },
+      { property: 'تاریخ پرواز', value: flightInfo.date },
+      { property: 'ساعت پرواز', value: flightInfo.time || 'تعیین نشده' },
+      { property: 'شماره پرواز', value: flightInfo.flightNumber || 'تعیین نشده' },
+      { property: 'شرکت هواپیمایی', value: airline ? airline.name : 'تعیین نشده' },
+      { property: 'مدل هواپیما', value: aircraft ? `${aircraft.manufacturer} ${aircraft.model}` : 'تعیین نشده' },
+      { property: 'تعداد مسافران', value: passengers.length }
+    ];
+    
+    flightData.forEach(item => {
+      flightSheet.addRow(item);
+    });
+    
+    // تنظیم استایل برای همه سلول‌ها
+    flightSheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) { // به جز هدر
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', rtl: true };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        });
+        
+        // خطوط متناوب
+        if (rowNumber % 2 === 0) {
+          row.eachCell((cell) => {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'F2F6FC' }
+            };
+          });
+        }
+      }
+    });
+    
+    // افزودن شیت مسافران
+    const passengersSheet = workbook.addWorksheet('مسافران', {
+      properties: { tabColor: { argb: '4167B2' }, rtl: true } // فعال‌سازی راست به چپ
+    });
+    
+    // تنظیم ستون‌های صفحه مسافران
+    passengersSheet.columns = [
+      { header: 'ردیف', key: 'rowNumber', width: 8 },
+      { header: 'نام انگلیسی', key: 'englishFirstName', width: 20 },
+      { header: 'نام خانوادگی انگلیسی', key: 'englishLastName', width: 20 },
+      { header: 'نوع سند', key: 'documentType', width: 15 },
+      { header: 'شماره سند', key: 'documentNumber', width: 20 },
+      { header: 'ملیت', key: 'nationality', width: 15 },
+      { header: 'شناسه', key: 'id', width: 30, hidden: true } // شناسه مخفی برای کمک به واردات
+    ];
+    
+    // استایل هدر مسافران
+    passengersSheet.getRow(1).font = { bold: true, size: 12, color: { argb: 'FFFFFF' } };
+    passengersSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '4167B2' } };
+    passengersSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
+    
+    // افزودن داده‌های مسافران
+    passengers.forEach((passenger, index) => {
+      passengersSheet.addRow({
+        rowNumber: index + 1,
+        englishFirstName: passenger.englishFirstName,
+        englishLastName: passenger.englishLastName,
+        documentType: passenger.documentType === 'passport' ? 'پاسپورت' : 'کد ملی',
+        documentNumber: passenger.documentNumber,
+        nationality: passenger.nationality || 'تعیین نشده',
+        id: passenger.id
+      });
+    });
+    
+    // تنظیم استایل برای همه سلول‌های مسافران
+    passengersSheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) { // به جز هدر
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', rtl: true };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+          
+          // تنظیم فونت
+          cell.font = { name: 'Tahoma', size: 11 };
+        });
+        
+        // خطوط متناوب
+        if (rowNumber % 2 === 0) {
+          row.eachCell((cell) => {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'F2F6FC' }
+            };
+          });
+        }
+      }
+    });
+    
+    // اضافه کردن عنوان برای شیت مسافران (به عنوان سطر ثابت)
+    passengersSheet.spliceRows(1, 0, []); // افزودن یک ردیف خالی در ابتدا
+    
+    // مرج سلول‌ها برای عنوان
+    passengersSheet.mergeCells('A1:G1');
+    const titleCell = passengersSheet.getCell('A1');
+    titleCell.value = 'اطلاعات مسافران'; 
+    titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '3949AB' } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
+    passengersSheet.getRow(1).height = 30; // ارتفاع ردیف عنوان
+    
+    // تنظیم فریز پنل برای ستون‌های هدر
+    passengersSheet.views = [
+      { state: 'frozen', xSplit: 0, ySplit: 2, activeCell: 'A3', zoomScale: 100 }
+    ];
+    
+    // تنظیم اندازه صفحه برای چاپ
+    passengersSheet.pageSetup.paperSize = 9; // A4
+    passengersSheet.pageSetup.orientation = 'landscape';
+    passengersSheet.pageSetup.fitToPage = true;
+    
+    // گرفتن بافر فایل اکسل
+    const buffer = await workbook.xlsx.writeBuffer();
+    
+    // تنظیم هدرهای CORS
+    res.setHeader('Access-Control-Allow-Origin', 'http://185.94.99.35:3000');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,x-auth-token,Authorization');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    
+    // تنظیم هدرهای پاسخ برای دانلود
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=passengers-${Date.now()}.xlsx`);
+    res.setHeader('Content-Length', buffer.length);
+    
+    // ارسال بافر
+    res.send(buffer);
+    
+  } catch (err) {
+    console.error('خطا در صادرکردن اطلاعات مسافران به اکسل:', err);
+    res.status(500).json({ message: 'خطا در ایجاد فایل اکسل' });
+  }
+});
+
+/**
+ * @route   POST /api/floating-ticket/import-passengers
+ * @desc    وارد کردن اطلاعات مسافران از فایل اکسل
+ * @access  خصوصی
+ */
+router.post('/import-passengers', [auth, upload.single('file')], async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'لطفاً یک فایل اکسل آپلود کنید' });
+    }
+    
+    // خواندن فایل اکسل از بافر
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+    
+    // دریافت شیت مسافران
+    const passengersSheet = workbook.getWorksheet('مسافران');
+    
+    if (!passengersSheet) {
+      return res.status(400).json({ message: 'فرمت فایل نامعتبر است. شیت مسافران یافت نشد' });
+    }
+    
+    // استخراج داده‌های مسافران
+    const passengers = [];
+    
+    // بررسی اینکه آیا فایل اکسل دارای عنوان است یا خیر
+    let startRow = 2; // شروع از ردیف 2 (پس از هدر)
+    
+    // اگر ردیف اول یک عنوان باشد، از ردیف 3 شروع می‌کنیم
+    const firstRowCell = passengersSheet.getCell(1, 1).value;
+    if (firstRowCell === 'اطلاعات مسافران') {
+      startRow = 3; // شروع از ردیف 3 (پس از عنوان و هدر)
+    }
+    
+    // خواندن هدرها برای پیدا کردن ایندکس ستون‌ها
+    const headerRow = passengersSheet.getRow(startRow - 1);
+    const columnIndexes = {
+      rowNumber: 0,
+      englishFirstName: 0,
+      englishLastName: 0,
+      documentType: 0,
+      documentNumber: 0,
+      nationality: 0,
+      id: 0
+    };
+    
+    // پیدا کردن شماره ستون‌ها با بررسی مقادیر سلول‌ها
+    headerRow.eachCell((cell, colNumber) => {
+      const headerValue = cell.value;
+      
+      if (headerValue === 'ردیف') columnIndexes.rowNumber = colNumber;
+      else if (headerValue === 'نام انگلیسی') columnIndexes.englishFirstName = colNumber;
+      else if (headerValue === 'نام خانوادگی انگلیسی') columnIndexes.englishLastName = colNumber;
+      else if (headerValue === 'نوع سند') columnIndexes.documentType = colNumber;
+      else if (headerValue === 'شماره سند') columnIndexes.documentNumber = colNumber;
+      else if (headerValue === 'ملیت') columnIndexes.nationality = colNumber;
+      else if (headerValue === 'شناسه') columnIndexes.id = colNumber;
+    });
+    
+    // استخراج اطلاعات مسافران
+    for (let rowNumber = startRow; rowNumber <= passengersSheet.rowCount; rowNumber++) {
+      const row = passengersSheet.getRow(rowNumber);
+      if (!row.hasValues) continue; // اگر سطر خالی باشد، رد می‌کنیم
+      
+      // استخراج داده‌های هر ستون با استفاده از شماره ستون
+      let id = uuidv4(); // ایجاد شناسه جدید به صورت پیش‌فرض
+      if (columnIndexes.id > 0) {
+        const cellValue = row.getCell(columnIndexes.id).value;
+        if (cellValue) id = cellValue.toString();
+      }
+      
+      const englishFirstName = columnIndexes.englishFirstName > 0
+        ? (row.getCell(columnIndexes.englishFirstName).value || '').toString()
+        : '';
+        
+      const englishLastName = columnIndexes.englishLastName > 0
+        ? (row.getCell(columnIndexes.englishLastName).value || '').toString()
+        : '';
+      
+      let documentType = 'passport';  // مقدار پیش‌فرض
+      if (columnIndexes.documentType > 0) {
+        const documentTypeValue = row.getCell(columnIndexes.documentType).value;
+        if (documentTypeValue) {
+          const documentTypeStr = documentTypeValue.toString();
+          documentType = (documentTypeStr === 'پاسپورت' || documentTypeStr === 'passport')
+            ? 'passport'
+            : 'nationalId';
+        }
+      }
+      
+      const documentNumber = columnIndexes.documentNumber > 0
+        ? (row.getCell(columnIndexes.documentNumber).value || '').toString()
+        : '';
+        
+      let nationality = 'Iranian';  // مقدار پیش‌فرض
+      if (columnIndexes.nationality > 0) {
+        const nationalityValue = row.getCell(columnIndexes.nationality).value;
+        if (nationalityValue) nationality = nationalityValue.toString();
+      }
+      
+      // فقط مسافران با حداقل یک فیلد معتبر را اضافه کن
+      if (englishFirstName || englishLastName || documentNumber) {
+        const passenger = {
+          id,
+          englishFirstName,
+          englishLastName,
+          documentType,
+          documentNumber,
+          nationality: nationality === 'تعیین نشده' ? 'Iranian' : nationality,
+          customNationality: nationality && nationality !== 'Iranian' && nationality !== 'تعیین نشده'
+        };
+        
+        passengers.push(passenger);
+      }
+    }
+    
+    // بررسی اطلاعات پرواز
+    let flightInfo = null;
+    const flightSheet = workbook.getWorksheet('اطلاعات پرواز');
+    
+    if (flightSheet) {
+      flightInfo = {};
+      
+      // ماپ برای نگاشت نام ویژگی‌ها به فیلدهای مدل
+      const propertyMapping = {
+        'مبدأ': 'origin',
+        'مقصد': 'destination',
+        'تاریخ پرواز': 'date',
+        'ساعت پرواز': 'time',
+        'شماره پرواز': 'flightNumber'
+      };
+      
+      // دسترسی به سلول‌ها با استفاده از اندیس ستون
+      for (let rowNumber = 2; rowNumber <= flightSheet.rowCount; rowNumber++) {
+        const row = flightSheet.getRow(rowNumber);
+        if (!row.hasValues) continue; // رد کردن سطرهای خالی
+        
+        const property = row.getCell(1).value;  // عنوان ویژگی در ستون اول
+        const value = row.getCell(2).value;     // مقدار ویژگی در ستون دوم
+        
+        if (property && value && propertyMapping[property] && value !== 'تعیین نشده') {
+          flightInfo[propertyMapping[property]] = value.toString();
+        }
+      }
+    }
+    
+    // اگر هیچ مسافری پیدا نشد
+    if (passengers.length === 0) {
+      return res.status(400).json({ message: 'هیچ اطلاعات معتبری برای مسافران در فایل پیدا نشد' });
+    }
+    
+    // پاسخ به درخواست
+    res.json({ 
+      message: `${passengers.length} مسافر با موفقیت بارگذاری شد`,
+      passengers,
+      flightInfo
+    });
+    
+  } catch (err) {
+    console.error('خطا در وارد کردن اطلاعات مسافران از اکسل:', err);
+    res.status(500).json({ message: 'خطا در پردازش فایل اکسل' });
+  }
 });
 
 module.exports = router; 

@@ -351,168 +351,157 @@ export default function PackageManagement() {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredPackages.map((pkg) => (
+              <div className="flex flex-col space-y-4">
+                {filteredPackages.map((pkg, index) => (
                   <motion.div
                     key={pkg._id}
-                    className={`bg-white rounded-xl shadow-md overflow-hidden border-t-4 ${
+                    className={`bg-white rounded-xl shadow-md overflow-hidden border-r-4 ${
                       pkg.isActive ? 'border-green-500' : 'border-red-500'
                     } hover:shadow-lg transition-all duration-300 cursor-pointer`}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
                     onClick={() => router.push(`/dashboard/package-management/${pkg._id}`)}
+                    layout
                   >
-                    {/* تصویر پکیج */}
-                    <div className="relative h-48 bg-gradient-to-r from-blue-500 to-indigo-600 overflow-hidden">
-                      {pkg.image ? (
-                        <img 
-                          src={`http://185.94.99.35:5000${pkg.image}`} 
-                          alt={pkg.name} 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <FaRoute className="text-white text-5xl opacity-30" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
-                      <div className="absolute bottom-0 right-0 p-4 text-white">
-                        <h3 className="text-xl font-bold mb-1">{pkg.name}</h3>
-                        <div className="flex items-center text-sm">
-                          <FaMapMarkerAlt className="mr-1" />
-                          <span>{getRouteName(pkg.route)}</span>
-                        </div>
-                      </div>
-                      <div className="absolute top-3 left-3">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                          pkg.isActive
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {pkg.isActive ? 'فعال' : 'غیرفعال'}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* اطلاعات پکیج */}
-                    <div className="p-4">
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div className="bg-blue-50 p-3 rounded-lg">
-                          <div className="text-xs text-blue-600 mb-1">تاریخ شروع</div>
-                          <div className="flex items-center">
-                            <FaCalendarAlt className="text-blue-500 ml-2" />
-                            <span className="font-medium">{formatDate(pkg.startDate)}</span>
+                    <div className="flex flex-col md:flex-row">
+                      {/* تصویر پکیج - سمت راست در دسکتاپ */}
+                      <div className="relative h-48 md:h-auto md:w-64 bg-gradient-to-r from-blue-500 to-indigo-600 overflow-hidden">
+                        {pkg.image ? (
+                          <img 
+                            src={`http://185.94.99.35:5000${pkg.image}`} 
+                            alt={pkg.name} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <FaRoute className="text-white text-5xl opacity-30" />
                           </div>
-                        </div>
-                        <div className="bg-blue-50 p-3 rounded-lg">
-                          <div className="text-xs text-blue-600 mb-1">تاریخ پایان</div>
-                          <div className="flex items-center">
-                            <FaCalendarAlt className="text-blue-500 ml-2" />
-                            <span className="font-medium">{formatDate(pkg.endDate)}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* اطلاعات ادمین ایجادکننده */}
-                      <div className="bg-indigo-50 p-3 rounded-lg mb-4">
-                        <div className="text-xs text-indigo-600 mb-1">ایجاد شده توسط</div>
-                        <div className="flex items-center">
-                          <FaUserFriends className="text-indigo-500 ml-2" />
-                          <span className="font-medium">{pkg.createdBy?.fullName || 'نامشخص'}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center">
-                          <div className="bg-indigo-100 p-2 rounded-full">
-                            <FaHotel className="text-indigo-600" />
-                          </div>
-                          <span className="mr-2 text-gray-700">
-                            {pkg.hotels?.length || 0} هتل
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent md:bg-gradient-to-t md:from-black/70 md:to-transparent"></div>
+                        <div className="absolute top-3 left-3 md:top-auto md:bottom-3 md:left-3">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                            pkg.isActive
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {pkg.isActive ? 'فعال' : 'غیرفعال'}
                           </span>
                         </div>
-                        <div className="flex flex-col items-center">
-                          <div className="flex items-center mb-1">
-                            <div className="bg-indigo-100 p-2 rounded-full">
+                      </div>
+                      
+                      {/* اطلاعات پکیج - قسمت اصلی */}
+                      <div className="flex-1 p-4 md:p-6 flex flex-col">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-1">{pkg.name}</h3>
+                            <div className="flex items-center text-sm text-gray-600 mb-2">
+                              <FaMapMarkerAlt className="ml-1 text-indigo-500" />
+                              <span>{getRouteName(pkg.route)}</span>
+                            </div>
+                            <div className="flex items-center text-sm text-gray-600">
+                              <div className="bg-indigo-100 p-1 rounded-full ml-1">
+                                <FaUserFriends className="text-indigo-500 text-xs" />
+                              </div>
+                              <span className="text-sm">{pkg.createdBy?.fullName || 'نامشخص'}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="text-left">
+                            <div className="text-xs text-gray-500 mb-1">قیمت پایه</div>
+                            <div className="text-lg font-bold text-indigo-700">
+                              {pkg.basePrice?.toLocaleString('fa-IR')} تومان
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-4 mt-auto">
+                          <div className="flex items-center">
+                            <div className="bg-blue-100 p-1.5 rounded-full">
+                              <FaCalendarAlt className="text-blue-600 text-sm" />
+                            </div>
+                            <span className="mr-1 text-sm text-gray-700">
+                              {formatDate(pkg.startDate)} تا {formatDate(pkg.endDate)}
+                            </span>
+                            <span className="mr-1 bg-blue-50 px-1.5 py-0.5 rounded text-xs text-blue-700">
+                              {calculateDuration(pkg.startDate, pkg.endDate)} روز
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center">
+                            <div className="bg-purple-100 p-1.5 rounded-full">
+                              <FaHotel className="text-purple-600 text-sm" />
+                            </div>
+                            <span className="mr-1 text-sm text-gray-700">
+                              {pkg.hotels?.length || 0} هتل
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center">
+                            <div className="bg-indigo-100 p-1.5 rounded-full">
                               {pkg.transportation?.departure === 'havaii' ? (
-                                <FaPlane className="text-indigo-600" />
+                                <FaPlane className="text-indigo-600 text-sm" />
                               ) : (
-                                <FaBus className="text-indigo-600" />
+                                <FaBus className="text-indigo-600 text-sm" />
                               )}
                             </div>
-                            <span className="mr-2 text-gray-700">
+                            <span className="mr-1 text-sm text-gray-700">
                               رفت: {pkg.transportation?.departure === 'havaii' ? 'هوایی' : 'زمینی'}
                             </span>
                           </div>
+                          
                           <div className="flex items-center">
-                            <div className="bg-indigo-100 p-2 rounded-full">
+                            <div className="bg-indigo-100 p-1.5 rounded-full">
                               {pkg.transportation?.return === 'havaii' ? (
-                                <FaPlane className="text-indigo-600" />
+                                <FaPlane className="text-indigo-600 text-sm" />
                               ) : (
-                                <FaBus className="text-indigo-600" />
+                                <FaBus className="text-indigo-600 text-sm" />
                               )}
                             </div>
-                            <span className="mr-2 text-gray-700">
+                            <span className="mr-1 text-sm text-gray-700">
                               برگشت: {pkg.transportation?.return === 'havaii' ? 'هوایی' : 'زمینی'}
                             </span>
                           </div>
+                          
+                          {userRole !== 'admin+' && (
+                            <div className="mr-auto flex gap-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  togglePackageStatus(pkg._id!, pkg.isActive);
+                                }}
+                                className={`p-2 rounded-lg ${
+                                  pkg.isActive 
+                                    ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                                    : 'bg-green-100 text-green-600 hover:bg-green-200'
+                                }`}
+                                title={pkg.isActive ? 'غیرفعال کردن' : 'فعال کردن'}
+                              >
+                                {pkg.isActive ? <FaEyeSlash /> : <FaEye />}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditModal(pkg);
+                                }}
+                                className="p-2 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-lg"
+                                title="ویرایش"
+                              >
+                                <FaEdit />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openDeleteModal(pkg);
+                                }}
+                                className="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg"
+                                title="حذف"
+                              >
+                                <FaTrash />
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center">
-                          <div className="bg-indigo-100 p-2 rounded-full">
-                            <FaCalendarAlt className="text-indigo-600" />
-                          </div>
-                          <span className="mr-2 text-gray-700">
-                            {calculateDuration(pkg.startDate, pkg.endDate)} روز
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="text-xs text-gray-500 mb-1">قیمت پایه</div>
-                          <div className="text-lg font-bold text-indigo-700">
-                            {pkg.basePrice?.toLocaleString('fa-IR')} تومان
-                          </div>
-                        </div>
-                        {userRole !== 'admin+' && (
-                          <div className="flex gap-1">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                togglePackageStatus(pkg._id!, pkg.isActive);
-                              }}
-                              className={`p-2 rounded-lg ${
-                                pkg.isActive 
-                                  ? 'bg-red-100 text-red-600 hover:bg-red-200' 
-                                  : 'bg-green-100 text-green-600 hover:bg-green-200'
-                              }`}
-                              title={pkg.isActive ? 'غیرفعال کردن' : 'فعال کردن'}
-                            >
-                              {pkg.isActive ? <FaEyeSlash /> : <FaEye />}
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEditModal(pkg);
-                              }}
-                              className="p-2 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-lg"
-                              title="ویرایش"
-                            >
-                              <FaEdit />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openDeleteModal(pkg);
-                              }}
-                              className="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg"
-                              title="حذف"
-                            >
-                              <FaTrash />
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </motion.div>

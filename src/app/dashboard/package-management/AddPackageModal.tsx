@@ -86,7 +86,9 @@ export default function AddPackageModal({
     allAccess: true,
     route: '',
     startDate: '',
+    startTime: '00:00',
     endDate: '',
+    endTime: '00:00',
     transportation: {
       departure: 'zamini' as 'zamini' | 'havaii',
       return: 'zamini' as 'zamini' | 'havaii'
@@ -182,7 +184,7 @@ export default function AddPackageModal({
       try {
         setRouteLoading(true)
         const token = localStorage.getItem('token')
-        const response = await axios.get(`http://185.94.99.35:5000/api/routes`, {
+        const response = await axios.get(`http://localhost:5000/api/routes`, {
           headers: {
             'x-auth-token': token
           }
@@ -202,7 +204,7 @@ export default function AddPackageModal({
       try {
         setCityLoading(true)
         const token = localStorage.getItem('token')
-        const response = await axios.get(`http://185.94.99.35:5000/api/cities`, {
+        const response = await axios.get(`http://localhost:5000/api/cities`, {
           headers: {
             'x-auth-token': token
           }
@@ -221,7 +223,7 @@ export default function AddPackageModal({
       try {
         setHotelLoading(true)
         const token = localStorage.getItem('token')
-        const response = await axios.get(`http://185.94.99.35:5000/api/hotels`, {
+        const response = await axios.get(`http://localhost:5000/api/hotels`, {
           headers: {
             'x-auth-token': token
           }
@@ -246,7 +248,7 @@ export default function AddPackageModal({
       if (isOpen && isEditing && packageToEdit?._id) {
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get(`http://185.94.99.35:5000/api/packages/${packageToEdit._id}`, {
+          const response = await axios.get(`http://localhost:5000/api/packages/${packageToEdit._id}`, {
             headers: {
               'x-auth-token': token
             }
@@ -263,7 +265,9 @@ export default function AddPackageModal({
             allAccess: packageData.allAccess,
             route: packageData.route._id || packageData.route,
             startDate: packageData.startDate,
+            startTime: packageData.startTime || '00:00',
             endDate: packageData.endDate,
+            endTime: packageData.endTime || '00:00',
             transportation: packageData.transportation,
             basePrice: packageData.basePrice,
             infantPrice: packageData.infantPrice,
@@ -302,7 +306,7 @@ export default function AddPackageModal({
           
           // نمایش پیش‌نمایش تصویر
           if (packageData.image) {
-            setImagePreview(`http://185.94.99.35:5000${packageData.image}`);
+            setImagePreview(`http://localhost:5000${packageData.image}`);
           }
           
           // فراخوانی تابع کالبک
@@ -425,7 +429,7 @@ export default function AddPackageModal({
         // ارسال درخواست ایجاد مسیر جدید یا دریافت مسیر موجود
         try {
           const routeResponse = await axios.post(
-            `http://185.94.99.35:5000/api/routes/find-or-create`,
+            `http://localhost:5000/api/routes/find-or-create`,
             { 
               origin: originCity, 
               destination: destinationCity 
@@ -462,6 +466,8 @@ export default function AddPackageModal({
         infantPrice: Number(data.infantPrice) || 0,
         servicesFee: Number(data.servicesFee) || 0,
         capacity: Number(data.capacity) || 0,
+        startTime: data.startTime || '00:00',
+        endTime: data.endTime || '00:00',
         services: packageServices,
         hotels: data.hotels.map(hotel => ({
           hotel: hotel.hotel,
@@ -523,7 +529,7 @@ export default function AddPackageModal({
       if (isEditing && packageData?._id) {
         // ویرایش پکیج موجود
         await axios.put(
-          `http://185.94.99.35:5000/api/packages/${packageData._id}`,
+          `http://localhost:5000/api/packages/${packageData._id}`,
           packageData,
           {
             headers: {
@@ -536,7 +542,7 @@ export default function AddPackageModal({
       } else {
         // افزودن پکیج جدید
         const response = await axios.post(
-          `http://185.94.99.35:5000/api/packages`,
+          `http://localhost:5000/api/packages`,
           packageData,
           {
             headers: {
@@ -606,7 +612,7 @@ export default function AddPackageModal({
 
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        'http://185.94.99.35:5000/api/upload',
+        'http://localhost:5000/api/upload',
         formData,
         {
           headers: {
@@ -759,14 +765,11 @@ export default function AddPackageModal({
                 <div>
                   <label className="block mb-2 font-medium text-gray-700">وضعیت نمایش</label>
                   <div className="grid grid-cols-2 gap-4">
-                    <label className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer
-                      ${watchAllFields.isPublic ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                      <input
-                        type="radio"
-                        {...register('isPublic')}
-                        value="true"
-                        className="hidden"
-                      />
+                    <div 
+                      onClick={() => setValue('isPublic', true)}
+                      className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer
+                      ${watchAllFields.isPublic ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
                       <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
                         ${watchAllFields.isPublic ? 'border-blue-500' : 'border-gray-300'}`}>
                         {watchAllFields.isPublic && (
@@ -777,16 +780,13 @@ export default function AddPackageModal({
                         <FaGlobe className={`${watchAllFields.isPublic ? 'text-blue-600' : 'text-gray-400'}`} />
                         <span className={`font-medium ${watchAllFields.isPublic ? 'text-blue-700' : 'text-gray-600'}`}>عمومی</span>
                       </div>
-                    </label>
+                    </div>
                     
-                    <label className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer
-                      ${!watchAllFields.isPublic ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                      <input
-                        type="radio"
-                        {...register('isPublic')}
-                        value="false"
-                        className="hidden"
-                      />
+                    <div 
+                      onClick={() => setValue('isPublic', false)}
+                      className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer
+                      ${!watchAllFields.isPublic ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
                       <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
                         ${!watchAllFields.isPublic ? 'border-blue-500' : 'border-gray-300'}`}>
                         {!watchAllFields.isPublic && (
@@ -797,7 +797,7 @@ export default function AddPackageModal({
                         <FaLock className={`${!watchAllFields.isPublic ? 'text-blue-600' : 'text-gray-400'}`} />
                         <span className={`font-medium ${!watchAllFields.isPublic ? 'text-blue-700' : 'text-gray-600'}`}>خصوصی</span>
                       </div>
-                    </label>
+                    </div>
                   </div>
                 </div>
 
@@ -931,6 +931,16 @@ export default function AddPackageModal({
                         />
                       )}
                     />
+                    
+                    {/* زمان شروع */}
+                    <div className="mt-2">
+                      <label className="block mb-2 font-medium text-gray-700">ساعت شروع</label>
+                      <input
+                        type="time"
+                        {...register('startTime')}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all bg-white text-gray-900"
+                      />
+                    </div>
                   </div>
 
                   {/* تاریخ پایان */}
@@ -952,6 +962,16 @@ export default function AddPackageModal({
                         />
                       )}
                     />
+                    
+                    {/* زمان پایان */}
+                    <div className="mt-2">
+                      <label className="block mb-2 font-medium text-gray-700">ساعت پایان</label>
+                      <input
+                        type="time"
+                        {...register('endTime')}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all bg-white text-gray-900"
+                      />
+                    </div>
                   </div>
                 </div>
 

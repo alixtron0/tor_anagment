@@ -1,14 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --primary: #3b82f6;
+  --primary-dark: #2563eb;
+  --primary-light: #60a5fa;
+  --accent: #93c5fd;
+  --secondary: #dbeafe;
+  --shadow-color: rgba(59, 130, 246, 0.08);
+  
+  /* تعریف فونت استاندارد */
+  --font-primary: 'Vazirmatn', Arial, sans-serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-primary);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -19,10 +29,41 @@
   }
 }
 
+/* استایل‌های اصلی */
+html {
+  direction: rtl;
+  scroll-behavior: smooth;
+  height: 100%;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* کلاس‌های کاربردی */
+.shadow-card {
+  box-shadow: 0 4px 20px var(--shadow-color);
+}
+
+.text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-shadow {
+  text-shadow: 0 2px 10px rgba(59, 130, 246, 0.1);
+}
+
+.text-gradient-glow {
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.3));
 }
 
 /* استایل‌های چاپ */
@@ -54,4 +95,22 @@ body {
     size: A4;
     margin: 1cm;
   }
+}
+
+/* انیمیشن‌های سفارشی */
+@keyframes floatAnimation {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: floatAnimation 4s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: floatAnimation 5s ease-in-out 1s infinite;
 }

@@ -23,9 +23,17 @@ const PackageSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  startTime: {
+    type: String,
+    default: "00:00"
+  },
   endDate: {
     type: String,
     required: true
+  },
+  endTime: {
+    type: String,
+    default: "00:00"
   },
   transportation: {
     departure: {

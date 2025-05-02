@@ -157,7 +157,7 @@ export default function PassengerModal({
     try {
       if (isEditMode) {
         // ویرایش مسافر
-        await axios.put(`http://185.94.99.35:5000/api/passengers/${passenger._id}`, {
+        await axios.put(`http://localhost:5000/api/passengers/${passenger._id}`, {
           ...data,
           ageCategory, // افزودن رده سنی
           room: room._id,
@@ -166,7 +166,7 @@ export default function PassengerModal({
         toast.success('مسافر با موفقیت به‌روزرسانی شد')
       } else {
         // افزودن مسافر جدید
-        await axios.post('http://185.94.99.35:5000/api/passengers', {
+        await axios.post('http://localhost:5000/api/passengers', {
           ...data,
           ageCategory, // افزودن رده سنی
           room: room._id,

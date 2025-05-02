@@ -28,7 +28,7 @@ export default function AddAdmin() {
   // تعریف گزینه‌های نقش با آیکون مناسب
   const roleOptions = [
     { id: 'admin', label: 'ادمین', icon: <FaUser className="ml-2 text-blue-400" /> },
-    { id: 'admin+', label: 'ادمین+', icon: <FaUser className="ml-2 text-emerald-400" /> },
+    { id: 'admin+', label: 'همکار', icon: <FaUser className="ml-2 text-emerald-400" /> },
   ]
 
   useEffect(() => {
@@ -82,7 +82,7 @@ export default function AddAdmin() {
     
     try {
       const token = localStorage.getItem('token')
-      await axios.post('http://185.94.99.35:5000/api/users/create-admin', formData, {
+      await axios.post('http://localhost:5000/api/users/create-admin', formData, {
         headers: { Authorization: `Bearer ${token}` }
       })
       
@@ -214,7 +214,7 @@ export default function AddAdmin() {
                   <div className="flex items-center">
                     {roleOptions.find(option => option.id === formData.role)?.icon}
                     <span>
-                      {formData.role === 'admin' ? 'ادمین' : 'ادمین+'}
+                      {formData.role === 'admin' ? 'ادمین' : 'همکار'}
                     </span>
                   </div>
                   <FaChevronDown className={`transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />

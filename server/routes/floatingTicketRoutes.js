@@ -3,7 +3,6 @@ const router = express.Router();
 const { check, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const Airline = require('../models/Airline');
-const Aircraft = require('../models/Aircraft');
 const Route = require('../models/Route');
 const City = require('../models/City');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
@@ -13,6 +12,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const ExcelJS = require('exceljs');
 const multer = require('multer');
+const axios = require('axios');
 
 /**
  * @route   GET /api/floating-ticket/airlines
@@ -21,26 +21,11 @@ const multer = require('multer');
  */
 router.get('/airlines', auth, async (req, res) => {
   try {
-    const airlines = await Airline.find().select('name englishName logo');
+    const airlines = await Airline.find().select('name englishName logo aircraftModel');
     res.json(airlines);
   } catch (err) {
     console.error('خطا در دریافت شرکت‌های هواپیمایی:', err.message);
     res.status(500).json({ message: `خطای سرور در دریافت شرکت‌های هواپیمایی: ${err.message}` });
-  }
-});
-
-/**
- * @route   GET /api/floating-ticket/aircraft
- * @desc    دریافت لیست هواپیماها
- * @access  خصوصی
- */
-router.get('/aircraft', auth, async (req, res) => {
-  try {
-    const aircraft = await Aircraft.find().select('model manufacturer');
-    res.json(aircraft);
-  } catch (err) {
-    console.error('خطا در دریافت لیست هواپیماها:', err.message);
-    res.status(500).json({ message: `خطای سرور در دریافت لیست هواپیماها: ${err.message}` });
   }
 });
 
@@ -75,6 +60,26 @@ router.get('/cities', auth, async (req, res) => {
 });
 
 /**
+ * @route   GET /api/floating-ticket/airline/:id
+ * @desc    دریافت اطلاعات کامل یک شرکت هواپیمایی
+ * @access  خصوصی
+ */
+router.get('/airline/:id', auth, async (req, res) => {
+  try {
+    const airline = await Airline.findById(req.params.id);
+    
+    if (!airline) {
+      return res.status(404).json({ message: 'شرکت هواپیمایی یافت نشد' });
+    }
+    
+    res.json(airline);
+  } catch (err) {
+    console.error('خطا در دریافت اطلاعات شرکت هواپیمایی:', err.message);
+    res.status(500).json({ message: `خطای سرور در دریافت اطلاعات شرکت هواپیمایی: ${err.message}` });
+  }
+});
+
+/**
  * @route   POST /api/floating-ticket/generate
  * @desc    تولید بلیط PDF با استفاده از قالب و فیلدهای فرم
  * @access  خصوصی
@@ -97,7 +102,14 @@ router.post('/generate', [
   }
 
   try {
-    const { passengers, flightInfo, route, airline, aircraft, sourceType } = req.body;
+    const { passengers, flightInfo, route, airline, sourceType } = req.body;
+    
+    // لاگ درخواست برای دیباگ
+    console.log("================== REQUEST DATA DEBUG ==================");
+    console.log("Airline from request:", JSON.stringify(airline, null, 2));
+    console.log("AircraftModel from airline:", airline?.aircraftModel || "Not available");
+    console.log("FlightInfo from request:", JSON.stringify(flightInfo, null, 2));
+    console.log("======================================================");
     
     // بررسی مقادیر مبدأ و مقصد
     let origin = flightInfo.origin;
@@ -148,7 +160,7 @@ router.post('/generate', [
     }
 
     // تنظیم هدرهای CORS قبل از هدرهای دیگر
-    res.setHeader('Access-Control-Allow-Origin', 'http://185.94.99.35:3000'); // اجازه به فرانت‌اند شما
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); // اجازه به فرانت‌اند شما
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); // متدهای مجاز
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,x-auth-token,Authorization'); // هدرهای مجاز در درخواست
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition'); // اجازه به مرورگر برای خواندن Content-Disposition
@@ -218,44 +230,514 @@ router.post('/generate', [
       
       // --- نگاشت داده‌ها به نام فیلدها --- 
       const fieldDataMap = {
-        'route1': origin || '',
-        'route2': destination || '',
-        'flightDate': flightInfo.date ? formatPersianDate(flightInfo.date) : '',
-        'flightTime': flightInfo.time || '',
-        'ticket code': `TC-${uuidv4().substring(0, 8)}`,
+        'from': origin || '',
+        'to': destination || '',
+        'date': flightInfo.date ? formatPersianDate(flightInfo.date) : '',
+        'time': flightInfo.time || '',
         'name': passenger.englishFirstName || '',
-        'fname': passenger.englishLastName || '',
-        'docnumber': passenger.documentNumber || ''
+        'familiy': passenger.englishLastName || '',
+        'pnumber': passenger.documentNumber || '',
+        'flightn': flightInfo.flightNumber || '',
+        'aircraft': airline && airline.aircraftModel ? 
+                      airline.aircraftModel : 
+                      flightInfo.aircraft || '',
+        'price': flightInfo.price || '',
+        'tax': flightInfo.tax || '',
+        'total': flightInfo.price && flightInfo.tax ? 
+                 String(parseInt(flightInfo.price) + parseInt(flightInfo.tax)) : '',
+        'logo_af_image': airline && airline.logo ? airline.logo : '',
+        'age': passenger.age || '---'
       };
+
+      // لاگ کردن همه فیلدهای موجود در فرم برای دیباگ
+      console.log("------ لیست تمام فیلدهای PDF ------");
+      const formFields = form.getFields();
+      formFields.forEach(field => {
+        console.log(`Field Name: "${field.getName()}", Type: "${field.constructor.name}"`);
+      });
+      console.log("----------------------------------");
+
+      // لاگ مقادیر مهم
+      console.log("Airline info:", airline ? `${airline.name} (${airline.englishName})` : "None");
+      console.log("Airline logo path:", airline && airline.logo ? airline.logo : "None");
+      console.log("Airline aircraftModel:", airline && airline.aircraftModel ? airline.aircraftModel : "Not found");
+      console.log("Complete airline object:", JSON.stringify(airline, null, 2));
 
       // --- پر کردن فیلدها و تنظیم فونت --- 
       console.log(`Filling fields for passenger ${passenger.englishFirstName} ${passenger.englishLastName}`);
       let fieldsFound = 0;
+      
+      // متغیر لوگو باید قبل از حلقه تعریف شود
+      let logoImage = null; // تعریف متغیر logoImage در سطح بالاتر
+      
+      // درج مستقیم لوگوی ایرلاین در PDF
+      if (airline && airline.logo) {
+        try {
+          // دریافت لوگو از مسیر کامل
+          let logoUrl = airline.logo;
+          // متغیر logoImage قبلاً تعریف شده است
+          
+          // بررسی فرمت آدرس لوگو و اصلاح آن
+          if (logoUrl.includes('http://localhost:5000/uploads/')) {
+            // اگر آدرس کامل است، فقط مسیر فایل را استخراج می‌کنیم
+            const parts = logoUrl.split('/uploads/');
+            if (parts.length > 1) {
+              const filePath = path.join(__dirname, '..', 'uploads', parts[1]);
+              console.log(`Reading logo from local path: ${filePath}`);
+              
+              if (fs.existsSync(filePath)) {
+                // خواندن فایل از مسیر محلی
+                const logoBuffer = fs.readFileSync(filePath);
+                
+                // تعیین فرمت تصویر بر اساس پسوند فایل
+                if (filePath.toLowerCase().endsWith('.png')) {
+                  logoImage = await pdfDoc.embedPng(logoBuffer);
+                } else if (filePath.toLowerCase().endsWith('.jpg') || filePath.toLowerCase().endsWith('.jpeg')) {
+                  logoImage = await pdfDoc.embedJpg(logoBuffer);
+                } else {
+                  // برای فرمت‌های دیگر تلاش کنیم با PNG
+                  try {
+                    logoImage = await pdfDoc.embedPng(logoBuffer);
+                  } catch (e) {
+                    try {
+                      logoImage = await pdfDoc.embedJpg(logoBuffer);
+                    } catch (e2) {
+                      console.error("Could not embed image as PNG or JPG");
+                      throw e2;
+                    }
+                  }
+                }
+                
+                // دریافت صفحه اول
+                const pages = pdfDoc.getPages();
+                const firstPage = pages[0];
+                
+                // تعیین مختصات برای لوگو - اصلاح موقعیت لوگو
+                const { width, height } = firstPage.getSize();
+                const logoX = width - 100;  // سمت راست بالا
+                const logoY = height - 50;
+                
+                // درج تصویر در PDF
+                firstPage.drawImage(logoImage, {
+                  x: logoX,
+                  y: logoY,
+                  width: 70,
+                  height: 35,
+                  opacity: 1.0,
+                });
+                
+                console.log("Successfully added logo image to PDF from local file");
+              } else {
+                console.error(`Logo file not found at: ${filePath}`);
+              }
+            }
+          } else if (logoUrl.startsWith('/uploads/')) {
+            // اگر مسیر نسبی است (شروع با /uploads/)
+            const filePath = path.join(__dirname, '..', logoUrl);
+            console.log(`Reading logo from path: ${filePath}`);
+            
+            if (fs.existsSync(filePath)) {
+              // خواندن فایل از مسیر محلی
+              const logoBuffer = fs.readFileSync(filePath);
+              
+              // تعیین فرمت تصویر بر اساس پسوند فایل
+              if (filePath.toLowerCase().endsWith('.png')) {
+                logoImage = await pdfDoc.embedPng(logoBuffer);
+              } else if (filePath.toLowerCase().endsWith('.jpg') || filePath.toLowerCase().endsWith('.jpeg')) {
+                logoImage = await pdfDoc.embedJpg(logoBuffer);
+              } else {
+                // برای فرمت‌های دیگر تلاش کنیم با PNG
+                try {
+                  logoImage = await pdfDoc.embedPng(logoBuffer);
+                } catch (e) {
+                  try {
+                    logoImage = await pdfDoc.embedJpg(logoBuffer);
+                  } catch (e2) {
+                    console.error("Could not embed image as PNG or JPG");
+                    throw e2;
+                  }
+                }
+              }
+              
+            // دریافت صفحه اول
+            const pages = pdfDoc.getPages();
+            const firstPage = pages[0];
+            
+            // تعیین مختصات برای لوگو
+            const { width, height } = firstPage.getSize();
+              const logoX = width - 100;  // سمت راست بالا
+              const logoY = height - 50;
+              
+              // درج تصویر در PDF
+              firstPage.drawImage(logoImage, {
+                x: logoX,
+                y: logoY,
+                width: 70,
+                height: 35,
+                opacity: 1.0,
+              });
+              
+              console.log("Successfully added logo image to PDF from relative path");
+            } else {
+              console.error(`Logo file not found at: ${filePath}`);
+              
+              // تلاش برای یافتن لوگو در مسیر پیش‌فرض uploads/airlines
+              const defaultAirlinePath = path.join(__dirname, '..', 'uploads', 'airlines');
+              if (fs.existsSync(defaultAirlinePath)) {
+                // بررسی همه فایل‌های موجود در پوشه airlines
+                const files = fs.readdirSync(defaultAirlinePath);
+                const filename = path.basename(logoUrl);
+                
+                if (files.includes(filename)) {
+                  // اگر فایل با همین نام یافت شد
+                  const fullPath = path.join(defaultAirlinePath, filename);
+                  console.log(`Found logo in default airlines folder: ${fullPath}`);
+                  
+                  // خواندن فایل از مسیر محلی
+                  const logoBuffer = fs.readFileSync(fullPath);
+                  
+                  // تعیین فرمت تصویر بر اساس پسوند فایل
+                  if (fullPath.toLowerCase().endsWith('.png')) {
+                    logoImage = await pdfDoc.embedPng(logoBuffer);
+                  } else if (fullPath.toLowerCase().endsWith('.jpg') || fullPath.toLowerCase().endsWith('.jpeg')) {
+                    logoImage = await pdfDoc.embedJpg(logoBuffer);
+                  } else {
+                    try {
+                      logoImage = await pdfDoc.embedPng(logoBuffer);
+                    } catch (e) {
+                      try {
+                        logoImage = await pdfDoc.embedJpg(logoBuffer);
+                      } catch (e2) {
+                        console.error("Could not embed image as PNG or JPG");
+                        throw e2;
+                      }
+                    }
+                  }
+                  
+                  // دریافت صفحه اول
+                  const pages = pdfDoc.getPages();
+                  const firstPage = pages[0];
+                  
+                  // تعیین مختصات برای لوگو
+                  const { width, height } = firstPage.getSize();
+                  const logoX = width - 100;
+                  const logoY = height - 50;
+                  
+                  // درج تصویر در PDF
+                  firstPage.drawImage(logoImage, {
+                    x: logoX,
+                    y: logoY,
+                    width: 70,
+                    height: 35,
+                    opacity: 1.0,
+                  });
+                  
+                  console.log("Successfully added logo image from default airlines folder");
+                }
+              }
+            }
+          } else {
+            // اضافه کردن پروتکل و دامنه اگر نیاز باشد - روش قدیمی با دانلود
+            if (!logoUrl.startsWith('http')) {
+              const serverBaseUrl = 'http://localhost:5000';
+              logoUrl = `${serverBaseUrl}${logoUrl.startsWith('/') ? '' : '/'}${logoUrl}`;
+            }
+            console.log(`Downloading logo from URL: ${logoUrl}`);
+            
+            // دانلود تصویر از URL
+            const logoResponse = await axios.get(logoUrl, { responseType: 'arraybuffer' });
+            const logoBuffer = Buffer.from(logoResponse.data);
+            
+            // تعیین فرمت تصویر بر اساس پسوند URL
+            if (logoUrl.toLowerCase().endsWith('.png')) {
+              logoImage = await pdfDoc.embedPng(logoBuffer);
+            } else if (logoUrl.toLowerCase().endsWith('.jpg') || logoUrl.toLowerCase().endsWith('.jpeg')) {
+              logoImage = await pdfDoc.embedJpg(logoBuffer);
+            } else {
+              // برای فرمت‌های دیگر تلاش کنیم با PNG
+              try {
+                logoImage = await pdfDoc.embedPng(logoBuffer);
+              } catch (e) {
+                try {
+                  logoImage = await pdfDoc.embedJpg(logoBuffer);
+                } catch (e2) {
+                  console.error("Could not embed image as PNG or JPG");
+                  throw e2;
+                }
+              }
+            }
+            
+            // دریافت صفحه اول
+            const pages = pdfDoc.getPages();
+            const firstPage = pages[0];
+            
+            // تعیین مختصات برای لوگو
+            const { width, height } = firstPage.getSize();
+            const logoX = width - 100;  // سمت راست بالا
+            const logoY = height - 50;
+            
+            // درج تصویر در PDF
+            firstPage.drawImage(logoImage, {
+              x: logoX,
+              y: logoY,
+              width: 70,
+              height: 35,
+              opacity: 1.0,
+            });
+            
+            console.log("Successfully added logo image to PDF from URL");
+          }
+          
+          // اگر هنوز لوگویی پیدا نشده، یک لوگوی پیش‌فرض اضافه کنیم
+          if (!logoImage) {
+            try {
+              console.log("No logo found, using fallback approach to insert logo");
+              
+              // اگر هنوز لوگو را پیدا نکرده‌ایم و نام فایل در الگوی airline-TIMESTAMP.jpg است
+              if (!logoImage && airline && airline.logo && /airline-\d+\.(?:jpg|jpeg|png)$/i.test(airline.logo)) {
+                const airlineLogo = airline.logo;
+                const filePattern = path.basename(airlineLogo);
+                console.log(`Trying to find logo by pattern: ${filePattern}`);
+                
+                const airlineUploadDir = path.join(__dirname, '..', 'uploads', 'airlines');
+                if (fs.existsSync(airlineUploadDir)) {
+                  const files = fs.readdirSync(airlineUploadDir);
+                  // جستجو برای فایلی که با این الگو مطابقت دارد
+                  for (const file of files) {
+                    if (file.toLowerCase().includes('airline-')) {
+                      console.log(`Found potential logo match: ${file}`);
+                      const fullPath = path.join(airlineUploadDir, file);
+                      
+                      try {
+                        // خواندن فایل از مسیر محلی
+                        const logoBuffer = fs.readFileSync(fullPath);
+                        
+                        // تعیین فرمت تصویر بر اساس پسوند فایل
+                        if (file.toLowerCase().endsWith('.png')) {
+                          logoImage = await pdfDoc.embedPng(logoBuffer);
+                        } else if (file.toLowerCase().endsWith('.jpg') || file.toLowerCase().endsWith('.jpeg')) {
+                          logoImage = await pdfDoc.embedJpg(logoBuffer);
+                        } else {
+                          continue; // به فایل بعدی برو
+                        }
+                        
+                        // اگر موفق به بارگذاری تصویر شدیم، از حلقه خارج شو
+                        if (logoImage) {
+                          console.log(`Successfully loaded logo: ${file}`);
+                          
+                          // دریافت صفحه اول
+                          const pages = pdfDoc.getPages();
+                          const firstPage = pages[0];
+                          
+                          // تعیین مختصات برای لوگو
+                          const { width, height } = firstPage.getSize();
+                          const logoX = width - 100;
+                          const logoY = height - 50;
+                          
+                          // درج تصویر در PDF
+                          firstPage.drawImage(logoImage, {
+                            x: logoX,
+                            y: logoY,
+                            width: 70,
+                            height: 35,
+                            opacity: 1.0,
+                          });
+                          
+                          console.log("Successfully added logo image by pattern matching");
+                          break;
+                        }
+                      } catch (error) {
+                        console.error(`Error loading logo ${file}:`, error);
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (patternMatchError) {
+              console.error("Error in airline logo pattern matching:", patternMatchError);
+            }
+          }
+        } catch (logoError) {
+          console.error("Error processing airline logo:", logoError);
+        }
+      }
+      
+      // روش نهایی: اگر هنوز هیچ لوگویی پیدا نشده است، در کل پوشه airlines جستجو کنیم
+      if (!logoImage) {
+        try {
+          console.log("No logo found yet, searching for any image in airlines directory");
+          const airlineDir = path.join(__dirname, '..', 'uploads', 'airlines');
+          
+          if (fs.existsSync(airlineDir)) {
+            const files = fs.readdirSync(airlineDir);
+            
+            for (const file of files) {
+              if (file.toLowerCase().endsWith('.png') || file.toLowerCase().endsWith('.jpg') || file.toLowerCase().endsWith('.jpeg')) {
+                console.log(`Trying generic logo: ${file}`);
+                const fullPath = path.join(airlineDir, file);
+                
+                try {
+                  const logoBuffer = fs.readFileSync(fullPath);
+                  let embedLogo = null;
+                  
+                  if (file.toLowerCase().endsWith('.png')) {
+                    embedLogo = await pdfDoc.embedPng(logoBuffer);
+                  } else if (file.toLowerCase().endsWith('.jpg') || file.toLowerCase().endsWith('.jpeg')) {
+                    embedLogo = await pdfDoc.embedJpg(logoBuffer);
+                  }
+                  
+                  if (embedLogo) {
+                    logoImage = embedLogo;
+                    
+                    // دریافت صفحه اول
+                    const pages = pdfDoc.getPages();
+                    const firstPage = pages[0];
+                    
+                    // تعیین مختصات برای لوگو
+                    const { width, height } = firstPage.getSize();
+                    const logoX = width - 100;
+                    const logoY = height - 50;
+                    
+                    // درج تصویر در PDF
+                    firstPage.drawImage(logoImage, {
+                      x: logoX,
+                      y: logoY,
+                      width: 70,
+                      height: 35,
+                      opacity: 1.0,
+                    });
+                    
+                    console.log(`Successfully added generic logo: ${file}`);
+                    break;
+                  }
+                } catch (error) {
+                  console.error(`Error processing generic logo ${file}:`, error);
+                }
+              }
+            }
+          }
+        } catch (fallbackError) {
+          console.error("Error in fallback logo detection:", fallbackError);
+        }
+      }
+      
       for (const fieldName in fieldDataMap) {
         try {
-          const field = form.getField(fieldName);
+          // پردازش ویژه برای فیلد logo_af_image
+          if (fieldName === 'logo_af_image') {
+            console.log("Processing logo_af_image field");
+            try {
+              // بررسی نوع فیلد logo_af_image (ممکن است دکمه باشد یا فیلد دیگری)
+              const fields = form.getFields();
+              const logoField = fields.find(field => field.getName() === 'logo_af_image');
+              
+              if (logoField) {
+                console.log(`Found logo field with type: ${logoField.constructor.name}`);
+                
+                // اگر فیلد از نوع دکمه است
+                if (logoField.constructor.name === 'PDFButton') {
+                  console.log("Logo field is a button, trying to set image as button icon");
+                  
+                  try {
+                    // تلاش برای تنظیم تصویر روی دکمه
+                    const button = form.getButton('logo_af_image');
+                    if (button && logoImage) {
+                      // تنظیم آیکون دکمه با لوگو
+                      button.setImage(logoImage);
+                      console.log("Successfully set button image icon");
+                    } else {
+                      console.warn("Button not found via getButton method or logoImage is null");
+                    }
+                  } catch (buttonError) {
+                    console.error("Error setting button image:", buttonError);
+                  }
+                } else {
+                  console.log("Logo field is not a button, using standard method");
+                  // استفاده از روش استاندارد برای فیلد تصویر
+                  try {
+                    if (logoImage) {
+                      form.getTextField('logo_af_image').setImage(logoImage);
+                    }
+                  } catch (textFieldError) {
+                    console.error("Error setting image to text field:", textFieldError);
+                  }
+                }
+              } else {
+                console.warn("logo_af_image field not found");
+              }
+            } catch (logoFieldError) {
+              console.error("Error processing logo_af_image field:", logoFieldError);
+            }
+            
+            continue; // پردازش فیلد logo_af_image تمام شد
+          }
+          
+          const field = form.getTextField(fieldName);
           if (field) {
             fieldsFound++;
             const valueToSet = String(fieldDataMap[fieldName]);
 
-            if (field.constructor.name === 'PDFTextField') {
-                field.setText(valueToSet);
-                if (vazirFont) {
-                   try {
-                       field.updateAppearances(vazirFont);
-                   } catch (appearanceError) {
-                       console.error(`ERROR: Could not update appearances for field '${fieldName}' with Vazir font:`, appearanceError);
-                   }
+            // اگر فیلد قیمت کل است، مطمئن شویم که به درستی محاسبه شده
+            if (fieldName === 'total' && flightInfo.price && flightInfo.tax) {
+                const price = parseInt(flightInfo.price) || 0;
+                const tax = parseInt(flightInfo.tax) || 0;
+                const total = price + tax;
+                field.setText(total.toString());
+                console.log(`Setting total field: price ${price} + tax ${tax} = total ${total}`);
+            } else if (fieldName === 'aircraft') {
+                // اطمینان حاصل کنیم که نام هواپیما به درستی تنظیم می‌شود
+                let aircraftText = "";
+                console.log("DEBUG FIELD AIRCRAFT: Start setting aircraft field");
+                console.log("- Check 1: airline exists?", airline ? "Yes" : "No");
+                console.log("- Check 2: airline.aircraftModel exists?", airline && airline.aircraftModel ? "Yes" : "No");
+                
+                if (airline && airline.aircraftModel) {
+                    // استفاده از مدل هواپیما از اطلاعات شرکت هواپیمایی - اولویت اول
+                    aircraftText = airline.aircraftModel;
+                    console.log(`Using airline.aircraftModel: "${aircraftText}"`);
+                } else if (flightInfo.aircraft) {
+                    // استفاده از اطلاعات در flightInfo (احتمالاً تنظیم دستی) - اولویت دوم
+                    aircraftText = flightInfo.aircraft;
+                    console.log(`Using flightInfo.aircraft: "${aircraftText}"`);
                 }
+                console.log(`Setting aircraft field to: "${aircraftText}"`);
+                field.setText(aircraftText);
+            } else {
+                field.setText(valueToSet);
+            }
+            
+            // قرار دادن متن در وسط فیلد
+            try {
+                field.setAlignment('Center'); // از 'Center' با حرف بزرگ استفاده می‌کنیم به جای 'center'
+            } catch (alignmentError) {
+                console.warn(`Could not set alignment for field '${fieldName}':`, alignmentError);
+            }
+            
+            if (vazirFont) {
+               try {
+                   field.updateAppearances(vazirFont);
+               } catch (appearanceError) {
+                   console.error(`ERROR: Could not update appearances for field '${fieldName}' with Vazir font:`, appearanceError);
+               }
             }
           } else {
-            console.warn(`Field with name '${fieldName}' not found in PDF template.`);
+            console.warn(`TextField with name '${fieldName}' not found in PDF template.`);
+            
+            // تلاش برای یافتن فیلد به عنوان نوع دیگری از فیلد
+            try {
+              const alternativeField = form.getField(fieldName);
+              if (alternativeField) {
+                console.log(`Found field '${fieldName}' as ${alternativeField.constructor.name} instead of TextField`);
+              }
+            } catch (altFieldError) {
+              // فیلد به هیچ شکلی یافت نشد، نیازی به لاگ اضافی نیست
+            }
           }
         } catch (fieldError) {
             console.error(`CRITICAL: Error processing field '${fieldName}':`, fieldError);
         }
       }
-          
+      
       // --- Flatten کردن فرم --- 
       try {
         form.flatten();
@@ -453,7 +935,7 @@ router.get('/download/:filename', (req, res) => {
   }
 
   // تنظیم هدرهای CORS
-  res.setHeader('Access-Control-Allow-Origin', 'http://185.94.99.35:3000');
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,x-auth-token,Authorization');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
@@ -539,7 +1021,9 @@ router.post('/export-passengers', [
       { property: 'ساعت پرواز', value: flightInfo.time || 'تعیین نشده' },
       { property: 'شماره پرواز', value: flightInfo.flightNumber || 'تعیین نشده' },
       { property: 'شرکت هواپیمایی', value: airline ? airline.name : 'تعیین نشده' },
-      { property: 'مدل هواپیما', value: aircraft ? `${aircraft.manufacturer} ${aircraft.model}` : 'تعیین نشده' },
+      { property: 'مدل هواپیما', value: airline && airline.aircraftModel ? 
+        airline.aircraftModel : 
+        (flightInfo && flightInfo.aircraft ? flightInfo.aircraft : 'تعیین نشده') },
       { property: 'تعداد مسافران', value: passengers.length }
     ];
     
@@ -586,6 +1070,7 @@ router.post('/export-passengers', [
       { header: 'نوع سند', key: 'documentType', width: 15 },
       { header: 'شماره سند', key: 'documentNumber', width: 20 },
       { header: 'ملیت', key: 'nationality', width: 15 },
+      { header: 'سن', key: 'age', width: 10 },
       { header: 'شناسه', key: 'id', width: 30, hidden: true } // شناسه مخفی برای کمک به واردات
     ];
     
@@ -603,6 +1088,7 @@ router.post('/export-passengers', [
         documentType: passenger.documentType === 'passport' ? 'پاسپورت' : 'کد ملی',
         documentNumber: passenger.documentNumber,
         nationality: passenger.nationality || 'تعیین نشده',
+        age: passenger.age || '',
         id: passenger.id
       });
     });
@@ -640,7 +1126,7 @@ router.post('/export-passengers', [
     passengersSheet.spliceRows(1, 0, []); // افزودن یک ردیف خالی در ابتدا
     
     // مرج سلول‌ها برای عنوان
-    passengersSheet.mergeCells('A1:G1');
+    passengersSheet.mergeCells('A1:H1');
     const titleCell = passengersSheet.getCell('A1');
     titleCell.value = 'اطلاعات مسافران'; 
     titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
@@ -662,7 +1148,7 @@ router.post('/export-passengers', [
     const buffer = await workbook.xlsx.writeBuffer();
     
     // تنظیم هدرهای CORS
-    res.setHeader('Access-Control-Allow-Origin', 'http://185.94.99.35:3000');
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,x-auth-token,Authorization');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
@@ -725,6 +1211,7 @@ router.post('/import-passengers', [auth, upload.single('file')], async (req, res
       documentType: 0,
       documentNumber: 0,
       nationality: 0,
+      age: 0,
       id: 0
     };
     
@@ -738,6 +1225,7 @@ router.post('/import-passengers', [auth, upload.single('file')], async (req, res
       else if (headerValue === 'نوع سند') columnIndexes.documentType = colNumber;
       else if (headerValue === 'شماره سند') columnIndexes.documentNumber = colNumber;
       else if (headerValue === 'ملیت') columnIndexes.nationality = colNumber;
+      else if (headerValue === 'سن') columnIndexes.age = colNumber;
       else if (headerValue === 'شناسه') columnIndexes.id = colNumber;
     });
     
@@ -782,6 +1270,12 @@ router.post('/import-passengers', [auth, upload.single('file')], async (req, res
         if (nationalityValue) nationality = nationalityValue.toString();
       }
       
+      let age = '';
+      if (columnIndexes.age > 0) {
+        const ageValue = row.getCell(columnIndexes.age).value;
+        if (ageValue) age = ageValue.toString();
+      }
+      
       // فقط مسافران با حداقل یک فیلد معتبر را اضافه کن
       if (englishFirstName || englishLastName || documentNumber) {
         const passenger = {
@@ -791,7 +1285,8 @@ router.post('/import-passengers', [auth, upload.single('file')], async (req, res
           documentType,
           documentNumber,
           nationality: nationality === 'تعیین نشده' ? 'Iranian' : nationality,
-          customNationality: nationality && nationality !== 'Iranian' && nationality !== 'تعیین نشده'
+          customNationality: nationality && nationality !== 'Iranian' && nationality !== 'تعیین نشده',
+          age
         };
         
         passengers.push(passenger);
@@ -845,5 +1340,144 @@ router.post('/import-passengers', [auth, upload.single('file')], async (req, res
     res.status(500).json({ message: 'خطا در پردازش فایل اکسل' });
   }
 });
+
+/**
+ * تابع کمکی برای درج لوگوی ایرلاین
+ */
+async function insertAirlineLogo(field, logoFilename, pdfDoc) {
+  // تلاش برای یافتن لوگو در مسیر uploads/airlines
+  const logoPath = path.join(__dirname, '..', 'uploads', 'airlines', logoFilename);
+  console.log(`Looking for airline logo at: ${logoPath}`);
+  
+  if (fs.existsSync(logoPath)) {
+      try {
+          const logoBytes = fs.readFileSync(logoPath);
+          const logoImage = await pdfDoc.embedPng(logoBytes);
+          
+          if (field.constructor.name === 'PDFButton') {
+              field.setImage(logoImage);
+          } else if (field.constructor.name === 'PDFTextField') {
+              // برخی فیلدهای متنی ممکن است پشتیبانی از تصویر داشته باشند
+              try {
+                  field.setImage(logoImage);
+              } catch (err) {
+                  console.warn(`Cannot set image for text field: ${err.message}`);
+              }
+          }
+          console.log(`Successfully embedded logo from ${logoPath}`);
+          return true;
+      } catch (err) {
+          console.error(`Error embedding logo:`, err);
+      }
+  } else {
+      console.warn(`Logo file not found at ${logoPath}`);
+      
+      // تلاش برای یافتن لوگو در مسیر پیش‌فرض uploads/airlines
+      const defaultAirlinePath = path.join(__dirname, '..', 'uploads', 'airlines');
+      if (fs.existsSync(defaultAirlinePath)) {
+        // بررسی همه فایل‌های موجود در پوشه airlines
+        const files = fs.readdirSync(defaultAirlinePath);
+        const filename = path.basename(logoFilename);
+      
+        if (files.includes(filename)) {
+          // اگر فایل با همین نام یافت شد
+          const fullPath = path.join(defaultAirlinePath, filename);
+          console.log(`Found logo in default airlines folder: ${fullPath}`);
+          
+          // خواندن فایل از مسیر محلی
+          const logoBuffer = fs.readFileSync(fullPath);
+          
+          // تعیین فرمت تصویر بر اساس پسوند فایل
+          let logoImage;
+          if (fullPath.toLowerCase().endsWith('.png')) {
+            logoImage = await pdfDoc.embedPng(logoBuffer);
+          } else if (fullPath.toLowerCase().endsWith('.jpg') || fullPath.toLowerCase().endsWith('.jpeg')) {
+            logoImage = await pdfDoc.embedJpg(logoBuffer);
+          } else {
+            try {
+              logoImage = await pdfDoc.embedPng(logoBuffer);
+            } catch (e) {
+                  try {
+                logoImage = await pdfDoc.embedJpg(logoBuffer);
+              } catch (e2) {
+                console.error("Could not embed image as PNG or JPG");
+                throw e2;
+              }
+            }
+          }
+          
+          // دریافت صفحه اول
+          const pages = pdfDoc.getPages();
+          const firstPage = pages[0];
+          
+          // تعیین مختصات برای لوگو - اصلاح موقعیت لوگو
+          const { width, height } = firstPage.getSize();
+          const logoX = width - 100;  // سمت راست بالا
+          const logoY = height - 50;
+          
+          // درج تصویر در PDF
+          firstPage.drawImage(logoImage, {
+            x: logoX,
+            y: logoY,
+            width: 70,
+            height: 35,
+            opacity: 1.0,
+          });
+          
+          console.log("Successfully added logo image from default airlines folder");
+        }
+      }
+  }
+  return false;
+}
+
+/**
+ * تابع کمکی برای درج لوگو به عنوان تصویر مستقل
+ */
+async function insertLogoAsImage(pdfDoc, logoFilename) {
+  // بررسی مسیرهای احتمالی لوگو
+  let logoPath = path.join(__dirname, '..', 'uploads', 'airlines', logoFilename);
+  
+  if (!fs.existsSync(logoPath)) {
+      logoPath = path.join(__dirname, '..', 'assets', 'images', logoFilename);
+      if (!fs.existsSync(logoPath)) {
+          console.warn(`Logo file not found in any expected paths`);
+          return false;
+      }
+  }
+  
+  try {
+      const logoBytes = fs.readFileSync(logoPath);
+      const logoImage = await pdfDoc.embedPng(logoBytes);
+      
+      // دریافت صفحه فعلی
+      const pages = pdfDoc.getPages();
+      const firstPage = pages[0];
+      
+      // اندازه صفحه
+      const { width, height } = firstPage.getSize();
+      
+      // اندازه تصویر
+      const logoWidth = 100;
+      const logoHeight = 50;
+      
+      // موقعیت تصویر (بالا سمت راست)
+      const x = width - logoWidth - 50;
+      const y = height - logoHeight - 50;
+      
+      // درج تصویر
+      firstPage.drawImage(logoImage, {
+          x,
+          y,
+          width: logoWidth,
+          height: logoHeight,
+      });
+      
+      return true;
+  } catch (err) {
+      console.error(`Failed to insert logo as image:`, err);
+      return false;
+  }
+}
 
 module.exports = router; 

@@ -103,7 +103,7 @@ export default function AllPassengers() {
     setLoading(true)
     try {
       console.log('در حال فراخوانی API...')
-      const response = await axios.get(`http://185.94.99.35:5000/api/passengers/all`, {
+      const response = await axios.get(`http://localhost:5000/api/passengers/all`, {
         params: {
           page: pagination.page,
           pageSize: pagination.pageSize,
@@ -221,7 +221,7 @@ export default function AllPassengers() {
     
     try {
       const response = await axios.put(
-        `http://185.94.99.35:5000/api/passengers/${editingPassenger._id}`, 
+        `http://localhost:5000/api/passengers/${editingPassenger._id}`, 
         editFormData
       )
       
@@ -252,7 +252,7 @@ export default function AllPassengers() {
     if (!confirm('آیا از حذف این مسافر اطمینان دارید؟')) return
     
     try {
-      await axios.delete(`http://185.94.99.35:5000/api/passengers/${passengerId}`)
+      await axios.delete(`http://localhost:5000/api/passengers/${passengerId}`)
       
       // به‌روزرسانی لیست مسافران
       setPassengers(passengers.filter(p => p._id !== passengerId))
@@ -282,7 +282,7 @@ export default function AllPassengers() {
 
       // ارسال درخواست به بک‌اند با همان پارامترهای جستجوی فعلی
       const response = await axios.post(
-        'http://185.94.99.35:5000/api/passengers/export-excel',
+        'http://localhost:5000/api/passengers/export-excel',
         {
           searchQuery: search,
           sortBy,

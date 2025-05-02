@@ -21,7 +21,10 @@ import axios from 'axios'
 import { toast as reactToastify } from 'react-toastify'
 import { Toaster } from 'react-hot-toast'
 import PersianDatePicker from '@/components/PersianDatePicker'
+import PriceInput from '@/components/PriceInput'
 import { v4 as uuidv4 } from 'uuid'
+import { UseFormRegister } from 'react-hook-form'
+import moment from 'moment'
 
 // تعریف انواع داده
 interface Passenger {
@@ -32,6 +35,9 @@ interface Passenger {
   documentNumber: string;
   nationality?: string;
   customNationality?: boolean;
+  age?: string;
+  birthDate?: string;
+  ageInputMethod?: 'direct' | 'birthdate';
 }
 
 interface Airline {
@@ -39,6 +45,7 @@ interface Airline {
   name: string;
   englishName: string;
   logo?: string;
+  aircraftModel?: string;
 }
 
 interface Aircraft {
@@ -64,7 +71,21 @@ interface FlightInfo {
   airline?: string;
   originCityId?: string;
   destinationCityId?: string;
+  price?: string;
+  tax?: string;
+  total?: string;
+  aircraft?: string;
 }
+
+// ساخت یک تابع شبیه‌ساز register برای کامپوننت PriceInput
+const mockRegister: UseFormRegister<any> = (name) => {
+  return {
+    name,
+    onChange: () => Promise.resolve(),
+    onBlur: () => Promise.resolve(),
+    ref: () => {},
+  };
+};
 
 export default function FloatingTicket() {
   // استیت‌ها
@@ -75,13 +96,15 @@ export default function FloatingTicket() {
     destination: '',
     date: '',
     time: '',
-    flightNumber: ''
+    flightNumber: '',
+    price: '',
+    tax: '',
+    total: '',
+    aircraft: ''
   })
   const [airlines, setAirlines] = useState<Airline[]>([])
-  const [aircraft, setAircraft] = useState<Aircraft[]>([])
   const [routes, setRoutes] = useState<Route[]>([])
   const [selectedAirline, setSelectedAirline] = useState<Airline | null>(null)
-  const [selectedAircraft, setSelectedAircraft] = useState<Aircraft | null>(null)
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [nationalities] = useState<string[]>([
@@ -103,23 +126,19 @@ export default function FloatingTicket() {
         const token = localStorage.getItem('token')
         if (!token) return
         
-        const [airlinesRes, aircraftRes, routesRes, citiesRes] = await Promise.all([
-          axios.get('http://185.94.99.35:5000/api/floating-ticket/airlines', {
+        const [airlinesRes, routesRes, citiesRes] = await Promise.all([
+          axios.get('http://localhost:5000/api/airlines', {
             headers: { 'x-auth-token': token }
           }),
-          axios.get('http://185.94.99.35:5000/api/floating-ticket/aircraft', {
+          axios.get('http://localhost:5000/api/floating-ticket/routes', {
             headers: { 'x-auth-token': token }
           }),
-          axios.get('http://185.94.99.35:5000/api/floating-ticket/routes', {
-            headers: { 'x-auth-token': token }
-          }),
-          axios.get('http://185.94.99.35:5000/api/floating-ticket/cities', {
+          axios.get('http://localhost:5000/api/floating-ticket/cities', {
             headers: { 'x-auth-token': token }
           })
         ])
         
         setAirlines(airlinesRes.data)
-        setAircraft(aircraftRes.data)
         setRoutes(routesRes.data)
         setCities(citiesRes.data)
       } catch (err: any) {
@@ -140,7 +159,10 @@ export default function FloatingTicket() {
       documentType: 'passport',
       documentNumber: '',
       nationality: 'Iranian',
-      customNationality: false
+      customNationality: false,
+      age: '',
+      birthDate: '',
+      ageInputMethod: 'direct'
     }
     
     setPassengers([...passengers, newPassenger])
@@ -159,7 +181,10 @@ export default function FloatingTicket() {
         documentType: 'passport',
         documentNumber: '',
         nationality: 'Iranian',
-        customNationality: false
+        customNationality: false,
+        age: '',
+        birthDate: '',
+        ageInputMethod: 'direct'
       });
     }
     
@@ -174,9 +199,31 @@ export default function FloatingTicket() {
   // به‌روزرسانی اطلاعات مسافر
   const updatePassenger = (id: string, field: keyof Passenger, value: any) => {
     setPassengers(
-      passengers.map(p => p.id === id ? { ...p, [field]: value } : p)
-    )
-  }
+      passengers.map(p => {
+        if (p.id === id) {
+          // اگر فیلد birthDate تغییر کرده، سن را محاسبه کن
+          if (field === 'birthDate' && value) {
+            try {
+              const birthDate = moment(value, 'YYYY/MM/DD');
+              const now = moment();
+              const age = now.diff(birthDate, 'years').toString();
+              return { ...p, [field]: value, age, ageInputMethod: 'birthdate' };
+            } catch (error) {
+              console.error('خطا در محاسبه سن:', error);
+              return { ...p, [field]: value };
+            }
+          }
+          // اگر فیلد age تغییر کرده و مستقیماً وارد شده
+          else if (field === 'age') {
+            return { ...p, [field]: value, ageInputMethod: 'direct' };
+          }
+          
+          return { ...p, [field]: value };
+        }
+        return p;
+      })
+    );
+  };
 
   // به‌روزرسانی اطلاعات پرواز
   const updateFlightInfo = (field: keyof FlightInfo, value: string) => {
@@ -258,12 +305,11 @@ export default function FloatingTicket() {
 
       // ارسال درخواست به بک‌اند
       const response = await axios.post(
-        'http://185.94.99.35:5000/api/floating-ticket/export-passengers',
+        'http://localhost:5000/api/floating-ticket/export-passengers',
         {
           passengers,
           flightInfo,
           airline: selectedAirline,
-          aircraft: selectedAircraft,
           sourceType
         },
         {
@@ -333,7 +379,7 @@ export default function FloatingTicket() {
 
       // ارسال درخواست به بک‌اند
       const response = await axios.post(
-        'http://185.94.99.35:5000/api/floating-ticket/import-passengers',
+        'http://localhost:5000/api/floating-ticket/import-passengers',
         formData,
         {
           headers: {
@@ -407,15 +453,21 @@ export default function FloatingTicket() {
         return reactToastify.error('لطفا ابتدا وارد شوید');
       }
 
+      // لاگ کردن داده‌های ارسالی برای دیباگ
+      console.log("====== SENDING DATA TO SERVER ======");
+      console.log("airline:", selectedAirline);
+      console.log("airline.aircraftModel:", selectedAirline?.aircraftModel);
+      console.log("flightInfo.aircraft:", flightInfo.aircraft);
+      console.log("======================================");
+
       // ارسال درخواست به بک‌اند
       const response = await axios.post(
-        'http://185.94.99.35:5000/api/floating-ticket/generate',
+        'http://localhost:5000/api/floating-ticket/generate',
         {
           passengers,
           flightInfo,
           route: selectedRoute,
           airline: selectedAirline,
-          aircraft: selectedAircraft,
           sourceType
         },
         {
@@ -428,7 +480,7 @@ export default function FloatingTicket() {
       // بررسی پاسخ سرور
       if (response.data && response.data.downloadUrl) {
         // استفاده از URL دانلود مستقیم
-        const downloadUrl = `http://185.94.99.35:5000${response.data.downloadUrl}`;
+        const downloadUrl = `http://localhost:5000${response.data.downloadUrl}`;
         
         // ایجاد لینک دانلود و کلیک روی آن
         const link = document.createElement('a');
@@ -632,13 +684,61 @@ export default function FloatingTicket() {
                   const airlineId = e.target.value;
                   if (!airlineId) {
                     setSelectedAirline(null);
+                    updateFlightInfo('airline', '');
+                    updateFlightInfo('aircraft', '');
                     return;
                   }
                   
+                  // یافتن ایرلاین انتخاب شده
                   const airline = airlines.find(a => a._id === airlineId);
                   if (airline) {
                     setSelectedAirline(airline);
-                    updateFlightInfo('airline', airline.englishName);
+                    updateFlightInfo('airline', airline.englishName || airline.name);
+                    
+                    // استفاده از مدل هواپیمای ذخیره شده در ایرلاین
+                    if (airline.aircraftModel) {
+                      console.log(`Using airline.aircraftModel: ${airline.aircraftModel}`);
+                      updateFlightInfo('aircraft', airline.aircraftModel);
+                    } else {
+                      console.log("No aircraftModel found in airline");
+                      updateFlightInfo('aircraft', airline.englishName ? `${airline.englishName} Aircraft` : '');
+                    }
+                    
+                    // دریافت اطلاعات کامل ایرلاین از API
+                    const fetchAirlineDetails = async (id: string) => {
+                      try {
+                        const token = localStorage.getItem('token');
+                        if (!token) {
+                          reactToastify.error('لطفا ابتدا وارد شوید');
+                          return null;
+                        }
+                        
+                        const response = await axios.get(`http://localhost:5000/api/airlines/${id}`, {
+                          headers: { 'x-auth-token': token }
+                        });
+                        
+                        return response.data;
+                      } catch (error) {
+                        console.error('خطا در دریافت اطلاعات کامل شرکت هواپیمایی:', error);
+                        return null;
+                      }
+                    };
+                    
+                    // دریافت اطلاعات کامل و به‌روزرسانی
+                    fetchAirlineDetails(airlineId).then(detailedAirline => {
+                      if (detailedAirline) {
+                        console.log("Received detailed airline info:", detailedAirline);
+                        
+                        // به‌روزرسانی state با اطلاعات کامل
+                        setSelectedAirline(detailedAirline);
+                        
+                        // اگر aircraftModel در اطلاعات دقیق وجود دارد، از آن استفاده کنیم
+                        if (detailedAirline.aircraftModel) {
+                          console.log(`Using detailed airline.aircraftModel: ${detailedAirline.aircraftModel}`);
+                          updateFlightInfo('aircraft', detailedAirline.aircraftModel);
+                        }
+                      }
+                    });
                   }
                 }}
                 className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -646,12 +746,59 @@ export default function FloatingTicket() {
                 <option value="">انتخاب شرکت هواپیمایی</option>
                 {airlines.map(airline => (
                   <option key={airline._id} value={airline._id}>
-                    {airline.name} ({airline.englishName})
+                    {airline.name} ({airline.englishName || ''})
+                    {airline.aircraftModel ? ` - ${airline.aircraftModel}` : ''}
                   </option>
                 ))}
               </select>
+              {selectedAirline && (
+                <div className="mt-2 text-xs">
+                  {selectedAirline.aircraftModel ? (
+                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                      مدل هواپیما: {selectedAirline.aircraftModel}
+                    </span>
+                  ) : (
+                    <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
+                      مدل هواپیما مشخص نشده است
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             
+            <div className="mb-4">
+              <PriceInput
+                label="قیمت بلیط"
+                name="price"
+                value={parseInt(flightInfo.price || '0')}
+                onChange={(value) => updateFlightInfo('price', value.toString())}
+                placeholder="مثال: 5,000,000"
+              />
+            </div>
+            
+            <div className="mb-4">
+              <PriceInput
+                label="مالیات و عوارض"
+                name="tax"
+                value={parseInt(flightInfo.tax || '0')}
+                onChange={(value) => updateFlightInfo('tax', value.toString())}
+                placeholder="مثال: 500,000"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-gray-700 mb-2">جمع کل (تومان)</label>
+              <div className="w-full bg-indigo-50 border border-indigo-200 rounded-lg p-3 font-bold text-indigo-700 flex items-center justify-between">
+                <span>
+                  {(flightInfo.price || flightInfo.tax) ? 
+                    (parseInt(flightInfo.price || '0') + parseInt(flightInfo.tax || '0')).toLocaleString('fa-IR') 
+                    : 'مجموع قیمت و مالیات'}
+                </span>
+                {(flightInfo.price || flightInfo.tax) && 
+                  <span className="text-xs bg-indigo-100 px-2 py-1 rounded-md text-indigo-600">محاسبه خودکار</span>
+                }
+              </div>
+            </div>
             
           </div>
         </div>
@@ -864,7 +1011,7 @@ export default function FloatingTicket() {
                           dir="ltr"
                         >
                           {nationalities.map(nat => (
-                            <option key={nat} value={nat === 'Other' ? 'Other' : nat}>
+                            <option key={nat} value={nat === 'Other' ? 'سایر...' : nat}>
                               {nat === 'Other' ? 'سایر...' : nat}
                             </option>
                           ))}
@@ -898,6 +1045,67 @@ export default function FloatingTicket() {
                           >
                             ↩
                           </button>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <label className="block text-gray-700 mb-2">سن مسافر</label>
+                      <div className="flex">
+                        <div className={`flex-1 ${passenger.ageInputMethod === 'direct' ? 'opacity-100' : 'opacity-50'}`}>
+                          <input
+                            type="number"
+                            min="0"
+                            max="120"
+                            value={passenger.age || ''}
+                            onChange={(e) => {
+                              updatePassenger(passenger.id, 'age', e.target.value);
+                              if (passenger.ageInputMethod !== 'direct') {
+                                updatePassenger(passenger.id, 'ageInputMethod', 'direct');
+                                updatePassenger(passenger.id, 'birthDate', '');
+                              }
+                            }}
+                            onClick={() => {
+                              // تغییر به حالت ورود مستقیم سن هنگام کلیک
+                              if (passenger.ageInputMethod !== 'direct') {
+                                updatePassenger(passenger.id, 'ageInputMethod', 'direct');
+                              }
+                            }}
+                            className="w-full bg-gray-50 border border-gray-300 rounded-l-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            placeholder="سن مسافر"
+                          />
+                        </div>
+                        <div className="flex border border-gray-300 border-r-0 rounded-r-lg bg-gray-100">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // تغییر بین حالت‌های ورود سن
+                              const newMethod = passenger.ageInputMethod === 'direct' ? 'birthdate' : 'direct';
+                              updatePassenger(passenger.id, 'ageInputMethod', newMethod);
+                            }}
+                            className="px-3 text-gray-500 hover:text-indigo-600 transition-colors"
+                            title={passenger.ageInputMethod === 'direct' ? 'انتخاب تاریخ تولد' : 'ورود مستقیم سن'}
+                          >
+                            <FaCalendarAlt />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* تاریخ تولد - نمایش در صورت انتخاب حالت محاسبه از تاریخ تولد */}
+                      {passenger.ageInputMethod === 'birthdate' && (
+                        <div className="mt-2">
+                          <label className="block text-gray-700 mb-2 text-xs">تاریخ تولد</label>
+                          <PersianDatePicker
+                            value={passenger.birthDate}
+                            onChange={(date) => updatePassenger(passenger.id, 'birthDate', date)}
+                            placeholder="انتخاب تاریخ تولد"
+                            className="text-sm"
+                          />
+                          {passenger.age && (
+                            <div className="mt-1 text-xs text-indigo-600 bg-indigo-50 p-1 rounded border border-indigo-100">
+                              سن محاسبه شده: <span className="font-bold">{passenger.age} سال</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

@@ -10,14 +10,18 @@ const fs = require('fs');
 // تنظیمات آپلود فایل
 const storage = multer.diskStorage({
   destination: function(req, file, cb) {
-    const uploadDir = 'uploads/airlines';
+    const uploadDir = path.join(__dirname, '../uploads/airlines');
+    console.log('Upload directory:', path.resolve(uploadDir)); // لاگ مسیر آپلود
     if (!fs.existsSync(uploadDir)) {
+      console.log('Directory does not exist, creating:', uploadDir);
       fs.mkdirSync(uploadDir, { recursive: true });
     }
     cb(null, uploadDir);
   },
   filename: function(req, file, cb) {
-    cb(null, `airline-${Date.now()}${path.extname(file.originalname)}`);
+    const fileName = `airline-${Date.now()}${path.extname(file.originalname)}`;
+    console.log('Generated filename:', fileName); // لاگ نام فایل
+    cb(null, fileName);
   }
 });
 
@@ -26,6 +30,13 @@ const fileFilter = (req, file, cb) => {
   const allowedFileTypes = /jpeg|jpg|png|svg/;
   const extname = allowedFileTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedFileTypes.test(file.mimetype);
+
+  console.log('File upload attempt:', { 
+    originalname: file.originalname,
+    mimetype: file.mimetype,
+    extname: path.extname(file.originalname).toLowerCase(),
+    isValid: mimetype && extname
+  }); // لاگ اطلاعات فایل
 
   if (mimetype && extname) {
     return cb(null, true);
@@ -92,6 +103,15 @@ router.post('/', [
     check('name', 'نام شرکت هواپیمایی الزامی است').not().isEmpty()
   ]
 ], async (req, res) => {
+  console.log('POST airline request:', { 
+    body: req.body,
+    file: req.file ? { 
+      filename: req.file.filename,
+      path: req.file.path,
+      mimetype: req.file.mimetype 
+    } : 'No file uploaded'
+  }); // لاگ اطلاعات درخواست
+  
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -121,6 +141,7 @@ router.post('/', [
     });
 
     airline = await newAirline.save();
+    console.log('Airline created successfully:', airline); // لاگ نتیجه ایجاد
 
     res.json({
       message: 'شرکت هواپیمایی جدید با موفقیت ایجاد شد',
@@ -144,6 +165,16 @@ router.put('/:id', [
     check('name', 'نام شرکت هواپیمایی الزامی است').not().isEmpty()
   ]
 ], async (req, res) => {
+  console.log('PUT airline request:', { 
+    id: req.params.id,
+    body: req.body,
+    file: req.file ? { 
+      filename: req.file.filename,
+      path: req.file.path,
+      mimetype: req.file.mimetype 
+    } : 'No file uploaded'
+  }); // لاگ اطلاعات درخواست
+  
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -180,8 +211,12 @@ router.put('/:id', [
     // بررسی وجود لوگوی قبلی و حذف آن در صورت آپلود فایل جدید
     if (req.file && airline.logo) {
       const oldLogoPath = path.join(__dirname, '..', airline.logo);
+      console.log('Attempting to delete old logo:', oldLogoPath); // لاگ مسیر حذف فایل قدیمی
       if (fs.existsSync(oldLogoPath)) {
         fs.unlinkSync(oldLogoPath);
+        console.log('Old logo deleted successfully');
+      } else {
+        console.log('Old logo file not found');
       }
     }
 
@@ -196,6 +231,7 @@ router.put('/:id', [
     airline.updatedAt = Date.now();
 
     const updatedAirline = await airline.save();
+    console.log('Airline updated successfully:', updatedAirline); // لاگ نتیجه بروزرسانی
 
     res.json({
       message: 'شرکت هواپیمایی با موفقیت به‌روزرسانی شد',
@@ -233,12 +269,17 @@ router.delete('/:id', auth, async (req, res) => {
     // حذف فایل لوگو
     if (airline.logo) {
       const logoPath = path.join(__dirname, '..', airline.logo);
+      console.log('Attempting to delete logo on airline delete:', logoPath); // لاگ مسیر حذف فایل
       if (fs.existsSync(logoPath)) {
         fs.unlinkSync(logoPath);
+        console.log('Logo deleted successfully');
+      } else {
+        console.log('Logo file not found');
       }
     }
 
     await airline.deleteOne();
+    console.log('Airline deleted successfully', req.params.id);
 
     res.json({ message: 'شرکت هواپیمایی با موفقیت حذف شد' });
   } catch (err) {

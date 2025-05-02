@@ -36,7 +36,7 @@ export default function AirlineSelect({
     const fetchAirlines = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://185.94.99.35:5000/api/airlines', {
+        const response = await axios.get('http://localhost:5000/api/airlines', {
           headers: {
             'x-auth-token': token
           }

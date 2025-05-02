@@ -364,4 +364,47 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+// @route   POST /api/users/change-password
+// @desc    Change user password
+// @access  Private
+router.post('/change-password', auth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    // بررسی وجود هر دو فیلد
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        message: 'لطفاً رمز عبور فعلی و رمز عبور جدید را وارد کنید' 
+      });
+    }
+    
+    // بررسی طول رمز عبور جدید
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        message: 'رمز عبور جدید باید حداقل 6 کاراکتر باشد' 
+      });
+    }
+    
+    // یافتن کاربر
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'کاربر یافت نشد' });
+    }
+    
+    // بررسی رمز عبور فعلی
+    if (currentPassword !== user.password) {
+      return res.status(400).json({ message: 'رمز عبور فعلی اشتباه است' });
+    }
+    
+    // بروزرسانی رمز عبور
+    user.password = newPassword;
+    await user.save();
+    
+    res.json({ message: 'رمز عبور با موفقیت تغییر یافت' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ message: 'خطا در سرور', error: err.message });
+  }
+});
+
 module.exports = router; 

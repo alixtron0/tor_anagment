@@ -34,7 +34,7 @@ export default function PackageManagement() {
     try {
       setLoading(true)
       const token = localStorage.getItem('token')
-      const response = await axios.get(`http://185.94.99.35:5000/api/packages`, {
+      const response = await axios.get(`http://localhost:5000/api/packages`, {
         headers: {
           'x-auth-token': token
         }
@@ -118,7 +118,7 @@ export default function PackageManagement() {
   const handleDeletePackage = async (id: string) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.delete(`http://185.94.99.35:5000/api/packages/${id}`, {
+      const response = await axios.delete(`http://localhost:5000/api/packages/${id}`, {
         headers: {
           'x-auth-token': token
         }
@@ -149,7 +149,7 @@ export default function PackageManagement() {
     try {
       const token = localStorage.getItem('token')
       const response = await axios.patch(
-        `http://185.94.99.35:5000/api/packages/${id}/toggle-status`,
+        `http://localhost:5000/api/packages/${id}/toggle-status`,
         { isActive: !currentStatus },
         {
           headers: {
@@ -369,7 +369,7 @@ export default function PackageManagement() {
                       <div className="relative h-48 md:h-auto md:w-64 bg-gradient-to-r from-blue-500 to-indigo-600 overflow-hidden">
                         {pkg.image ? (
                           <img 
-                            src={`http://185.94.99.35:5000${pkg.image}`} 
+                            src={`http://localhost:5000${pkg.image}`} 
                             alt={pkg.name} 
                             className="w-full h-full object-cover"
                           />
@@ -421,7 +421,7 @@ export default function PackageManagement() {
                               <FaCalendarAlt className="text-blue-600 text-sm" />
                             </div>
                             <span className="mr-1 text-sm text-gray-700">
-                              {formatDate(pkg.startDate)} تا {formatDate(pkg.endDate)}
+                              {formatDate(pkg.startDate)} {pkg.startTime && `(${pkg.startTime})`} تا {formatDate(pkg.endDate)} {pkg.endTime && `(${pkg.endTime})`}
                             </span>
                             <span className="mr-1 bg-blue-50 px-1.5 py-0.5 rounded text-xs text-blue-700">
                               {calculateDuration(pkg.startDate, pkg.endDate)} روز

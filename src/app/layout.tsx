@@ -1,19 +1,18 @@
 import './globals.css'
-import { Cairo } from 'next/font/google'
 import 'react-toastify/dist/ReactToastify.css'
 import { ToastContainer } from 'react-toastify'
+import { Vazirmatn } from 'next/font/google'
 
-const primaryFont = Cairo({
+const vazirmatn = Vazirmatn({
   subsets: ['arabic'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
   display: 'swap',
-  preload: false,
-  variable: '--font-primary',
+  variable: '--font-vazirmatn',
 })
 
 export const metadata = {
-  title: 'سیستم مدیریت شرکت مسافرتی',
-  description: 'سیستم مدیریت جامع برای شرکت‌های مسافرتی',
+  title: 'سیستم مدیریت هوشمند تورهای مسافرتی',
+  description: 'مدیریت جامع و هوشمند تورهای مسافرتی، رزرو و برنامه‌ریزی سفر',
 }
 
 export default function RootLayout({
@@ -24,13 +23,9 @@ export default function RootLayout({
   return (
     <html lang="fa" dir="rtl">
       <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-      <body className={`${primaryFont.variable} font-primary bg-gradient-to-br from-dark-primary via-dark-secondary to-blue-900/50 min-h-screen text-dark-text-primary`}>
-        <div className="fixed inset-0 bg-[url('/images/bg-pattern.svg')] opacity-10 bg-repeat z-0 pointer-events-none"></div>
+      <body className={`${vazirmatn.variable} font-sans text-slate-800 bg-white min-h-screen`}>
         <div className="relative z-10">
           {children}
         </div>
@@ -44,6 +39,7 @@ export default function RootLayout({
           pauseOnFocusLoss
           draggable
           pauseOnHover
+          theme="light"
         />
       </body>
     </html>

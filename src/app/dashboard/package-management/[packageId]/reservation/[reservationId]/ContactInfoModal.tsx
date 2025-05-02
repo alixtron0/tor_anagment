@@ -50,7 +50,7 @@ export default function ContactInfoModal({
       
       setIsLoading(true)
       try {
-        const response = await axios.get(`http://185.94.99.35:5000/api/contactinfo/reservation/${reservation}`)
+        const response = await axios.get(`http://localhost:5000/api/contactinfo/reservation/${reservation}`)
         setExistingData(response.data)
         reset({
           contactName: response.data.contactName,
@@ -93,7 +93,7 @@ export default function ContactInfoModal({
     setIsSubmitting(true)
     
     try {
-      await axios.post('http://185.94.99.35:5000/api/contactinfo', {
+      await axios.post('http://localhost:5000/api/contactinfo', {
         ...data,
         reservation
       })

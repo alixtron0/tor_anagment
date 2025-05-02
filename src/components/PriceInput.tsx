@@ -5,7 +5,7 @@ import { FaMoneyBillWave } from 'react-icons/fa';
 interface PriceInputProps {
   label: string;
   name: string;
-  register: UseFormRegister<any>;
+  register?: UseFormRegister<any>;
   error?: string;
   defaultValue?: number;
   value?: number;
@@ -63,6 +63,24 @@ const PriceInput: React.FC<PriceInputProps> = ({
     return numericValue;
   };
 
+  // تنظیم پارامترهای ورودی برای نمایش
+  const inputProps = register 
+    ? {
+        ...register(name, {
+          setValueAs: (value: string | number) => {
+            if (typeof value === 'number') return value;
+            return parseInt(value.replace(/[^\d]/g, '')) || 0;
+          }
+        }),
+        value: displayValue,
+        onChange: (e: React.ChangeEvent<HTMLInputElement>) => handleChange(e)
+      }
+    : {
+        name,
+        value: displayValue,
+        onChange: (e: React.ChangeEvent<HTMLInputElement>) => handleChange(e)
+      };
+
   return (
     <div className="flex flex-col gap-2">
       <label className="block font-medium text-gray-700">{label}</label>
@@ -73,14 +91,7 @@ const PriceInput: React.FC<PriceInputProps> = ({
         <input
           type="text"
           inputMode="numeric"
-          {...register(name, {
-            setValueAs: (value: string | number) => {
-              if (typeof value === 'number') return value;
-              return parseInt(value.replace(/[^\d]/g, '')) || 0;
-            }
-          })}
-          value={displayValue}
-          onChange={(e) => handleChange(e)}
+          {...inputProps}
           placeholder={placeholder}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}

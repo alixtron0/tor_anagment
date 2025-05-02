@@ -55,7 +55,7 @@ export default function AdminList() {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get('http://185.94.99.35:5000/api/users/admins', {
+      const response = await axios.get('http://localhost:5000/api/users/admins', {
         headers: { Authorization: `Bearer ${token}` }
       })
       setAdmins(response.data)
@@ -87,7 +87,7 @@ export default function AdminList() {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      await axios.delete(`http://185.94.99.35:5000/api/users/${deleteModal.adminId}`, {
+      await axios.delete(`http://localhost:5000/api/users/${deleteModal.adminId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       
@@ -202,9 +202,12 @@ export default function AdminList() {
                       </td>
                       <td className="py-4">
                         <span className={`px-3 py-1 rounded-full text-xs 
-                          ${admin.role === 'super-admin' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}
+                          ${admin.role === 'super-admin' ? 'bg-blue-100 text-blue-700' : 
+                             admin.role === 'admin+' ? 'bg-emerald-100 text-emerald-700' : 
+                             'bg-green-100 text-green-700'}`}
                         >
-                          {admin.role === 'super-admin' ? 'مدیر کل' : 'ادمین'}
+                          {admin.role === 'super-admin' ? 'مدیر کل' : 
+                           admin.role === 'admin+' ? 'همکار' : 'ادمین'}
                         </span>
                       </td>
                       <td className="py-4 text-gray-700">{formatDate(admin.createdAt)}</td>

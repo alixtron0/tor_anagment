@@ -22,7 +22,8 @@ import {
   FaPrint,
   FaUsers,
   FaCog,
-  FaFileExcel
+  FaFileExcel,
+  FaTicketAlt
 } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import { Package } from '@/components/types'
@@ -70,6 +71,9 @@ export default function PackageDetails() {
   const [isReservationModalOpen, setIsReservationModalOpen] = useState(false)
   const [isDownloadingPackageExcel, setIsDownloadingPackageExcel] = useState(false)
   const [isDownloadingTicketExcel, setIsDownloadingTicketExcel] = useState(false)
+  const [isDownloadingHotelReport, setIsDownloadingHotelReport] = useState(false)
+  const [isGeneratingTickets, setIsGeneratingTickets] = useState(false)
+  const [ticketTypeModalOpen, setTicketTypeModalOpen] = useState(false)
   const [userRole, setUserRole] = useState<string>('')
   const [userId, setUserId] = useState<string>('')
   const params = useParams()
@@ -103,7 +107,7 @@ export default function PackageDetails() {
       setLoading(true)
       const token = localStorage.getItem('token')
       
-      const response = await axios.get(`http://185.94.99.35:5000/api/packages/${packageId}`, {
+      const response = await axios.get(`http://localhost:5000/api/packages/${packageId}`, {
         headers: {
           'x-auth-token': token
         }
@@ -124,7 +128,7 @@ export default function PackageDetails() {
       setLoadingReservations(true)
       const token = localStorage.getItem('token')
       
-      const response = await axios.get(`http://185.94.99.35:5000/api/reservations/package/${packageId}`, {
+      const response = await axios.get(`http://localhost:5000/api/reservations/package/${packageId}`, {
         headers: {
           'x-auth-token': token
         }
@@ -162,7 +166,7 @@ export default function PackageDetails() {
         filteredReservations.map(async (reservation: Reservation) => {
           try {
             // دریافت مسافران مرتبط با این رزرو
-            const passengersResponse = await axios.get(`http://185.94.99.35:5000/api/passengers/reservation/${reservation._id}`, {
+            const passengersResponse = await axios.get(`http://localhost:5000/api/passengers/reservation/${reservation._id}`, {
               headers: {
                 'x-auth-token': token
               }
@@ -260,7 +264,7 @@ export default function PackageDetails() {
       const token = localStorage.getItem('token')
       
       await axios.patch(
-        `http://185.94.99.35:5000/api/reservations/${reservationId}/status`,
+        `http://localhost:5000/api/reservations/${reservationId}/status`,
         { status: newStatus },
         {
           headers: {
@@ -291,7 +295,7 @@ export default function PackageDetails() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `http://185.94.99.35:5000/api/passengers/package/${packageId}/excel`,
+        `http://localhost:5000/api/passengers/package/${packageId}/excel`,
         {
           responseType: 'blob', // مهم: دریافت پاسخ به صورت blob
           headers: {
@@ -333,7 +337,7 @@ export default function PackageDetails() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `http://185.94.99.35:5000/api/passengers/package/${packageId}/ticket-excel`, // <-- New API endpoint
+        `http://localhost:5000/api/passengers/package/${packageId}/ticket-excel`, // <-- New API endpoint
         {
           responseType: 'blob', // Important: expect blob response
           headers: {
@@ -386,6 +390,86 @@ export default function PackageDetails() {
     }
   };
 
+  // دانلود گزارش هتل به صورت اکسل
+  const handleDownloadHotelReport = async () => {
+    try {
+      setIsDownloadingHotelReport(true)
+      const token = localStorage.getItem('token')
+      
+      // ارسال درخواست دانلود اکسل
+      const response = await axios.get(`http://localhost:5000/api/packages/${packageId}/hotel-report`, {
+        headers: {
+          'x-auth-token': token
+        },
+        responseType: 'blob' // برای دریافت فایل باینری
+      })
+      
+      // ایجاد URL برای دانلود
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `hotel-report-${packageData?.name || 'package'}.xlsx`)
+      document.body.appendChild(link)
+      link.click()
+      
+      // پاکسازی
+      link.parentNode?.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      
+      toast.success('گزارش هتل با موفقیت دانلود شد')
+    } catch (error) {
+      console.error('خطا در دانلود گزارش هتل:', error)
+      toast.error('خطا در دانلود گزارش هتل')
+    } finally {
+      setIsDownloadingHotelReport(false)
+    }
+  }
+
+  // تابع باز کردن مودال انتخاب نوع بلیط (رفت/برگشت/هر دو)
+  const openTicketTypeModal = () => {
+    setTicketTypeModalOpen(true);
+  };
+
+  // تابع بستن مودال انتخاب نوع بلیط
+  const closeTicketTypeModal = () => {
+    setTicketTypeModalOpen(false);
+  };
+
+  // تابع تولید بلیط برای همه مسافران پکیج
+  const generatePackageTickets = async (ticketType: 'departure' | 'return' | 'both') => {
+    try {
+      setIsGeneratingTickets(true);
+      closeTicketTypeModal();
+
+      const token = localStorage.getItem('token');
+      
+      // درخواست به API برای تولید بلیط‌ها
+      const response = await axios.post(
+        `http://localhost:5000/api/packages/${packageId}/generate-tickets`,
+        { ticketType },
+        {
+          headers: {
+            'x-auth-token': token
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        // هدایت کاربر به لینک دانلود بلیط‌ها
+        window.open(`http://localhost:5000/api/packages/download-ticket/${response.data.fileName}`, '_blank');
+        
+        // نمایش پیام موفقیت
+        toast.success(`بلیط‌های ${response.data.passengerCount} مسافر با موفقیت تولید شد`);
+      }
+    } catch (error: any) {
+      console.error('خطا در تولید بلیط‌ها:', error);
+      const errorMessage = error.response?.data?.message || 'خطا در تولید بلیط‌ها';
+      toast.error(errorMessage);
+    } finally {
+      setIsGeneratingTickets(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -431,14 +515,6 @@ export default function PackageDetails() {
           
           <div className="flex gap-2">
             <button
-              onClick={() => router.push(`/dashboard/package-management/${packageId}/print`)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <FaPrint />
-              <span>چاپ لیست رزروها</span>
-            </button>
-            
-            <button
               onClick={handleDownloadPackageExcel}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors shadow-md ${
                 isDownloadingPackageExcel
@@ -456,20 +532,50 @@ export default function PackageDetails() {
             </button>
             
             <button
+              onClick={handleDownloadHotelReport}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors shadow-md ${
+                isDownloadingHotelReport
+                  ? 'bg-gray-400 text-white cursor-wait'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              }`}
+              disabled={isDownloadingHotelReport}
+            >
+              {isDownloadingHotelReport ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+              ) : (
+                <FaFileExcel />
+              )}
+              <span>{isDownloadingHotelReport ? 'در حال آماده سازی...' : 'گزارش هتل'}</span>
+            </button>
+            
+            <button
               onClick={handleDownloadPackageTicketExcel}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors shadow-md ${
                 isDownloadingTicketExcel
                   ? 'bg-gray-400 text-white cursor-wait'
-                  : 'bg-purple-600 text-white hover:bg-purple-700' // Different color
+                  : 'bg-purple-600 text-white hover:bg-purple-700'
               }`}
               disabled={isDownloadingTicketExcel}
             >
               {isDownloadingTicketExcel ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
               ) : (
-                <FaFileExcel className="text-purple-100"/> // Maybe different icon or color
+                <FaFileExcel className="text-purple-100"/>
               )}
               <span>{isDownloadingTicketExcel ? 'در حال آماده سازی...' : 'دانلود اکسل بلیط'}</span>
+            </button>
+            
+            <button
+              onClick={openTicketTypeModal}
+              className={`flex items-center gap-2 py-2 px-4 text-sm font-medium bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none`}
+              disabled={isGeneratingTickets}
+            >
+              {isGeneratingTickets ? (
+                <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin"></div>
+              ) : (
+                <FaTicketAlt />
+              )}
+              <span>{isGeneratingTickets ? 'در حال تولید بلیط‌ها...' : 'تولید بلیط برای همه مسافران'}</span>
             </button>
             
             <button
@@ -491,7 +597,7 @@ export default function PackageDetails() {
         <div className="mt-8 mb-12 relative overflow-hidden rounded-2xl h-80">
           {packageData.image ? (
             <img 
-              src={`http://185.94.99.35:5000${packageData.image}`} 
+              src={`http://localhost:5000${packageData.image}`} 
               alt={packageData.name} 
               className="w-full h-full object-cover"
             />
@@ -578,6 +684,24 @@ export default function PackageDetails() {
                   : 'شرکت هواپیمایی'}
               </div>
             )}
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 flex flex-col">
+            <div className="text-indigo-500 mb-3">
+              <FaCalendarAlt className="text-2xl" />
+            </div>
+            <div className="text-gray-500 text-sm mb-2">تاریخ سفر</div>
+            <div className="text-md font-bold text-gray-900">
+              {formatDate(packageData.startDate)} {packageData.startTime && `ساعت ${packageData.startTime}`}
+            </div>
+            <div className="text-md font-bold text-gray-900 mt-1">
+              تا
+            </div>
+            <div className="text-md font-bold text-gray-900 mt-1">
+              {formatDate(packageData.endDate)} {packageData.endTime && `ساعت ${packageData.endTime}`}
+            </div>
+            <div className="text-sm text-gray-500 mt-1">
+              {calculateDuration(packageData.startDate, packageData.endDate)} روز
+            </div>
           </div>
         </div>
 
@@ -1049,6 +1173,61 @@ export default function PackageDetails() {
               setIsReservationModalOpen(false)
             }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* مودال انتخاب نوع بلیط */}
+      <AnimatePresence>
+        {ticketTypeModalOpen && (
+          <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center bg-black bg-opacity-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-lg p-6 w-full max-w-md mx-auto shadow-xl"
+            >
+              <h3 className="text-lg font-bold mb-4 text-gray-800">نوع بلیط را انتخاب کنید</h3>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={() => generatePackageTickets('departure')}
+                  className="w-full py-3 px-4 text-sm font-medium bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none flex items-center justify-center gap-2"
+                  disabled={isGeneratingTickets}
+                >
+                  <FaPlane className="transform rotate-45" />
+                  <span>فقط بلیط رفت</span>
+                </button>
+                
+                <button
+                  onClick={() => generatePackageTickets('return')}
+                  className="w-full py-3 px-4 text-sm font-medium bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none flex items-center justify-center gap-2"
+                  disabled={isGeneratingTickets}
+                >
+                  <FaPlane className="transform -rotate-135" />
+                  <span>فقط بلیط برگشت</span>
+                </button>
+                
+                <button
+                  onClick={() => generatePackageTickets('both')}
+                  className="w-full py-3 px-4 text-sm font-medium bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none flex items-center justify-center gap-2"
+                  disabled={isGeneratingTickets}
+                >
+                  <FaTicketAlt className="mr-1" />
+                  <span>هر دو بلیط (رفت و برگشت)</span>
+                </button>
+              </div>
+              
+              <div className="mt-5 text-right">
+                <button
+                  type="button"
+                  className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md shadow-sm hover:bg-gray-200 focus:outline-none"
+                  onClick={closeTicketTypeModal}
+                >
+                  انصراف
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

@@ -56,7 +56,7 @@ export default function AirlineManagement() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://185.94.99.35:5000/api/airlines', {
+      const response = await axios.get('http://localhost:5000/api/airlines', {
         headers: { 'x-auth-token': token }
       });
       setAirlines(response.data);
@@ -120,7 +120,7 @@ export default function AirlineManagement() {
 
       if (editMode && currentAirlineId) {
         // به‌روزرسانی شرکت هواپیمایی
-        await axios.put(`http://185.94.99.35:5000/api/airlines/${currentAirlineId}`, formData, {
+        await axios.put(`http://localhost:5000/api/airlines/${currentAirlineId}`, formData, {
           headers: { 
             'x-auth-token': token,
             'Content-Type': 'multipart/form-data'
@@ -129,7 +129,7 @@ export default function AirlineManagement() {
         toast.success('شرکت هواپیمایی با موفقیت به‌روزرسانی شد');
       } else {
         // ایجاد شرکت هواپیمایی جدید
-        await axios.post('http://185.94.99.35:5000/api/airlines', formData, {
+        await axios.post('http://localhost:5000/api/airlines', formData, {
           headers: { 
             'x-auth-token': token,
             'Content-Type': 'multipart/form-data'
@@ -164,7 +164,7 @@ export default function AirlineManagement() {
     
     // تنظیم پیش‌نمایش لوگو
     if (airline.logo) {
-      setLogoPreview(`http://185.94.99.35:5000${airline.logo}`);
+      setLogoPreview(`http://localhost:5000${airline.logo}`);
     } else {
       setLogoPreview(null);
     }
@@ -204,7 +204,7 @@ export default function AirlineManagement() {
       formData.append('description', airline.description || '');
       formData.append('isActive', (!currentStatus).toString());
       
-      await axios.put(`http://185.94.99.35:5000/api/airlines/${id}`, formData, {
+      await axios.put(`http://localhost:5000/api/airlines/${id}`, formData, {
         headers: { 
           'x-auth-token': token,
           'Content-Type': 'multipart/form-data'
@@ -225,7 +225,7 @@ export default function AirlineManagement() {
     
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://185.94.99.35:5000/api/airlines/${id}`, {
+      await axios.delete(`http://localhost:5000/api/airlines/${id}`, {
         headers: { 'x-auth-token': token }
       });
       
@@ -463,7 +463,7 @@ export default function AirlineManagement() {
                               {airline.logo ? (
                                 <div className="w-16 h-16 relative border border-gray-200 rounded-xl overflow-hidden bg-white p-2 shadow-md">
                                   <img 
-                                    src={`http://185.94.99.35:5000${airline.logo}`} 
+                                    src={`http://localhost:5000${airline.logo}`} 
                                     alt={airline.name} 
                                     className="w-full h-full object-contain"
                                   />

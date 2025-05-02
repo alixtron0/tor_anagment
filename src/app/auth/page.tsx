@@ -48,7 +48,7 @@ export default function AuthPage() {
     setError(null)
     
     try {
-      const response = await axios.post('http://185.94.99.35:5000/api/users/login', data)
+      const response = await axios.post('http://localhost:5000/api/users/login', data)
       
       // ذخیره توکن در localStorage
       localStorage.setItem('token', response.data.token)

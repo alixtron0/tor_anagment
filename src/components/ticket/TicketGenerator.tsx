@@ -73,7 +73,7 @@ const TicketGenerator: React.FC<TicketGeneratorProps> = ({ reservation, passenge
         const token = localStorage.getItem('token');
         console.log("Fetching complete package data for ID:", reservation.package._id);
         
-        const response = await axios.get(`http://185.94.99.35:5000/api/packages/${reservation.package._id}`, {
+        const response = await axios.get(`http://localhost:5000/api/packages/${reservation.package._id}`, {
           headers: {
             'x-auth-token': token
           }
@@ -133,7 +133,7 @@ const TicketGenerator: React.FC<TicketGeneratorProps> = ({ reservation, passenge
             // اضافه کردن درخواست مستقیم به API
             try {
               // استفاده از API هتل با ID مشخص
-              const response = await axios.get(`http://185.94.99.35:5000/api/hotels/${hotelId}`, {
+              const response = await axios.get(`http://localhost:5000/api/hotels/${hotelId}`, {
                 headers: {
                   'x-auth-token': token
                 },
@@ -159,7 +159,7 @@ const TicketGenerator: React.FC<TicketGeneratorProps> = ({ reservation, passenge
               // تلاش مجدد با مسیر API جایگزین
               try {
                 console.log("Trying alternative API endpoint...");
-                const altResponse = await axios.get(`http://185.94.99.35:5000/api/hotels`, {
+                const altResponse = await axios.get(`http://localhost:5000/api/hotels`, {
                   headers: {
                     'x-auth-token': token
                   }

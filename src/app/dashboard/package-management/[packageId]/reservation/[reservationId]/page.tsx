@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import axios from 'axios'
 import { toast } from 'react-toastify'
-import { FaPlus, FaUsers, FaBed, FaCheck, FaArrowLeft, FaUserPlus, FaPassport, FaClipboardList, FaMale, FaFemale, FaChild, FaBaby, FaFileAlt, FaTicketAlt, FaFileExcel } from 'react-icons/fa'
+import { FaPlus, FaUsers, FaBed, FaCheck, FaArrowLeft, FaUserPlus, FaPassport, FaClipboardList, FaMale, FaFemale, FaChild, FaBaby, FaFileAlt, FaTicketAlt, FaFileExcel, FaPlane } from 'react-icons/fa'
 import Link from 'next/link'
 import RoomCard from './RoomCard'
 import PassengerModal from './PassengerModal'
@@ -120,6 +120,8 @@ export default function PassengerManagement() {
   const [isPassengerListModalOpen, setIsPassengerListModalOpen] = useState(false)
   const [isDownloadingReservationExcel, setIsDownloadingReservationExcel] = useState(false)
   const [isDownloadingTicketExcel, setIsDownloadingTicketExcel] = useState(false)
+  const [isGeneratingTickets, setIsGeneratingTickets] = useState(false)
+  const [ticketTypeModalOpen, setTicketTypeModalOpen] = useState(false)
   
   // بارگذاری اطلاعات رزرو
   const fetchReservation = async () => {
@@ -130,7 +132,7 @@ export default function PassengerManagement() {
         return
       }
 
-      const response = await axios.get(`http://185.94.99.35:5000/api/reservations/${reservationId}`, {
+      const response = await axios.get(`http://localhost:5000/api/reservations/${reservationId}`, {
         headers: {
           'x-auth-token': token
         }
@@ -146,7 +148,7 @@ export default function PassengerManagement() {
   // بارگذاری آمار رزرو
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`http://185.94.99.35:5000/api/passengers/stats/reservation/${reservationId}`)
+      const response = await axios.get(`http://localhost:5000/api/passengers/stats/reservation/${reservationId}`)
       setStats(response.data)
     } catch (error) {
       console.error('خطا در دریافت آمار رزرو:', error)
@@ -157,7 +159,7 @@ export default function PassengerManagement() {
   // بارگذاری اتاق‌ها
   const fetchRooms = async () => {
     try {
-      const response = await axios.get(`http://185.94.99.35:5000/api/rooms/reservation/${reservationId}`)
+      const response = await axios.get(`http://localhost:5000/api/rooms/reservation/${reservationId}`)
       setRooms(response.data)
     } catch (error) {
       console.error('خطا در دریافت اتاق‌ها:', error)
@@ -168,7 +170,7 @@ export default function PassengerManagement() {
   // بارگذاری مسافران
   const fetchPassengers = async () => {
     try {
-      const response = await axios.get(`http://185.94.99.35:5000/api/passengers/reservation/${reservationId}`)
+      const response = await axios.get(`http://localhost:5000/api/passengers/reservation/${reservationId}`)
       setPassengers(response.data)
     } catch (error) {
       console.error('خطا در دریافت مسافران:', error)
@@ -192,6 +194,51 @@ export default function PassengerManagement() {
       setIsLoading(false)
     }
   }
+  
+  // باز کردن مودال انتخاب نوع بلیط
+  const openTicketTypeModal = () => {
+    setTicketTypeModalOpen(true);
+  };
+
+  // بستن مودال انتخاب نوع بلیط
+  const closeTicketTypeModal = () => {
+    setTicketTypeModalOpen(false);
+  };
+
+  // تولید بلیط‌های PDF برای مسافران این رزرواسیون
+  const generateReservationTickets = async (ticketType: 'departure' | 'return' | 'both') => {
+    try {
+      setIsGeneratingTickets(true);
+      closeTicketTypeModal();
+
+      const token = localStorage.getItem('token');
+      
+      // درخواست به API برای تولید بلیط‌ها
+      const response = await axios.post(
+        `http://localhost:5000/api/packages/reservation/${reservationId}/generate-tickets`,
+        { ticketType },
+        {
+          headers: {
+            'x-auth-token': token
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        // هدایت کاربر به لینک دانلود بلیط‌ها
+        window.open(`http://localhost:5000/api/packages/download-ticket/${response.data.fileName}`, '_blank');
+        
+        // نمایش پیام موفقیت
+        toast.success(`بلیط‌های ${response.data.passengerCount} مسافر با موفقیت تولید شد`);
+      }
+    } catch (error: any) {
+      console.error('خطا در تولید بلیط‌ها:', error);
+      const errorMessage = error.response?.data?.message || 'خطا در تولید بلیط‌ها';
+      toast.error(errorMessage);
+    } finally {
+      setIsGeneratingTickets(false);
+    }
+  };
   
   // ثبت نهایی رزرو
   const handleFinalSubmit = async () => {
@@ -227,7 +274,7 @@ export default function PassengerManagement() {
     if (!confirm('آیا از حذف این مسافر اطمینان دارید؟')) return
     
     try {
-      await axios.delete(`http://185.94.99.35:5000/api/passengers/${passengerId}`)
+      await axios.delete(`http://localhost:5000/api/passengers/${passengerId}`)
       toast.success('مسافر با موفقیت حذف شد')
       fetchAllData() // بارگذاری مجدد داده‌ها
     } catch (error) {
@@ -255,7 +302,7 @@ export default function PassengerManagement() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `http://185.94.99.35:5000/api/passengers/reservation/${reservationId}/excel`,
+        `http://localhost:5000/api/passengers/reservation/${reservationId}/excel`,
         {
           responseType: 'blob', // دریافت پاسخ به صورت blob
           headers: {
@@ -297,7 +344,7 @@ export default function PassengerManagement() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `http://185.94.99.35:5000/api/passengers/reservation/${reservationId}/ticket-excel`, // <-- New API endpoint
+        `http://localhost:5000/api/passengers/reservation/${reservationId}/ticket-excel`, // <-- New API endpoint
         {
           responseType: 'blob', // Important: expect blob response
           headers: {
@@ -565,9 +612,26 @@ export default function PassengerManagement() {
           </h2>
           
           <div className="p-4 bg-white rounded-lg shadow-sm">
-            <p className="text-gray-600 mb-4">
-              می‌توانید بلیط‌های مسافران را به صورت PDF دریافت کنید. برای هر مسافر یک بلیط مجزا تولید خواهد شد.
-            </p>
+            <div className="flex flex-col gap-4 mb-6">
+              <p className="text-gray-600">
+                می‌توانید بلیط‌های مسافران را به صورت PDF دریافت کنید.
+              </p>
+              
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={openTicketTypeModal}
+                  className={`flex items-center gap-2 py-2 px-4 text-sm font-medium bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none`}
+                  disabled={isGeneratingTickets}
+                >
+                  {isGeneratingTickets ? (
+                    <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin"></div>
+                  ) : (
+                    <FaTicketAlt />
+                  )}
+                  <span>{isGeneratingTickets ? 'در حال تولید بلیط‌ها...' : 'تولید بلیط PDF برای همه مسافران'}</span>
+                </button>
+              </div>
+            </div>
             
             <TicketGenerator 
               reservation={reservation} 
@@ -668,6 +732,54 @@ export default function PassengerManagement() {
           totalPrice={reservation.totalPrice}
           rooms={rooms}
         />
+      )}
+      
+      {/* مودال انتخاب نوع بلیط */}
+      {ticketTypeModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-auto bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full mx-4 animate-fadeIn">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">انتخاب نوع بلیط</h3>
+            <p className="text-gray-500 mb-6">لطفاً نوع بلیط‌هایی که می‌خواهید تولید کنید را انتخاب نمایید.</p>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => generateReservationTickets('departure')}
+                className="w-full text-right py-3 px-4 border border-gray-300 rounded-lg hover:bg-blue-50 flex items-center"
+              >
+                <FaPlane className="ml-3 text-blue-500" />
+                <span>فقط بلیط‌های رفت</span>
+              </button>
+              
+              <button
+                onClick={() => generateReservationTickets('return')}
+                className="w-full text-right py-3 px-4 border border-gray-300 rounded-lg hover:bg-blue-50 flex items-center"
+              >
+                <FaPlane className="ml-3 transform rotate-180 text-blue-500" />
+                <span>فقط بلیط‌های برگشت</span>
+              </button>
+              
+              <button
+                onClick={() => generateReservationTickets('both')}
+                className="w-full text-right py-3 px-4 border border-gray-300 rounded-lg hover:bg-blue-50 flex items-center"
+              >
+                <div className="relative ml-3">
+                  <FaPlane className="text-blue-500" />
+                  <FaPlane className="absolute top-1/2 left-1/2 transform -translate-y-1/2 -translate-x-1/2 rotate-180 text-green-500" />
+                </div>
+                <span>هر دو نوع بلیط (رفت و برگشت)</span>
+              </button>
+            </div>
+            
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={closeTicketTypeModal}
+                className="py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

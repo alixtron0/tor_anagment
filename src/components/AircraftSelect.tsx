@@ -46,7 +46,7 @@ export default function AircraftSelect({
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
-        const response = await axios.get(`http://185.94.99.35:5000/api/aircraft/airline/${airlineId}`, {
+        const response = await axios.get(`http://localhost:5000/api/aircraft/airline/${airlineId}`, {
           headers: {
             'x-auth-token': token
           }

@@ -58,7 +58,9 @@ export interface Package {
   allAccess: boolean;
   route: string;
   startDate: string;
+  startTime?: string;
   endDate: string;
+  endTime?: string;
   transportation: Transportation;
   basePrice: number;
   infantPrice: number;

@@ -130,7 +130,7 @@ export default function HotelManagement() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://185.94.99.35:5000/api/hotels', {
+      const response = await axios.get('http://localhost:5000/api/hotels', {
         headers: { 'x-auth-token': token }
       });
       setHotels(response.data);
@@ -200,7 +200,7 @@ export default function HotelManagement() {
 
       if (editMode && currentHotelId) {
         // به‌روزرسانی هتل
-        await axios.put(`http://185.94.99.35:5000/api/hotels/${currentHotelId}`, formData, {
+        await axios.put(`http://localhost:5000/api/hotels/${currentHotelId}`, formData, {
           headers: { 
             'x-auth-token': token,
             'Content-Type': 'multipart/form-data'
@@ -209,7 +209,7 @@ export default function HotelManagement() {
         toast.success('هتل با موفقیت به‌روزرسانی شد');
       } else {
         // ایجاد هتل جدید
-        await axios.post('http://185.94.99.35:5000/api/hotels', formData, {
+        await axios.post('http://localhost:5000/api/hotels', formData, {
           headers: { 
             'x-auth-token': token,
             'Content-Type': 'multipart/form-data'
@@ -246,7 +246,7 @@ export default function HotelManagement() {
     
     // تنظیم پیش‌نمایش تصویر
     if (hotel.mainImage) {
-      setImagePreview(`http://185.94.99.35:5000${hotel.mainImage}`);
+      setImagePreview(`http://localhost:5000${hotel.mainImage}`);
     } else {
       setImagePreview(null);
     }
@@ -284,7 +284,7 @@ export default function HotelManagement() {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.delete(`http://185.94.99.35:5000/api/hotels/${deleteModal.hotelId}`, {
+      const response = await axios.delete(`http://localhost:5000/api/hotels/${deleteModal.hotelId}`, {
         headers: { 
           'x-auth-token': token,
           'Content-Type': 'application/json'
@@ -308,7 +308,7 @@ export default function HotelManagement() {
   const handleToggleStatus = async (id: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.patch(`http://185.94.99.35:5000/api/hotels/${id}/status`, {}, {
+      const response = await axios.patch(`http://localhost:5000/api/hotels/${id}/status`, {}, {
         headers: { 'x-auth-token': token }
       });
       
@@ -560,7 +560,7 @@ export default function HotelManagement() {
                               {hotel.mainImage ? (
                                 <div className="w-14 h-14 relative border border-gray-200 rounded-lg overflow-hidden bg-white p-1 shadow-sm">
                                   <img 
-                                    src={`http://185.94.99.35:5000${hotel.mainImage}`} 
+                                    src={`http://localhost:5000${hotel.mainImage}`} 
                                     alt={hotel.name} 
                                     className="w-full h-full object-contain"
                                   />

@@ -160,7 +160,7 @@ router.post('/generate', [
     }
 
     // تنظیم هدرهای CORS قبل از هدرهای دیگر
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); // اجازه به فرانت‌اند شما
+    res.setHeader('Access-Control-Allow-Origin', 'http://185.94.99.35:3000'); // اجازه به فرانت‌اند شما
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); // متدهای مجاز
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,x-auth-token,Authorization'); // هدرهای مجاز در درخواست
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition'); // اجازه به مرورگر برای خواندن Content-Disposition
@@ -278,7 +278,7 @@ router.post('/generate', [
           // متغیر logoImage قبلاً تعریف شده است
           
           // بررسی فرمت آدرس لوگو و اصلاح آن
-          if (logoUrl.includes('http://localhost:5000/uploads/')) {
+          if (logoUrl.includes('http://185.94.99.35:5000/uploads/')) {
             // اگر آدرس کامل است، فقط مسیر فایل را استخراج می‌کنیم
             const parts = logoUrl.split('/uploads/');
             if (parts.length > 1) {
@@ -439,7 +439,7 @@ router.post('/generate', [
           } else {
             // اضافه کردن پروتکل و دامنه اگر نیاز باشد - روش قدیمی با دانلود
             if (!logoUrl.startsWith('http')) {
-              const serverBaseUrl = 'http://localhost:5000';
+              const serverBaseUrl = 'http://185.94.99.35:5000';
               logoUrl = `${serverBaseUrl}${logoUrl.startsWith('/') ? '' : '/'}${logoUrl}`;
             }
             console.log(`Downloading logo from URL: ${logoUrl}`);
@@ -935,7 +935,7 @@ router.get('/download/:filename', (req, res) => {
   }
 
   // تنظیم هدرهای CORS
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+  res.setHeader('Access-Control-Allow-Origin', 'http://185.94.99.35:3000');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,x-auth-token,Authorization');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
@@ -1148,7 +1148,7 @@ router.post('/export-passengers', [
     const buffer = await workbook.xlsx.writeBuffer();
     
     // تنظیم هدرهای CORS
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+    res.setHeader('Access-Control-Allow-Origin', 'http://185.94.99.35:3000');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,x-auth-token,Authorization');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');

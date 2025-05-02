@@ -132,7 +132,7 @@ export default function PassengerManagement() {
         return
       }
 
-      const response = await axios.get(`http://localhost:5000/api/reservations/${reservationId}`, {
+      const response = await axios.get(`http://185.94.99.35:5000/api/reservations/${reservationId}`, {
         headers: {
           'x-auth-token': token
         }
@@ -148,7 +148,7 @@ export default function PassengerManagement() {
   // بارگذاری آمار رزرو
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/passengers/stats/reservation/${reservationId}`)
+      const response = await axios.get(`http://185.94.99.35:5000/api/passengers/stats/reservation/${reservationId}`)
       setStats(response.data)
     } catch (error) {
       console.error('خطا در دریافت آمار رزرو:', error)
@@ -159,7 +159,7 @@ export default function PassengerManagement() {
   // بارگذاری اتاق‌ها
   const fetchRooms = async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/rooms/reservation/${reservationId}`)
+      const response = await axios.get(`http://185.94.99.35:5000/api/rooms/reservation/${reservationId}`)
       setRooms(response.data)
     } catch (error) {
       console.error('خطا در دریافت اتاق‌ها:', error)
@@ -170,7 +170,7 @@ export default function PassengerManagement() {
   // بارگذاری مسافران
   const fetchPassengers = async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/passengers/reservation/${reservationId}`)
+      const response = await axios.get(`http://185.94.99.35:5000/api/passengers/reservation/${reservationId}`)
       setPassengers(response.data)
     } catch (error) {
       console.error('خطا در دریافت مسافران:', error)
@@ -215,7 +215,7 @@ export default function PassengerManagement() {
       
       // درخواست به API برای تولید بلیط‌ها
       const response = await axios.post(
-        `http://localhost:5000/api/packages/reservation/${reservationId}/generate-tickets`,
+        `http://185.94.99.35:5000/api/packages/reservation/${reservationId}/generate-tickets`,
         { ticketType },
         {
           headers: {
@@ -226,7 +226,7 @@ export default function PassengerManagement() {
       
       if (response.data.success) {
         // هدایت کاربر به لینک دانلود بلیط‌ها
-        window.open(`http://localhost:5000/api/packages/download-ticket/${response.data.fileName}`, '_blank');
+        window.open(`http://185.94.99.35:5000/api/packages/download-ticket/${response.data.fileName}`, '_blank');
         
         // نمایش پیام موفقیت
         toast.success(`بلیط‌های ${response.data.passengerCount} مسافر با موفقیت تولید شد`);
@@ -274,7 +274,7 @@ export default function PassengerManagement() {
     if (!confirm('آیا از حذف این مسافر اطمینان دارید؟')) return
     
     try {
-      await axios.delete(`http://localhost:5000/api/passengers/${passengerId}`)
+      await axios.delete(`http://185.94.99.35:5000/api/passengers/${passengerId}`)
       toast.success('مسافر با موفقیت حذف شد')
       fetchAllData() // بارگذاری مجدد داده‌ها
     } catch (error) {
@@ -302,7 +302,7 @@ export default function PassengerManagement() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `http://localhost:5000/api/passengers/reservation/${reservationId}/excel`,
+        `http://185.94.99.35:5000/api/passengers/reservation/${reservationId}/excel`,
         {
           responseType: 'blob', // دریافت پاسخ به صورت blob
           headers: {
@@ -344,7 +344,7 @@ export default function PassengerManagement() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `http://localhost:5000/api/passengers/reservation/${reservationId}/ticket-excel`, // <-- New API endpoint
+        `http://185.94.99.35:5000/api/passengers/reservation/${reservationId}/ticket-excel`, // <-- New API endpoint
         {
           responseType: 'blob', // Important: expect blob response
           headers: {

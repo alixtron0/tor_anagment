@@ -125,7 +125,7 @@ export default function EditRoomModal({
       }
       
       // اضافه کردن توکن به هدر درخواست
-      await axios.put(`http://localhost:5000/api/rooms/${room._id}`, {
+      await axios.put(`http://185.94.99.35:5000/api/rooms/${room._id}`, {
         ...data,
         // حفظ وضعیت و تعداد مسافران فعلی
         status: room.status,

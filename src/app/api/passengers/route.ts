@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 
 // دریافت آدرس API از متغیرهای محیطی یا استفاده از مقدار پیش‌فرض
-const API_URL = process.env.API_URL || 'http://localhost:5000';
+const API_URL = process.env.API_URL || 'http://185.94.99.35:5000';
 
 /**
  * GET /api/passengers

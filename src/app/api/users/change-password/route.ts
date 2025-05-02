@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     
     // ارسال درخواست به سرور اصلی
     const response = await axios.post(
-      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/users/change-password`,
+      `${process.env.NEXT_PUBLIC_API_URL || 'http://185.94.99.35:5000'}/api/users/change-password`,
       { currentPassword, newPassword },
       {
         headers: {

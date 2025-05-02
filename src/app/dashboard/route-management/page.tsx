@@ -86,7 +86,7 @@ export default function RouteManagement() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/routes', {
+      const response = await axios.get('http://185.94.99.35:5000/api/routes', {
         headers: { 'x-auth-token': token }
       });
       setRoutes(response.data);
@@ -106,7 +106,7 @@ export default function RouteManagement() {
     setCitiesLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/cities', {
+      const response = await axios.get('http://185.94.99.35:5000/api/cities', {
         headers: { 'x-auth-token': token }
       });
       setCities(response.data);
@@ -148,13 +148,13 @@ export default function RouteManagement() {
 
       if (editMode && currentRouteId) {
         // به‌روزرسانی مسیر
-        await axios.put(`http://localhost:5000/api/routes/${currentRouteId}`, payload, {
+        await axios.put(`http://185.94.99.35:5000/api/routes/${currentRouteId}`, payload, {
           headers: { 'x-auth-token': token }
         });
         toast.success('مسیر با موفقیت به‌روزرسانی شد');
       } else {
         // ایجاد مسیر جدید
-        await axios.post('http://localhost:5000/api/routes', payload, {
+        await axios.post('http://185.94.99.35:5000/api/routes', payload, {
           headers: { 'x-auth-token': token }
         });
         toast.success('مسیر جدید با موفقیت ایجاد شد');
@@ -178,13 +178,13 @@ export default function RouteManagement() {
       
       if (cityEditMode && currentCityId) {
         // به‌روزرسانی شهر
-        await axios.put(`http://localhost:5000/api/cities/${currentCityId}`, data, {
+        await axios.put(`http://185.94.99.35:5000/api/cities/${currentCityId}`, data, {
           headers: { 'x-auth-token': token }
         });
         toast.success('شهر با موفقیت به‌روزرسانی شد');
       } else {
         // ایجاد شهر جدید
-        await axios.post('http://localhost:5000/api/cities', data, {
+        await axios.post('http://185.94.99.35:5000/api/cities', data, {
           headers: { 'x-auth-token': token }
         });
         toast.success('شهر جدید با موفقیت ایجاد شد');
@@ -242,7 +242,7 @@ export default function RouteManagement() {
       
       if (!route) return;
       
-      await axios.put(`http://localhost:5000/api/routes/${id}`, {
+      await axios.put(`http://185.94.99.35:5000/api/routes/${id}`, {
         ...route,
         isActive: !currentStatus
       }, {
@@ -265,7 +265,7 @@ export default function RouteManagement() {
       
       if (!city) return;
       
-      await axios.put(`http://localhost:5000/api/cities/${id}`, {
+      await axios.put(`http://185.94.99.35:5000/api/cities/${id}`, {
         ...city,
         isActive: !currentStatus
       }, {
@@ -286,7 +286,7 @@ export default function RouteManagement() {
     
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/routes/${id}`, {
+      await axios.delete(`http://185.94.99.35:5000/api/routes/${id}`, {
         headers: { 'x-auth-token': token }
       });
       
@@ -304,7 +304,7 @@ export default function RouteManagement() {
     
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/cities/${id}`, {
+      await axios.delete(`http://185.94.99.35:5000/api/cities/${id}`, {
         headers: { 'x-auth-token': token }
       });
       

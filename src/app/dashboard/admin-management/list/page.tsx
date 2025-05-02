@@ -55,7 +55,7 @@ export default function AdminList() {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get('http://localhost:5000/api/users/admins', {
+      const response = await axios.get('http://185.94.99.35:5000/api/users/admins', {
         headers: { Authorization: `Bearer ${token}` }
       })
       setAdmins(response.data)
@@ -87,7 +87,7 @@ export default function AdminList() {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      await axios.delete(`http://localhost:5000/api/users/${deleteModal.adminId}`, {
+      await axios.delete(`http://185.94.99.35:5000/api/users/${deleteModal.adminId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       

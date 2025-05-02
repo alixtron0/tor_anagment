@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:5000/api/:path*', // پروکسی به سرور Express
+        destination: 'http://185.94.99.35:5000/api/:path*', // پروکسی به سرور Express
       },
     ];
   },

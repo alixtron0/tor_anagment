@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://185.94.99.35:5000/api';
 
 // تنظیم هدرهای احراز هویت
 const setAuthToken = (token: string) => {

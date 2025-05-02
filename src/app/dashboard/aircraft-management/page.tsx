@@ -84,7 +84,7 @@ export default function AircraftManagement() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/aircraft', {
+      const response = await axios.get('http://185.94.99.35:5000/api/aircraft', {
         headers: { 'x-auth-token': token }
       });
       setAircrafts(response.data);
@@ -103,7 +103,7 @@ export default function AircraftManagement() {
   const fetchAirlines = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/airlines', {
+      const response = await axios.get('http://185.94.99.35:5000/api/airlines', {
         headers: { 'x-auth-token': token }
       });
       
@@ -173,7 +173,7 @@ export default function AircraftManagement() {
 
       if (editMode && currentAircraftId) {
         // به‌روزرسانی هواپیما
-        await axios.put(`http://localhost:5000/api/aircraft/${currentAircraftId}`, formData, {
+        await axios.put(`http://185.94.99.35:5000/api/aircraft/${currentAircraftId}`, formData, {
           headers: { 
             'x-auth-token': token,
             'Content-Type': 'multipart/form-data'
@@ -182,7 +182,7 @@ export default function AircraftManagement() {
         toast.success('هواپیما با موفقیت به‌روزرسانی شد');
       } else {
         // ایجاد هواپیمای جدید
-        await axios.post('http://localhost:5000/api/aircraft', formData, {
+        await axios.post('http://185.94.99.35:5000/api/aircraft', formData, {
           headers: { 
             'x-auth-token': token,
             'Content-Type': 'multipart/form-data'
@@ -223,7 +223,7 @@ export default function AircraftManagement() {
     
     // تنظیم پیش‌نمایش تصویر
     if (aircraft.image) {
-      setImagePreview(`http://localhost:5000${aircraft.image}`);
+      setImagePreview(`http://185.94.99.35:5000${aircraft.image}`);
     } else {
       setImagePreview(null);
     }
@@ -269,7 +269,7 @@ export default function AircraftManagement() {
       formData.append('description', aircraft.description || '');
       formData.append('isActive', (!currentStatus).toString());
       
-      await axios.put(`http://localhost:5000/api/aircraft/${id}`, formData, {
+      await axios.put(`http://185.94.99.35:5000/api/aircraft/${id}`, formData, {
         headers: { 
           'x-auth-token': token,
           'Content-Type': 'multipart/form-data'
@@ -290,7 +290,7 @@ export default function AircraftManagement() {
     
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/aircraft/${id}`, {
+      await axios.delete(`http://185.94.99.35:5000/api/aircraft/${id}`, {
         headers: { 'x-auth-token': token }
       });
       
@@ -564,7 +564,7 @@ export default function AircraftManagement() {
                               {aircraft.image ? (
                                 <div className="w-14 h-14 relative border border-gray-200 rounded-lg overflow-hidden bg-white p-1 shadow-sm">
                                   <img 
-                                    src={`http://localhost:5000${aircraft.image}`} 
+                                    src={`http://185.94.99.35:5000${aircraft.image}`} 
                                     alt={aircraft.model} 
                                     className="w-full h-full object-contain"
                                   />
@@ -582,7 +582,7 @@ export default function AircraftManagement() {
                                 {aircraft.airline.logo && (
                                   <div className="w-8 h-8 ml-3 relative">
                                     <img 
-                                      src={`http://localhost:5000${aircraft.airline.logo}`} 
+                                      src={`http://185.94.99.35:5000${aircraft.airline.logo}`} 
                                       alt={aircraft.airline.name} 
                                       className="w-full h-full object-contain rounded-full bg-white p-1 border border-gray-200 shadow-sm"
                                     />

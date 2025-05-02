@@ -107,7 +107,7 @@ export default function PackageDetails() {
       setLoading(true)
       const token = localStorage.getItem('token')
       
-      const response = await axios.get(`http://localhost:5000/api/packages/${packageId}`, {
+      const response = await axios.get(`http://185.94.99.35:5000/api/packages/${packageId}`, {
         headers: {
           'x-auth-token': token
         }
@@ -128,7 +128,7 @@ export default function PackageDetails() {
       setLoadingReservations(true)
       const token = localStorage.getItem('token')
       
-      const response = await axios.get(`http://localhost:5000/api/reservations/package/${packageId}`, {
+      const response = await axios.get(`http://185.94.99.35:5000/api/reservations/package/${packageId}`, {
         headers: {
           'x-auth-token': token
         }
@@ -166,7 +166,7 @@ export default function PackageDetails() {
         filteredReservations.map(async (reservation: Reservation) => {
           try {
             // دریافت مسافران مرتبط با این رزرو
-            const passengersResponse = await axios.get(`http://localhost:5000/api/passengers/reservation/${reservation._id}`, {
+            const passengersResponse = await axios.get(`http://185.94.99.35:5000/api/passengers/reservation/${reservation._id}`, {
               headers: {
                 'x-auth-token': token
               }
@@ -264,7 +264,7 @@ export default function PackageDetails() {
       const token = localStorage.getItem('token')
       
       await axios.patch(
-        `http://localhost:5000/api/reservations/${reservationId}/status`,
+        `http://185.94.99.35:5000/api/reservations/${reservationId}/status`,
         { status: newStatus },
         {
           headers: {
@@ -295,7 +295,7 @@ export default function PackageDetails() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `http://localhost:5000/api/passengers/package/${packageId}/excel`,
+        `http://185.94.99.35:5000/api/passengers/package/${packageId}/excel`,
         {
           responseType: 'blob', // مهم: دریافت پاسخ به صورت blob
           headers: {
@@ -337,7 +337,7 @@ export default function PackageDetails() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `http://localhost:5000/api/passengers/package/${packageId}/ticket-excel`, // <-- New API endpoint
+        `http://185.94.99.35:5000/api/passengers/package/${packageId}/ticket-excel`, // <-- New API endpoint
         {
           responseType: 'blob', // Important: expect blob response
           headers: {
@@ -397,7 +397,7 @@ export default function PackageDetails() {
       const token = localStorage.getItem('token')
       
       // ارسال درخواست دانلود اکسل
-      const response = await axios.get(`http://localhost:5000/api/packages/${packageId}/hotel-report`, {
+      const response = await axios.get(`http://185.94.99.35:5000/api/packages/${packageId}/hotel-report`, {
         headers: {
           'x-auth-token': token
         },
@@ -445,7 +445,7 @@ export default function PackageDetails() {
       
       // درخواست به API برای تولید بلیط‌ها
       const response = await axios.post(
-        `http://localhost:5000/api/packages/${packageId}/generate-tickets`,
+        `http://185.94.99.35:5000/api/packages/${packageId}/generate-tickets`,
         { ticketType },
         {
           headers: {
@@ -456,7 +456,7 @@ export default function PackageDetails() {
       
       if (response.data.success) {
         // هدایت کاربر به لینک دانلود بلیط‌ها
-        window.open(`http://localhost:5000/api/packages/download-ticket/${response.data.fileName}`, '_blank');
+        window.open(`http://185.94.99.35:5000/api/packages/download-ticket/${response.data.fileName}`, '_blank');
         
         // نمایش پیام موفقیت
         toast.success(`بلیط‌های ${response.data.passengerCount} مسافر با موفقیت تولید شد`);
@@ -597,7 +597,7 @@ export default function PackageDetails() {
         <div className="mt-8 mb-12 relative overflow-hidden rounded-2xl h-80">
           {packageData.image ? (
             <img 
-              src={`http://localhost:5000${packageData.image}`} 
+              src={`http://185.94.99.35:5000${packageData.image}`} 
               alt={packageData.name} 
               className="w-full h-full object-cover"
             />

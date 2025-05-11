@@ -65,7 +65,11 @@ router.post('/', [
     return res.status(403).json({ message: 'دسترسی غیر مجاز' });
   }
 
-  const { name, description } = req.body;
+  const { 
+    name, 
+    description, 
+    airport 
+  } = req.body;
 
   try {
     // بررسی تکراری بودن شهر
@@ -78,6 +82,7 @@ router.post('/', [
     const newCity = new City({
       name,
       description,
+      airport: airport || {},
       createdBy: req.user.id
     });
 
@@ -95,7 +100,7 @@ router.post('/', [
 
 /**
  * @route   PUT /api/cities/:id
- * @desc    به‌روزرسانی شهر
+ * @desc    به‌روزرسانی یک شهر
  * @access  خصوصی (ادمین)
  */
 router.put('/:id', [
@@ -114,34 +119,48 @@ router.put('/:id', [
     return res.status(403).json({ message: 'دسترسی غیر مجاز' });
   }
 
-  const { name, description, isActive } = req.body;
-
   try {
+    const { 
+      name, 
+      description, 
+      isActive,
+      airport 
+    } = req.body;
+
+    // بررسی وجود شهر
     let city = await City.findById(req.params.id);
-    
     if (!city) {
       return res.status(404).json({ message: 'شهر یافت نشد' });
     }
 
-    // بررسی تکراری بودن نام جدید (اگر تغییر کرده باشد)
+    // بررسی تکراری بودن نام در صورت تغییر
     if (name !== city.name) {
       const existingCity = await City.findOne({ name });
-      if (existingCity && existingCity._id.toString() !== req.params.id) {
+      if (existingCity) {
         return res.status(400).json({ message: 'این نام شهر قبلاً ثبت شده است' });
       }
     }
 
-    // به‌روزرسانی فیلدهای شهر
+    // به‌روزرسانی شهر
     city.name = name;
-    city.description = description !== undefined ? description : city.description;
-    city.isActive = isActive !== undefined ? isActive : city.isActive;
+    city.description = description;
+    if (isActive !== undefined) city.isActive = isActive;
+    if (airport) {
+      city.airport = {
+        name: airport.name || city.airport?.name,
+        code: airport.code || city.airport?.code,
+        isInternational: airport.isInternational !== undefined ? 
+                         airport.isInternational : 
+                         (city.airport?.isInternational || false)
+      };
+    }
     city.updatedAt = Date.now();
 
-    const updatedCity = await city.save();
+    city = await city.save();
 
     res.json({
       message: 'شهر با موفقیت به‌روزرسانی شد',
-      city: updatedCity
+      city
     });
   } catch (err) {
     console.error('Error updating city:', err);

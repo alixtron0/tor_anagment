@@ -266,7 +266,8 @@ router.post('/package/:packageId', [
       infants = 0,
       room,
       services = [],
-      totalPrice
+      totalPrice,
+      sellingPrices = { adult: 0, child: 0, infant: 0 }
     } = req.body;
     
     // ایجاد رزرو جدید
@@ -281,6 +282,7 @@ router.post('/package/:packageId', [
       room,
       services,
       totalPrice,
+      sellingPrices,
       createdBy: {
         user: userId,
         fullName: userFullName
@@ -418,6 +420,166 @@ router.put('/:id/finalize', auth, async (req, res) => {
   } catch (error) {
     console.error('خطا در ثبت نهایی رزرو:', error);
     res.status(500).json({ message: 'خطا در ثبت نهایی رزرو', error: error.message });
+  }
+});
+
+/**
+ * @route   PUT /api/reservations/:id
+ * @desc    به‌روزرسانی اطلاعات رزرو
+ * @access  خصوصی
+ */
+router.put('/:id', [
+  auth,
+  [
+    check('type', 'نوع رزرو الزامی است').isIn(['self', 'admin']),
+    check('count', 'تعداد رزرو الزامی است').isInt({ min: 1 }),
+    check('package', 'شناسه پکیج الزامی است').notEmpty(),
+    check('room', 'نوع اتاق الزامی است').isIn(['single', 'double', 'triple', 'quadruple', 'quintuple']),
+    check('totalPrice', 'قیمت کل الزامی است').isNumeric()
+  ]
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { 
+      type, 
+      count, 
+      package: packageId, 
+      room, 
+      services, 
+      totalPrice,
+      sellingPrices = { adult: 0, child: 0, infant: 0 }
+    } = req.body;
+
+    // بررسی وجود پکیج
+    const packageExists = await Package.findById(packageId);
+    if (!packageExists) {
+      return res.status(404).json({ message: 'پکیج مورد نظر یافت نشد' });
+    }
+
+    // بررسی ظرفیت باقی‌مانده
+    const reservations = await Reservation.find({ 
+      package: packageId,
+      status: { $ne: 'canceled' },
+      _id: { $ne: req.params.id } // به جز رزرو فعلی
+    });
+    
+    const reservedCount = reservations.reduce((sum, res) => sum + res.count, 0);
+    
+    // رزرو قبلی
+    const oldReservation = await Reservation.findById(req.params.id);
+    if (!oldReservation) {
+      return res.status(404).json({ message: 'رزرو مورد نظر یافت نشد' });
+    }
+    
+    // بررسی ظرفیت
+    const totalReservedCount = reservedCount + count;
+    
+    if (totalReservedCount > packageExists.capacity) {
+      return res.status(400).json({ 
+        message: `ظرفیت کافی برای رزرو وجود ندارد. ظرفیت باقی‌مانده: ${packageExists.capacity - reservedCount} نفر`
+      });
+    }
+    
+    // به‌روزرسانی رزرو
+    const updatedReservation = await Reservation.findByIdAndUpdate(
+      req.params.id,
+      {
+        type,
+        count,
+        adults: count, // استفاده از count به عنوان مقدار adults
+        children: 0,
+        infants: 0,
+        package: packageId,
+        room,
+        services,
+        totalPrice,
+        sellingPrices,
+        updatedAt: Date.now()
+      },
+      { new: true }
+    );
+    
+    if (!updatedReservation) {
+      return res.status(404).json({ message: 'رزرو مورد نظر یافت نشد' });
+    }
+    
+    res.json({
+      message: 'رزرو با موفقیت به‌روزرسانی شد',
+      reservation: updatedReservation
+    });
+    
+  } catch (err) {
+    console.error('خطا در به‌روزرسانی رزرو:', err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'رزرو مورد نظر یافت نشد' });
+    }
+    res.status(500).json({ message: `خطای سرور در به‌روزرسانی رزرو: ${err.message}` });
+  }
+});
+
+/**
+ * @route   PUT /api/reservations/:id/confirm
+ * @desc    تایید نهایی رزرو
+ * @access  خصوصی
+ */
+router.put('/:id/confirm', auth, async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    
+    // بررسی وجود رزرو
+    const reservation = await Reservation.findById(reservationId);
+    if (!reservation) {
+      return res.status(404).json({ message: 'رزرو مورد نظر یافت نشد' });
+    }
+    
+    // شمارش تعداد مسافران
+    const totalPassengers = await Passenger.countDocuments({ reservation: reservationId });
+    
+    // بررسی کافی بودن تعداد مسافران
+    if (totalPassengers < reservation.count) {
+      return res.status(400).json({ 
+        message: `تعداد مسافران (${totalPassengers}) کمتر از ظرفیت رزرو (${reservation.count}) است` 
+      });
+    }
+    
+    // تولید کد رزرو اگر وجود ندارد
+    if (!reservation.code) {
+      const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // بدون حروف و اعدادی که ممکن اشتباه خوانده شوند
+      let code = '';
+      
+      // سه حرف + 4 عدد
+      for (let i = 0; i < 3; i++) {
+        code += characters.charAt(Math.floor(Math.random() * 26)); // فقط حروف
+      }
+      
+      code += '_';
+      
+      for (let i = 0; i < 4; i++) {
+        code += characters.charAt(Math.floor(Math.random() * characters.length));
+      }
+      
+      reservation.code = code;
+    }
+    
+    // به‌روزرسانی وضعیت رزرو
+    reservation.status = 'confirmed';
+    const updatedReservation = await reservation.save();
+    
+    res.json({
+      success: true,
+      message: 'رزرو با موفقیت تایید شد',
+      reservation: updatedReservation
+    });
+  } catch (err) {
+    console.error('خطا در تایید رزرو:', err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'رزرو مورد نظر یافت نشد' });
+    }
+    res.status(500).json({ message: `خطای سرور در تایید رزرو: ${err.message}` });
   }
 });
 

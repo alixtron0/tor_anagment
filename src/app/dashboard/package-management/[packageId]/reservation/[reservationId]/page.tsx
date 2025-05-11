@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import axios from 'axios'
 import { toast } from 'react-toastify'
-import { FaPlus, FaUsers, FaBed, FaCheck, FaArrowLeft, FaUserPlus, FaPassport, FaClipboardList, FaMale, FaFemale, FaChild, FaBaby, FaFileAlt, FaTicketAlt, FaFileExcel, FaPlane } from 'react-icons/fa'
+import { FaPlus, FaUsers, FaBed, FaCheck, FaArrowLeft, FaUserPlus, FaPassport, FaClipboardList, FaMale, FaFemale, FaChild, FaBaby, FaFileAlt, FaTicketAlt, FaFileExcel, FaPlane, FaMoneyBillWave } from 'react-icons/fa'
 import Link from 'next/link'
 import RoomCard from './RoomCard'
+import DraggableRoomLayout from './DraggableRoomLayout'
 import PassengerModal from './PassengerModal'
 import AddRoomModal from './AddRoomModal'
 import EditRoomModal from './EditRoomModal'
@@ -48,6 +49,11 @@ interface Reservation {
   code?: string
   room: string
   totalPrice: number
+  sellingPrices?: {
+    adult: number;
+    child: number;
+    infant: number;
+  }
   createdAt: string
 }
 
@@ -97,6 +103,10 @@ interface ReservationStats {
   adultsNeeded: number
   childrenNeeded: number
   infantsNeeded: number
+  totalAdults: number
+  totalChildren: number
+  totalInfants: number
+  isComplete: boolean
 }
 
 export default function PassengerManagement() {
@@ -122,6 +132,7 @@ export default function PassengerManagement() {
   const [isDownloadingTicketExcel, setIsDownloadingTicketExcel] = useState(false)
   const [isGeneratingTickets, setIsGeneratingTickets] = useState(false)
   const [ticketTypeModalOpen, setTicketTypeModalOpen] = useState(false)
+  const [selectedPassengerId, setSelectedPassengerId] = useState<string | null>(null)
   
   // بارگذاری اطلاعات رزرو
   const fetchReservation = async () => {
@@ -190,6 +201,7 @@ export default function PassengerManagement() {
       ])
     } catch (error) {
       console.error('خطا در بارگذاری داده‌ها:', error)
+      toast.error('خطا در بارگذاری داده‌ها')
     } finally {
       setIsLoading(false)
     }
@@ -197,12 +209,20 @@ export default function PassengerManagement() {
   
   // باز کردن مودال انتخاب نوع بلیط
   const openTicketTypeModal = () => {
+    setSelectedPassengerId(null); // برای همه مسافران
+    setTicketTypeModalOpen(true);
+  };
+
+  // باز کردن مودال انتخاب نوع بلیط برای یک مسافر خاص
+  const openTicketTypeModalForPassenger = (passengerId: string) => {
+    setSelectedPassengerId(passengerId);
     setTicketTypeModalOpen(true);
   };
 
   // بستن مودال انتخاب نوع بلیط
   const closeTicketTypeModal = () => {
     setTicketTypeModalOpen(false);
+    setSelectedPassengerId(null);
   };
 
   // تولید بلیط‌های PDF برای مسافران این رزرواسیون
@@ -234,6 +254,43 @@ export default function PassengerManagement() {
     } catch (error: any) {
       console.error('خطا در تولید بلیط‌ها:', error);
       const errorMessage = error.response?.data?.message || 'خطا در تولید بلیط‌ها';
+      toast.error(errorMessage);
+    } finally {
+      setIsGeneratingTickets(false);
+    }
+  };
+  
+  // تولید بلیط PDF برای یک مسافر خاص
+  const generateSinglePassengerTicket = async (ticketType: 'departure' | 'return' | 'both') => {
+    if (!selectedPassengerId) return;
+    
+    try {
+      setIsGeneratingTickets(true);
+      closeTicketTypeModal();
+
+      const token = localStorage.getItem('token');
+      
+      // درخواست به API برای تولید بلیط
+      const response = await axios.post(
+        `http://185.94.99.35:5000/api/packages/reservation/${reservationId}/passenger/${selectedPassengerId}/generate-ticket`,
+        { ticketType },
+        {
+          headers: {
+            'x-auth-token': token
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        // هدایت کاربر به لینک دانلود بلیط
+        window.open(`http://185.94.99.35:5000/api/packages/download-ticket/${response.data.fileName}`, '_blank');
+        
+        // نمایش پیام موفقیت
+        toast.success(`بلیط برای ${response.data.passengerName} با موفقیت تولید شد`);
+      }
+    } catch (error: any) {
+      console.error('خطا در تولید بلیط:', error);
+      const errorMessage = error.response?.data?.message || 'خطا در تولید بلیط';
       toast.error(errorMessage);
     } finally {
       setIsGeneratingTickets(false);
@@ -425,254 +482,189 @@ export default function PassengerManagement() {
   
   // رندر صفحه اصلی
   return (
-    <div className="space-y-6">
+    <div className="px-6 py-8">
       {/* هدر صفحه */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <Link 
-            href={`/dashboard/package-management/${packageId}`}
-            className="inline-flex items-center text-blue-600 mb-2 transition hover:text-blue-700"
-          >
-            <FaArrowLeft className="mr-1" /> بازگشت به صفحه پکیج
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-800">مدیریت مسافران رزرو <span className="text-indigo-600">{reservation?.code || '...'}</span></h1>
+          <div className="flex items-center">
+            <Link 
+              href={`/dashboard/package-management/${packageId}`}
+              className="ml-2 p-2 rounded-full hover:bg-slate-100 transition"
+            >
+              <FaArrowLeft />
+            </Link>
+            <h1 className="text-2xl font-bold">مدیریت مسافران رزرو</h1>
+          </div>
           {reservation && (
-            <p className="text-gray-600">
-              {reservation.package.name} - {formatDate(reservation.package.startDate)} تا {formatDate(reservation.package.endDate)}
+            <p className="text-slate-600 mt-1">
+              رزرو در پکیج <span className="font-medium">{reservation.package.name}</span> با کد <span className="bg-slate-100 px-2 py-0.5 rounded font-mono">{reservation.code || 'N/A'}</span>
             </p>
           )}
         </div>
         
-        {/* نمایش پیشرفت تکمیل مسافران */}
-        {stats && (
-          <div className="flex items-center gap-2 bg-blue-50 p-3 rounded-lg">
-            <div className="text-blue-800 text-3xl font-bold">
-              {stats.totalPassengers}/{stats.totalCapacity}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm text-gray-600">مسافر ثبت شده</span>
-              <div className="w-32 h-3 rounded-full bg-gray-200 overflow-hidden">
-                <div 
-                  className="h-full rounded-full bg-blue-500"
-                  style={{ width: `${(stats.totalPassengers / stats.totalCapacity) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* کارت آمار */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-4 text-white shadow-md">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium opacity-90">آمار مسافران</h3>
-              <FaUsers className="text-2xl opacity-80" />
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <div className="text-center p-2 bg-white/10 rounded-lg">
-                <div className="flex items-center justify-center">
-                  <FaUsers className="mr-1 opacity-80" />
-                  <span className="font-bold text-xl">{stats.totalPassengers}</span>
-                </div>
-                <span className="text-xs opacity-80">کل</span>
-              </div>
-              <div className="text-center p-2 bg-white/10 rounded-lg">
-                <div className="flex items-center justify-center">
-                  <FaMale className="mr-1 opacity-80" />
-                  <span className="font-bold text-xl">{stats.byGender.males}</span>
-                </div>
-                <span className="text-xs opacity-80">مرد</span>
-              </div>
-              <div className="text-center p-2 bg-white/10 rounded-lg">
-                <div className="flex items-center justify-center">
-                  <FaFemale className="mr-1 opacity-80" />
-                  <span className="font-bold text-xl">{stats.byGender.females}</span>
-                </div>
-                <span className="text-xs opacity-80">زن</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-4 text-white shadow-md">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium opacity-90">گروه سنی</h3>
-              <FaUsers className="text-2xl opacity-80" />
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <div className="text-center p-2 bg-white/10 rounded-lg">
-                <div className="flex items-center justify-center">
-                  <FaUsers className="mr-1 opacity-80" />
-                  <span className="font-bold text-xl">{stats.byAgeCategory.adults}</span>
-                </div>
-                <span className="text-xs opacity-80">بزرگسال</span>
-              </div>
-              <div className="text-center p-2 bg-white/10 rounded-lg">
-                <div className="flex items-center justify-center">
-                  <FaChild className="mr-1 opacity-80" />
-                  <span className="font-bold text-xl">{stats.byAgeCategory.children}</span>
-                </div>
-                <span className="text-xs opacity-80">کودک</span>
-              </div>
-              <div className="text-center p-2 bg-white/10 rounded-lg">
-                <div className="flex items-center justify-center">
-                  <FaBaby className="mr-1 opacity-80" />
-                  <span className="font-bold text-xl">{stats.byAgeCategory.infants}</span>
-                </div>
-                <span className="text-xs opacity-80">نوزاد</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl p-4 text-white shadow-md">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium opacity-90">وضعیت اتاق‌ها</h3>
-              <FaBed className="text-2xl opacity-80" />
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <div className="text-center p-2 bg-white/10 rounded-lg">
-                <div className="flex items-center justify-center">
-                  <FaBed className="mr-1 opacity-80" />
-                  <span className="font-bold text-xl">{rooms.length}</span>
-                </div>
-                <span className="text-xs opacity-80">کل</span>
-              </div>
-              <div className="text-center p-2 bg-white/10 rounded-lg">
-                <div className="flex items-center justify-center">
-                  <FaCheck className="mr-1 opacity-80" />
-                  <span className="font-bold text-xl">{rooms.filter(r => r.status === 'occupied').length}</span>
-                </div>
-                <span className="text-xs opacity-80">تکمیل</span>
-              </div>
-              <div className="text-center p-2 bg-white/10 rounded-lg">
-                <div className="flex items-center justify-center">
-                  <FaUsers className="mr-1 opacity-80" />
-                  <span className="font-bold text-xl">{rooms.reduce((sum, room) => sum + room.capacity, 0)}</span>
-                </div>
-                <span className="text-xs opacity-80">ظرفیت</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* دکمه‌های عملیات */}
-      <div className="flex justify-end gap-3 mt-6">
-        <button
-          onClick={() => setIsAddRoomModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-        >
-          <FaPlus />
-          افزودن اتاق
-        </button>
-        
-        <button
-          onClick={() => setIsPassengerListModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-        >
-          <FaClipboardList />
-          لیست مسافران
-        </button>
-        
-        {stats && stats.totalPassengers >= reservation?.count && (
-          <button
-            onClick={() => setIsFinalizeModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-          >
-            <FaCheck />
-            ثبت نهایی رزرو
-          </button>
-        )}
-        
-        {/* دکمه دانلود اکسل رزرو */}
-        <button
-          onClick={handleDownloadReservationExcel}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm shadow-md ${isDownloadingReservationExcel
-              ? 'bg-gray-400 text-white cursor-wait'
-              : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-          disabled={isDownloadingReservationExcel || rooms.length === 0}
-        >
-          {isDownloadingReservationExcel ? (
-            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-          ) : (
-            <FaFileExcel />
-          )}
-          <span>{isDownloadingReservationExcel ? 'در حال آماده سازی...' : 'دانلود اکسل مسافران'}</span>
-        </button>
-      </div>
-      
-      {/* بخش بلیط‌ها */}
-      {reservation && reservation.status === 'confirmed' && passengers.length > 0 && (
-        <div className="mt-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
-          <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
-            <FaTicketAlt className="text-indigo-600" />
-            <span>بلیط‌های مسافران</span>
-          </h2>
-          
-          <div className="p-4 bg-white rounded-lg shadow-sm">
-            <div className="flex flex-col gap-4 mb-6">
-              <p className="text-gray-600">
-                می‌توانید بلیط‌های مسافران را به صورت PDF دریافت کنید.
-              </p>
-              
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={openTicketTypeModal}
-                  className={`flex items-center gap-2 py-2 px-4 text-sm font-medium bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none`}
-                  disabled={isGeneratingTickets}
-                >
-                  {isGeneratingTickets ? (
-                    <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin"></div>
-                  ) : (
-                    <FaTicketAlt />
-                  )}
-                  <span>{isGeneratingTickets ? 'در حال تولید بلیط‌ها...' : 'تولید بلیط PDF برای همه مسافران'}</span>
-                </button>
-              </div>
-            </div>
-            
-            <TicketGenerator 
-              reservation={reservation} 
-              passengers={passengers}
-            />
-          </div>
-        </div>
-      )}
-      
-      {/* بخش اتاق‌ها */}
-      <h2 className="text-xl font-bold border-r-4 border-blue-500 pr-2 mt-6">اتاق‌های رزرو شده</h2>
-      
-      {rooms.length === 0 ? (
-        <div className="p-6 text-center bg-gray-50 border border-dashed border-gray-200 rounded-xl">
-          <FaBed className="text-4xl text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">هنوز هیچ اتاقی اضافه نشده است.</p>
+        <div className="flex mt-4 md:mt-0 gap-2 flex-wrap">
           <button
             onClick={() => setIsAddRoomModalOpen(true)}
-            className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition"
           >
+            <FaPlus className="text-white" />
             افزودن اتاق
           </button>
+          
+          <button
+            onClick={() => setIsPassengerListModalOpen(true)}
+            className="flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition"
+          >
+            <FaUsers className="text-white" />
+            لیست مسافران
+          </button>
+          
+          <button
+            onClick={openTicketTypeModal}
+            className="flex items-center justify-center gap-1 bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg transition"
+          >
+            <FaTicketAlt className="text-white" />
+            صدور بلیط
+          </button>
+          
+          <button
+            onClick={() => setIsFinalizeModalOpen(true)}
+            className="flex items-center justify-center gap-1 bg-amber-600 hover:bg-amber-700 text-white py-2 px-4 rounded-lg transition"
+          >
+            <FaCheck className="text-white" />
+            تکمیل رزرو
+          </button>
+        </div>
+      </div>
+      
+      {/* کارت‌های آمار */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="rounded-xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-slate-600">کل مسافران</h3>
+            <div className="p-2 bg-blue-500 text-white rounded-md">
+              <FaUsers />
+            </div>
+          </div>
+          <div className="flex items-end">
+            <span className="text-2xl font-bold">
+              {stats?.totalPassengers || 0}
+            </span>
+            <span className="text-slate-500 mb-1 mr-1">/ {reservation?.count || 0}</span>
+          </div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+            <div 
+              className="h-full bg-blue-500 rounded-full" 
+              style={{ 
+                width: `${stats?.totalPassengers && (reservation?.count || 0) > 0 
+                  ? (stats.totalPassengers / (reservation?.count || 1)) * 100 
+                  : 0}%` 
+              }} 
+            />
+          </div>
+        </div>
+        
+        <div className="rounded-xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-slate-600">بزرگسالان</h3>
+            <div className="p-2 bg-indigo-500 text-white rounded-md">
+              <FaMale />
+            </div>
+          </div>
+          <div className="flex items-end">
+            <span className="text-2xl font-bold">
+              {stats?.byAgeCategory?.adults || 0}
+            </span>
+            <span className="text-slate-500 mb-1 mr-1">نفر</span>
+          </div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+            <div 
+              className="h-full bg-indigo-500 rounded-full" 
+              style={{ 
+                width: `${stats?.byAgeCategory?.adults && (stats?.totalPassengers || 0) > 0
+                  ? (stats.byAgeCategory.adults / (stats?.totalPassengers || 1)) * 100 
+                  : 0}%` 
+              }} 
+            />
+          </div>
+        </div>
+        
+        <div className="rounded-xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-slate-600">کودکان</h3>
+            <div className="p-2 bg-amber-500 text-white rounded-md">
+              <FaChild />
+            </div>
+          </div>
+          <div className="flex items-end">
+            <span className="text-2xl font-bold">
+              {stats?.byAgeCategory?.children || 0}
+            </span>
+            <span className="text-slate-500 mb-1 mr-1">نفر</span>
+          </div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+            <div 
+              className="h-full bg-amber-500 rounded-full" 
+              style={{ 
+                width: `${stats?.byAgeCategory?.children && (stats?.totalPassengers || 0) > 0
+                  ? (stats.byAgeCategory.children / (stats?.totalPassengers || 1)) * 100 
+                  : 0}%` 
+              }} 
+            />
+          </div>
+        </div>
+        
+        <div className="rounded-xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-slate-600">نوزادان</h3>
+            <div className="p-2 bg-pink-500 text-white rounded-md">
+              <FaBaby />
+            </div>
+          </div>
+          <div className="flex items-end">
+            <span className="text-2xl font-bold">
+              {stats?.byAgeCategory?.infants || 0}
+            </span>
+            <span className="text-slate-500 mb-1 mr-1">نفر</span>
+          </div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+            <div 
+              className="h-full bg-pink-500 rounded-full" 
+              style={{ 
+                width: `${stats?.byAgeCategory?.infants && (stats?.totalPassengers || 0) > 0
+                  ? (stats.byAgeCategory.infants / (stats?.totalPassengers || 1)) * 100 
+                  : 0}%` 
+              }} 
+            />
+          </div>
+        </div>
+      </div>
+      
+      {/* اتاق‌ها و مسافران با قابلیت Drag & Drop */}
+      <h2 className="text-xl font-bold mb-4 flex items-center">
+        <FaBed className="ml-2" />
+        اتاق‌ها و مسافران
+      </h2>
+      
+      {isLoading ? (
+        <div className="flex justify-center items-center p-8">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {rooms.map(room => (
-            <RoomCard
-              key={room._id}
-              room={room}
-              passengers={getRoomPassengers(room._id)}
-              onAddPassenger={() => openAddPassengerModal(room)}
-              onEditPassenger={openEditPassengerModal}
-              onDeletePassenger={handleDeletePassenger}
-              onEditRoom={openEditRoomModal}
-              onDeleteRoom={openDeleteRoomModal}
-            />
-          ))}
-        </div>
+        <DraggableRoomLayout
+          rooms={rooms}
+          passengers={passengers}
+          onAddPassenger={openAddPassengerModal}
+          onEditPassenger={openEditPassengerModal}
+          onDeletePassenger={handleDeletePassenger}
+          onEditRoom={openEditRoomModal}
+          onDeleteRoom={openDeleteRoomModal}
+          onDataChanged={fetchAllData}
+          reservationId={reservationId as string}
+        />
       )}
       
-      {/* مودال‌ها */}
+      {/* مدال‌ها */}
       {isPassengerModalOpen && selectedRoom && (
         <PassengerModal
           isOpen={isPassengerModalOpen}
@@ -711,7 +703,7 @@ export default function PassengerManagement() {
         />
       )}
       
-      {isFinalizeModalOpen && stats && (
+      {isFinalizeModalOpen && (
         <FinalizeModal
           isOpen={isFinalizeModalOpen}
           onClose={() => setIsFinalizeModalOpen(false)}
@@ -722,58 +714,67 @@ export default function PassengerManagement() {
         />
       )}
       
-      {/* مودال لیست مسافران */}
-      {isPassengerListModalOpen && reservation && (
+      {isPassengerListModalOpen && (
         <PassengerListModal
           isOpen={isPassengerListModalOpen}
           onClose={() => setIsPassengerListModalOpen(false)}
+          reservationId={reservationId as string}
           passengers={passengers}
-          reservationCode={reservation.code || 'بدون کد'}
-          totalPrice={reservation.totalPrice}
-          rooms={rooms}
+          packageDetails={reservation?.package}
         />
       )}
       
-      {/* مودال انتخاب نوع بلیط */}
+      {/* مدال انتخاب نوع بلیط */}
       {ticketTypeModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-auto bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full mx-4 animate-fadeIn">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">انتخاب نوع بلیط</h3>
-            <p className="text-gray-500 mb-6">لطفاً نوع بلیط‌هایی که می‌خواهید تولید کنید را انتخاب نمایید.</p>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">انتخاب نوع بلیط</h2>
             
             <div className="space-y-3">
-              <button
-                onClick={() => generateReservationTickets('departure')}
-                className="w-full text-right py-3 px-4 border border-gray-300 rounded-lg hover:bg-blue-50 flex items-center"
+              <button 
+                onClick={() => {
+                  closeTicketTypeModal();
+                  selectedPassengerId 
+                    ? generateSinglePassengerTicket('departure') 
+                    : generateReservationTickets('departure');
+                }}
+                className="w-full p-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg flex items-center"
               >
-                <FaPlane className="ml-3 text-blue-500" />
-                <span>فقط بلیط‌های رفت</span>
+                <FaPlane className="ml-2" />
+                <span>بلیط رفت</span>
               </button>
               
-              <button
-                onClick={() => generateReservationTickets('return')}
-                className="w-full text-right py-3 px-4 border border-gray-300 rounded-lg hover:bg-blue-50 flex items-center"
+              <button 
+                onClick={() => {
+                  closeTicketTypeModal();
+                  selectedPassengerId 
+                    ? generateSinglePassengerTicket('return') 
+                    : generateReservationTickets('return');
+                }}
+                className="w-full p-3 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg flex items-center"
               >
-                <FaPlane className="ml-3 transform rotate-180 text-blue-500" />
-                <span>فقط بلیط‌های برگشت</span>
+                <FaPlane className="ml-2 transform rotate-180" />
+                <span>بلیط برگشت</span>
               </button>
               
-              <button
-                onClick={() => generateReservationTickets('both')}
-                className="w-full text-right py-3 px-4 border border-gray-300 rounded-lg hover:bg-blue-50 flex items-center"
+              <button 
+                onClick={() => {
+                  closeTicketTypeModal();
+                  selectedPassengerId 
+                    ? generateSinglePassengerTicket('both') 
+                    : generateReservationTickets('both');
+                }}
+                className="w-full p-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg flex items-center"
               >
-                <div className="relative ml-3">
-                  <FaPlane className="text-blue-500" />
-                  <FaPlane className="absolute top-1/2 left-1/2 transform -translate-y-1/2 -translate-x-1/2 rotate-180 text-green-500" />
-                </div>
-                <span>هر دو نوع بلیط (رفت و برگشت)</span>
+                <FaTicketAlt className="ml-2" />
+                <span>هر دو بلیط</span>
               </button>
             </div>
             
-            <div className="mt-6 flex justify-end">
-              <button
+            <div className="mt-5 flex justify-end">
+              <button 
                 onClick={closeTicketTypeModal}
-                className="py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+                className="px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg"
               >
                 انصراف
               </button>

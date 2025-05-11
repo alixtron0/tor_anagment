@@ -15,6 +15,20 @@ const CitySchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  airport: {
+    name: {
+      type: String,
+      trim: true
+    },
+    code: {
+      type: String,
+      trim: true
+    },
+    isInternational: {
+      type: Boolean,
+      default: false
+    }
+  },
   isActive: {
     type: Boolean,
     default: true

@@ -9,7 +9,7 @@ const PassengerSchema = new mongoose.Schema({
   room: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Room',
-    required: true
+    default: null
   },
   firstName: {
     type: String,

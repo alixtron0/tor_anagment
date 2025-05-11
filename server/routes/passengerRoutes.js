@@ -657,6 +657,27 @@ router.get('/package/:packageId/excel', async (req, res) => {
       const birthDate = moment(p.birthDate);
       const age = moment().diff(birthDate, 'years');
       const isOver80 = age > 80;
+      
+      // تبدیل تاریخ‌ها به شمسی با استفاده از jalali-moment
+      const jalaliMoment = require('jalali-moment');
+      
+      // تبدیل تاریخ تولد به شمسی
+      let birthDateStr = 'نامعتبر';
+      if (birthDate.isValid()) {
+        birthDateStr = jalaliMoment(p.birthDate).locale('fa').format('jYYYY/jMM/jDD');
+      }
+      
+      // تبدیل تاریخ انقضای پاسپورت به شمسی
+      let passportExpiryDateStr = 'ندارد';
+      if (p.passportExpiryDate) {
+        const passportExpiryDate = moment(p.passportExpiryDate);
+        if (passportExpiryDate.isValid()) {
+          passportExpiryDateStr = jalaliMoment(p.passportExpiryDate).locale('fa').format('jYYYY/jMM/jDD');
+        } else {
+          passportExpiryDateStr = 'نامعتبر';
+        }
+      }
+      
       // **ترتیب باید با ستون‌های A تا H در قالب یکی باشد**
       return [
         p.firstName,
@@ -664,8 +685,8 @@ router.get('/package/:packageId/excel', async (req, res) => {
         p.englishFirstName,
         p.englishLastName,
         p.nationalId,
-        birthDate.isValid() ? birthDate.format('YYYY/MM/DD') : 'نامعتبر',
-        p.passportExpiryDate ? (moment(p.passportExpiryDate).isValid() ? moment(p.passportExpiryDate).format('YYYY/MM/DD') : 'نامعتبر') : 'ندارد',
+        birthDateStr, // تاریخ تولد شمسی
+        passportExpiryDateStr, // تاریخ انقضای پاسپورت شمسی
         isOver80 ? 'بله' : 'خیر'
       ];
     });
@@ -760,6 +781,27 @@ router.get('/reservation/:reservationId/excel', async (req, res) => {
       const birthDate = moment(p.birthDate);
       const age = moment().diff(birthDate, 'years');
       const isOver80 = age > 80;
+      
+      // تبدیل تاریخ‌ها به شمسی با استفاده از jalali-moment
+      const jalaliMoment = require('jalali-moment');
+      
+      // تبدیل تاریخ تولد به شمسی
+      let birthDateStr = 'نامعتبر';
+      if (birthDate.isValid()) {
+        birthDateStr = jalaliMoment(p.birthDate).locale('fa').format('jYYYY/jMM/jDD');
+      }
+      
+      // تبدیل تاریخ انقضای پاسپورت به شمسی
+      let passportExpiryDateStr = 'ندارد';
+      if (p.passportExpiryDate) {
+        const passportExpiryDate = moment(p.passportExpiryDate);
+        if (passportExpiryDate.isValid()) {
+          passportExpiryDateStr = jalaliMoment(p.passportExpiryDate).locale('fa').format('jYYYY/jMM/jDD');
+        } else {
+          passportExpiryDateStr = 'نامعتبر';
+        }
+      }
+      
       // **ترتیب باید با ستون‌های A تا H در قالب یکی باشد**
       return [
         p.firstName,
@@ -767,8 +809,8 @@ router.get('/reservation/:reservationId/excel', async (req, res) => {
         p.englishFirstName,
         p.englishLastName,
         p.nationalId,
-        birthDate.isValid() ? birthDate.format('YYYY/MM/DD') : 'نامعتبر',
-        p.passportExpiryDate ? (moment(p.passportExpiryDate).isValid() ? moment(p.passportExpiryDate).format('YYYY/MM/DD') : 'نامعتبر') : 'ندارد',
+        birthDateStr, // تاریخ تولد شمسی
+        passportExpiryDateStr, // تاریخ انقضای پاسپورت شمسی
         isOver80 ? 'بله' : 'خیر'
       ];
     });
@@ -837,16 +879,32 @@ router.get('/reservation/:reservationId/excel', async (req, res) => {
 function formatExcelDate(dateString) {
     if (!dateString) return '';
     try {
-        // Assuming dateString is in ISO format or parseable by Date
-        const date = new Date(dateString);
-        // Excel stores dates as numbers, but for simplicity, we format as YYYY-MM-DD
-        // Adjust formatting as needed (e.g., to Persian date)
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-        // For Persian Date (requires a library like moment-jalaali):
-        // return moment(dateString).locale('fa').format('jYYYY/jMM/jDD');
+        // تشخیص نوع تاریخ (میلادی یا شمسی)
+        const isGregorianDate = dateString.startsWith('20') || dateString.startsWith('19'); // اگر با 20 یا 19 شروع شود احتمالاً میلادی است
+        
+        // اگر تاریخ شمسی است، فقط آن را برگردان
+        if (!isGregorianDate && dateString.includes('/')) {
+            const dateParts = dateString.split('/');
+            if (dateParts.length === 3) {
+                return dateString;
+            }
+        }
+        
+        // استفاده از جلالی-مومنت برای تبدیل تاریخ میلادی به شمسی
+        const jalaliMoment = require('jalali-moment');
+        
+        // تبدیل فرمت yyyy/mm/dd یا yyyy-mm-dd به فرمت قابل پردازش
+        let normalizedDate = dateString;
+        if (dateString.includes('/')) {
+            normalizedDate = dateString.replace(/\//g, '-');
+        }
+        
+        // تبدیل تاریخ میلادی به شمسی
+        const jalaliDate = jalaliMoment(normalizedDate).locale('fa').format('jYYYY/jMM/jDD');
+        
+        console.log(`تبدیل تاریخ: ${dateString} (میلادی) به ${jalaliDate} (شمسی)`);
+        
+        return jalaliDate;
     } catch (e) {
         console.error("Error formatting date for Excel:", e);
         return dateString; // Return original on error
@@ -1238,5 +1296,67 @@ function formatPersianDate(dateString) {
   // استفاده از API داخلی Intl برای فرمت تاریخ فارسی
   return new Intl.DateTimeFormat('fa-IR').format(date);
 }
+
+// @route   PUT api/passengers/:id/change-room
+// @desc    تغییر اتاق مسافر با استفاده از drag & drop
+// @access  Private
+router.put('/:id/change-room', auth, async (req, res) => {
+  try {
+    const { roomId, reservationId } = req.body;
+
+    // بررسی وجود مسافر
+    const passenger = await Passenger.findById(req.params.id);
+    if (!passenger) {
+      return res.status(404).json({ message: 'مسافر یافت نشد' });
+    }
+
+    // بررسی تعلق مسافر به رزرو مورد نظر
+    if (passenger.reservation.toString() !== reservationId) {
+      return res.status(400).json({ message: 'این مسافر متعلق به رزرو دیگری است' });
+    }
+
+    // اتاق قبلی
+    const oldRoomId = passenger.room;
+    
+    // اگر مسافر قبلاً در اتاقی بوده، ظرفیت آن اتاق را کاهش می‌دهیم
+    if (oldRoomId) {
+      const oldRoom = await Room.findById(oldRoomId);
+      if (oldRoom) {
+        oldRoom.currentOccupancy = Math.max(0, oldRoom.currentOccupancy - 1);
+        await oldRoom.save();
+      }
+    }
+
+    // اگر roomId وجود دارد، ظرفیت اتاق جدید را بررسی و به‌روزرسانی می‌کنیم
+    if (roomId) {
+      const newRoom = await Room.findById(roomId);
+      if (!newRoom) {
+        return res.status(404).json({ message: 'اتاق مورد نظر یافت نشد' });
+      }
+
+      // بررسی ظرفیت اتاق جدید
+      if (newRoom.currentOccupancy >= newRoom.capacity) {
+        return res.status(400).json({ message: 'ظرفیت اتاق تکمیل است' });
+      }
+
+      // افزایش تعداد اشغال اتاق جدید
+      newRoom.currentOccupancy += 1;
+      await newRoom.save();
+
+      // به‌روزرسانی اتاق مسافر
+      passenger.room = roomId;
+    } else {
+      // اگر roomId ارسال نشده یا null باشد، مسافر را به حالت بدون اتاق تغییر می‌دهیم
+      passenger.room = null;
+    }
+
+    await passenger.save();
+
+    res.json({ success: true, passenger });
+  } catch (err) {
+    console.error('خطا در تغییر اتاق مسافر:', err.message);
+    res.status(500).json({ message: `خطای سرور: ${err.message}` });
+  }
+});
 
 module.exports = router; 

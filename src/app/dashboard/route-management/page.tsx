@@ -14,6 +14,16 @@ const routeSchema = z.object({
   origin: z.string().min(2, { message: 'مبدا باید حداقل 2 کاراکتر باشد' }),
   destination: z.string().min(2, { message: 'مقصد باید حداقل 2 کاراکتر باشد' }),
   description: z.string().optional(),
+  originAirport: z.object({
+    name: z.string().optional(),
+    code: z.string().optional()
+  }).optional(),
+  destinationAirport: z.object({
+    name: z.string().optional(),
+    code: z.string().optional()
+  }).optional(),
+  distance: z.number().optional(),
+  flightTime: z.number().optional(),
 });
 
 type RouteFormData = z.infer<typeof routeSchema>;
@@ -21,6 +31,11 @@ type RouteFormData = z.infer<typeof routeSchema>;
 const citySchema = z.object({
   name: z.string().min(2, { message: 'نام شهر باید حداقل 2 کاراکتر باشد' }),
   description: z.string().optional(),
+  airport: z.object({
+    name: z.string().optional(),
+    code: z.string().optional(),
+    isInternational: z.boolean().optional()
+  }).optional(),
 });
 
 type CityFormData = z.infer<typeof citySchema>;
@@ -32,6 +47,16 @@ interface Route {
   description?: string;
   isActive: boolean;
   createdAt: string;
+  originAirport?: {
+    name?: string;
+    code?: string;
+  };
+  destinationAirport?: {
+    name?: string;
+    code?: string;
+  };
+  distance?: number;
+  flightTime?: number;
 }
 
 interface City {
@@ -40,6 +65,11 @@ interface City {
   description?: string;
   isActive: boolean;
   createdAt: string;
+  airport?: {
+    name?: string;
+    code?: string;
+    isInternational?: boolean;
+  };
 }
 
 export default function RouteManagement() {
@@ -208,6 +238,23 @@ export default function RouteManagement() {
     setValue('origin', route.origin);
     setValue('destination', route.destination);
     setValue('description', route.description || '');
+    
+    // تنظیم اطلاعات فرودگاه مبدا
+    if (route.originAirport) {
+      setValue('originAirport.name', route.originAirport.name || '');
+      setValue('originAirport.code', route.originAirport.code || '');
+    }
+    
+    // تنظیم اطلاعات فرودگاه مقصد
+    if (route.destinationAirport) {
+      setValue('destinationAirport.name', route.destinationAirport.name || '');
+      setValue('destinationAirport.code', route.destinationAirport.code || '');
+    }
+    
+    // تنظیم اطلاعات تکمیلی
+    if (route.distance) setValue('distance', route.distance);
+    if (route.flightTime) setValue('flightTime', route.flightTime);
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -217,6 +264,14 @@ export default function RouteManagement() {
     setCurrentCityId(city._id);
     setValueCity('name', city.name);
     setValueCity('description', city.description || '');
+    
+    // تنظیم اطلاعات فرودگاه
+    if (city.airport) {
+      setValueCity('airport.name', city.airport.name || '');
+      setValueCity('airport.code', city.airport.code || '');
+      setValueCity('airport.isInternational', city.airport.isInternational || false);
+    }
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -488,6 +543,104 @@ export default function RouteManagement() {
                       placeholder="توضیحات اضافی درباره این مسیر..."
                     ></textarea>
                   </div>
+
+                  {/* بخش اطلاعات فرودگاه مبدا */}
+                  <div className="space-y-4 border border-gray-200 rounded-xl p-6 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-gray-800">اطلاعات فرودگاه مبدا</h3>
+                      <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">جدید</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">نام فرودگاه</label>
+                        <input
+                          type="text"
+                          {...register('originAirport.name')}
+                          className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all text-gray-800 placeholder-gray-400"
+                          placeholder="مثال: فرودگاه مهرآباد"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">کد فرودگاه</label>
+                        <input
+                          type="text"
+                          {...register('originAirport.code')}
+                          className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all text-gray-800 placeholder-gray-400"
+                          placeholder="مثال: THR"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* بخش اطلاعات فرودگاه مقصد */}
+                  <div className="space-y-4 border border-gray-200 rounded-xl p-6 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-gray-800">اطلاعات فرودگاه مقصد</h3>
+                      <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">جدید</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">نام فرودگاه</label>
+                        <input
+                          type="text"
+                          {...register('destinationAirport.name')}
+                          className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all text-gray-800 placeholder-gray-400"
+                          placeholder="مثال: فرودگاه اصفهان"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">کد فرودگاه</label>
+                        <input
+                          type="text"
+                          {...register('destinationAirport.code')}
+                          className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all text-gray-800 placeholder-gray-400"
+                          placeholder="مثال: IFN"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* بخش اطلاعات اضافی مسیر */}
+                  <div className="space-y-4 border border-gray-200 rounded-xl p-6 bg-gray-50 md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-gray-800">اطلاعات تکمیلی مسیر</h3>
+                      <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">جدید</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">مسافت (کیلومتر)</label>
+                        <input
+                          type="number"
+                          {...register('distance', { 
+                            setValueAs: (v) => v === '' ? undefined : parseFloat(v)
+                          })}
+                          className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all text-gray-800 placeholder-gray-400"
+                          placeholder="مثال: 350"
+                          min="0"
+                          step="1"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">زمان پرواز (دقیقه)</label>
+                        <input
+                          type="number"
+                          {...register('flightTime', { 
+                            setValueAs: (v) => v === '' ? undefined : parseFloat(v) 
+                          })}
+                          className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all text-gray-800 placeholder-gray-400"
+                          placeholder="مثال: 60"
+                          min="0"
+                          step="1"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="flex justify-center gap-4">
@@ -552,7 +705,8 @@ export default function RouteManagement() {
                         <thead>
                           <tr className="bg-gray-50 text-right">
                             <th className="py-4 px-6 text-sm font-medium text-gray-500">مسیر</th>
-                            <th className="py-4 px-6 text-sm font-medium text-gray-500">توضیحات</th>
+                            <th className="py-4 px-6 text-sm font-medium text-gray-500">فرودگاه‌ها</th>
+                            <th className="py-4 px-6 text-sm font-medium text-gray-500">اطلاعات</th>
                             <th className="py-4 px-6 text-sm font-medium text-gray-500">وضعیت</th>
                             <th className="py-4 px-6 text-sm font-medium text-gray-500">عملیات</th>
                           </tr>
@@ -567,23 +721,76 @@ export default function RouteManagement() {
                               className="hover:bg-gray-50"
                             >
                               <td className="py-4 px-6">
-                                <div className="flex items-center">
-                                  <div className="bg-indigo-100 p-2 rounded-xl mr-3">
-                                    <FaRoute className="text-indigo-600" />
-                                  </div>
+                                <div className="font-medium text-gray-800">
+                                  <span className="bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg ml-2 inline-block">
+                                    {route.origin}
+                                  </span>
+                                  <FaArrowLeft className="inline mx-2 text-gray-400" />
+                                  <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg inline-block">
+                                    {route.destination}
+                                  </span>
+                                </div>
+                                <div className="mt-1 text-sm text-gray-500 pr-1">
+                                  {route.description || 'بدون توضیحات'}
+                                </div>
+                              </td>
+                              <td className="py-4 px-6 text-sm">
+                                <div className="space-y-2">
+                                  {/* فرودگاه مبدا */}
                                   <div>
-                                    <div className="flex items-center space-x-2 space-x-reverse font-medium text-gray-900">
-                                      <span className="rounded-lg bg-blue-50 px-2 py-1 text-blue-700">{route.origin}</span>
-                                      <span className="text-indigo-400">
-                                        <FaArrowLeft className="h-4 w-4" />
-                                      </span>
-                                      <span className="rounded-lg bg-green-50 px-2 py-1 text-green-700">{route.destination}</span>
-                                    </div>
+                                    <div className="text-xs font-medium text-gray-500 mb-1">فرودگاه مبدا:</div>
+                                    {route.originAirport?.name ? (
+                                      <div className="flex items-center">
+                                        <span className="font-medium text-gray-700">{route.originAirport.name}</span>
+                                        {route.originAirport.code && (
+                                          <span className="bg-indigo-100 text-indigo-600 text-xs px-2 py-0.5 rounded-full font-mono mr-2">
+                                            {route.originAirport.code}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-gray-400">تعیین نشده</span>
+                                    )}
+                                  </div>
+                                  
+                                  {/* فرودگاه مقصد */}
+                                  <div>
+                                    <div className="text-xs font-medium text-gray-500 mb-1">فرودگاه مقصد:</div>
+                                    {route.destinationAirport?.name ? (
+                                      <div className="flex items-center">
+                                        <span className="font-medium text-gray-700">{route.destinationAirport.name}</span>
+                                        {route.destinationAirport.code && (
+                                          <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full font-mono mr-2">
+                                            {route.destinationAirport.code}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-gray-400">تعیین نشده</span>
+                                    )}
                                   </div>
                                 </div>
                               </td>
-                              <td className="py-4 px-6 text-sm text-gray-500">
-                                {route.description || 'بدون توضیحات'}
+                              <td className="py-4 px-6 text-sm">
+                                <div className="space-y-1">
+                                  {route.distance ? (
+                                    <div className="flex items-center text-gray-600">
+                                      <span className="ml-1">🛣️</span>
+                                      <span>{route.distance} کیلومتر</span>
+                                    </div>
+                                  ) : null}
+                                  
+                                  {route.flightTime ? (
+                                    <div className="flex items-center text-gray-600">
+                                      <span className="ml-1">⏱️</span>
+                                      <span>{route.flightTime} دقیقه</span>
+                                    </div>
+                                  ) : null}
+                                  
+                                  {!route.distance && !route.flightTime && (
+                                    <span className="text-gray-400">اطلاعات تکمیلی ثبت نشده</span>
+                                  )}
+                                </div>
                               </td>
                               <td className="py-4 px-6">
                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
@@ -685,6 +892,49 @@ export default function RouteManagement() {
                       placeholder="توضیحات اضافی درباره این شهر..."
                     ></textarea>
                   </div>
+
+                  {/* بخش اطلاعات فرودگاه */}
+                  <div className="space-y-6 border border-gray-200 rounded-xl p-6 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-gray-800">اطلاعات فرودگاه</h3>
+                      <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">جدید</span>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">نام فرودگاه</label>
+                        <input
+                          type="text"
+                          {...registerCity('airport.name')}
+                          className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all text-gray-800 placeholder-gray-400"
+                          placeholder="مثال: فرودگاه بین‌المللی امام خمینی"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">کد فرودگاه</label>
+                        <input
+                          type="text"
+                          {...registerCity('airport.code')}
+                          className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all text-gray-800 placeholder-gray-400"
+                          placeholder="مثال: IKA"
+                        />
+                        <p className="text-gray-500 text-xs mt-1">کد سه حرفی IATA برای فرودگاه</p>
+                      </div>
+                      
+                      <div className="flex items-center mt-4">
+                        <input
+                          id="isInternational"
+                          type="checkbox"
+                          {...registerCity('airport.isInternational')}
+                          className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <label htmlFor="isInternational" className="mr-2 block text-sm text-gray-700">
+                          فرودگاه بین‌المللی است
+                        </label>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="flex justify-center gap-4">
@@ -750,6 +1000,7 @@ export default function RouteManagement() {
                           <tr className="bg-gray-50 text-right">
                             <th className="py-4 px-6 text-sm font-medium text-gray-500">نام شهر</th>
                             <th className="py-4 px-6 text-sm font-medium text-gray-500">توضیحات</th>
+                            <th className="py-4 px-6 text-sm font-medium text-gray-500">فرودگاه</th>
                             <th className="py-4 px-6 text-sm font-medium text-gray-500">وضعیت</th>
                             <th className="py-4 px-6 text-sm font-medium text-gray-500">عملیات</th>
                           </tr>
@@ -775,6 +1026,23 @@ export default function RouteManagement() {
                               </td>
                               <td className="py-4 px-6 text-sm text-gray-500">
                                 {city.description || 'بدون توضیحات'}
+                              </td>
+                              <td className="py-4 px-6">
+                                {city.airport?.name ? (
+                                  <div className="text-sm">
+                                    <div className="font-medium text-gray-800">{city.airport.name}</div>
+                                    <div className="text-xs text-gray-500 mt-1 flex items-center">
+                                      {city.airport.code && (
+                                        <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded mr-2 font-mono">{city.airport.code}</span>
+                                      )}
+                                      {city.airport.isInternational && (
+                                        <span className="bg-emerald-100 text-emerald-600 text-xs px-2 py-0.5 rounded">بین‌المللی</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 text-sm">بدون فرودگاه</span>
+                                )}
                               </td>
                               <td className="py-4 px-6">
                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${

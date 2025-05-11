@@ -33,11 +33,12 @@ interface Passenger {
   englishLastName: string;
   documentType: 'nationalId' | 'passport';
   documentNumber: string;
+  passportExpiry?: string;
   nationality?: string;
   customNationality?: boolean;
   age?: string;
   birthDate?: string;
-  ageInputMethod?: 'direct' | 'birthdate';
+  gender?: 'male' | 'female';
 }
 
 interface Airline {
@@ -85,6 +86,142 @@ const mockRegister: UseFormRegister<any> = (name) => {
     onBlur: () => Promise.resolve(),
     ref: () => {},
   };
+};
+
+// کامپوننت انتخابگر زمان ۲۴ ساعته
+const TimeSelector = ({ 
+  value, 
+  onChange,
+  className = ""
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) => {
+  // تنظیم ساعت و دقیقه از مقدار ورودی
+  const [hour, setHour] = useState<string>('');
+  const [minute, setMinute] = useState<string>('');
+  const [isTyping, setIsTyping] = useState<boolean>(false);
+
+  // به‌روزرسانی مقادیر ساعت و دقیقه هنگام تغییر value
+  useEffect(() => {
+    if (!isTyping && value) {
+      const [h, m] = value.split(':');
+      setHour(h || '');
+      setMinute(m || '');
+    }
+  }, [value, isTyping]);
+
+  // ساخت گزینه‌های ساعت (۰۰ تا ۲۳)
+  const hourOptions = Array.from({ length: 24 }, (_, i) => {
+    const hourValue = i.toString().padStart(2, '0');
+    return (
+      <option key={`hour-${hourValue}`} value={hourValue}>
+        {hourValue}
+      </option>
+    );
+  });
+
+  // ساخت گزینه‌های دقیقه (۰۰ تا ۵۹)
+  const minuteOptions = Array.from({ length: 60 }, (_, i) => {
+    const minuteValue = i.toString().padStart(2, '0');
+    return (
+      <option key={`minute-${minuteValue}`} value={minuteValue}>
+        {minuteValue}
+      </option>
+    );
+  });
+
+  // به‌روزرسانی مقدار زمان هنگام تغییر ساعت یا دقیقه
+  const handleChange = (type: 'hour' | 'minute', val: string) => {
+    if (type === 'hour') {
+      setHour(val);
+      const newTime = val && minute ? `${val}:${minute}` : val ? `${val}:00` : minute ? `00:${minute}` : '';
+      onChange(newTime);
+    } else {
+      setMinute(val);
+      const newTime = hour && val ? `${hour}:${val}` : hour ? `${hour}:00` : val ? `00:${val}` : '';
+      onChange(newTime);
+    }
+  };
+
+  // مدیریت تایپ مستقیم زمان در فیلد ورودی
+  const handleDirectInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsTyping(true);
+    const input = e.target.value;
+    
+    // اگر فقط عدد و : وارد شده باشد
+    if (/^[0-9:]*$/.test(input)) {
+      if (input.includes(':')) {
+        const [h, m] = input.split(':');
+        // بررسی محدوده معتبر ساعت و دقیقه
+        if ((h === '' || (parseInt(h) >= 0 && parseInt(h) <= 23)) && 
+            (m === '' || (parseInt(m) >= 0 && parseInt(m) <= 59))) {
+          onChange(input);
+          
+          if (h) setHour(h.length === 1 ? '0' + h : h);
+          if (m) setMinute(m.length === 1 ? '0' + m : m);
+        }
+      } else if (input.length <= 2) {
+        // اگر فقط ساعت وارد شده
+        if (input === '' || (parseInt(input) >= 0 && parseInt(input) <= 23)) {
+          setHour(input);
+          onChange(input ? `${input}:${minute || '00'}` : `${minute ? '00:' + minute : ''}`);
+        }
+      }
+    }
+    
+    // پس از 1 ثانیه، وضعیت تایپ را غیرفعال کن
+    setTimeout(() => setIsTyping(false), 1000);
+  };
+
+  return (
+    <div className={`inline-flex items-center gap-1 p-1 px-2 bg-gray-50 border border-gray-300 rounded-lg ${className}`}>
+      <div className="flex items-center justify-center px-2 py-1 bg-indigo-50 rounded-md border border-indigo-100 text-indigo-600 text-xs ml-1">
+        24h
+      </div>
+
+      {/* ورودی مستقیم زمان */}
+      <input 
+        type="text"
+        value={value}
+        onChange={handleDirectInput}
+        placeholder="00:00"
+        className="w-16 bg-transparent border-0 focus:ring-0 text-center appearance-none cursor-text text-lg font-medium"
+        maxLength={5}
+      />
+
+      <div className="flex items-center justify-center text-gray-300 mx-1">|</div>
+
+      {/* دقیقه (سمت چپ در فارسی) */}
+      <div className="relative w-full flex-grow">
+        <select
+          value={minute}
+          onChange={(e) => handleChange('minute', e.target.value)}
+          className="w-full bg-transparent border-0 focus:ring-0 text-center appearance-none cursor-pointer text-lg p-2 font-medium"
+          aria-label="دقیقه"
+        >
+          <option value="" className="text-gray-400">دقیقه</option>
+          {minuteOptions}
+        </select>
+        <span className="text-xs text-gray-500 absolute bottom-0 right-0">دقیقه</span>
+      </div>
+      <span className="text-xl font-bold text-indigo-600 mx-1 pt-1">:</span>
+      {/* ساعت (سمت راست در فارسی) */}
+      <div className="relative w-full flex-grow">
+        <select
+          value={hour}
+          onChange={(e) => handleChange('hour', e.target.value)}
+          className="w-full bg-transparent border-0 focus:ring-0 text-center appearance-none cursor-pointer text-lg p-2 font-medium"
+          aria-label="ساعت"
+        >
+          <option value="" className="text-gray-400">ساعت</option>
+          {hourOptions}
+        </select>
+        <span className="text-xs text-gray-500 absolute bottom-0 right-0">ساعت</span>
+      </div>
+    </div>
+  );
 };
 
 export default function FloatingTicket() {
@@ -152,17 +289,22 @@ export default function FloatingTicket() {
 
   // اضافه کردن مسافر جدید
   const addPassenger = () => {
+    // محاسبه تاریخ تولد پیش‌فرض (30 سال قبل)
+    const defaultBirthDate = moment().subtract(30, 'years').format('YYYY/MM/DD');
+    const ageYears = 30;
+    
     const newPassenger: Passenger = {
       id: Date.now().toString(),
       englishFirstName: '',
       englishLastName: '',
       documentType: 'passport',
       documentNumber: '',
+      passportExpiry: '',
       nationality: 'Iranian',
       customNationality: false,
-      age: '',
-      birthDate: '',
-      ageInputMethod: 'direct'
+      birthDate: defaultBirthDate,
+      age: `${ageYears} (بزرگسال)`,
+      gender: 'male'
     }
     
     setPassengers([...passengers, newPassenger])
@@ -173,6 +315,10 @@ export default function FloatingTicket() {
     const count = passengerCount > 0 ? passengerCount : 1;
     const newPassengers: Passenger[] = [];
     
+    // محاسبه تاریخ تولد پیش‌فرض (30 سال قبل)
+    const defaultBirthDate = moment().subtract(30, 'years').format('YYYY/MM/DD');
+    const ageYears = 30;
+    
     for (let i = 0; i < count; i++) {
       newPassengers.push({
         id: `${Date.now()}-${i}`,
@@ -180,11 +326,12 @@ export default function FloatingTicket() {
         englishLastName: '',
         documentType: 'passport',
         documentNumber: '',
+        passportExpiry: '',
         nationality: 'Iranian',
         customNationality: false,
-        age: '',
-        birthDate: '',
-        ageInputMethod: 'direct'
+        birthDate: defaultBirthDate,
+        age: `${ageYears} (بزرگسال)`,
+        gender: 'male'
       });
     }
     
@@ -206,16 +353,27 @@ export default function FloatingTicket() {
             try {
               const birthDate = moment(value, 'YYYY/MM/DD');
               const now = moment();
-              const age = now.diff(birthDate, 'years').toString();
-              return { ...p, [field]: value, age, ageInputMethod: 'birthdate' };
+              const ageYears = now.diff(birthDate, 'years');
+              
+              // تعیین دسته سنی
+              let ageCategory = '';
+              if (ageYears >= 12) {
+                ageCategory = 'بزرگسال';
+              } else if (ageYears >= 2) {
+                ageCategory = 'کودک';
+              } else {
+                ageCategory = 'نوزاد';
+              }
+              
+              return { 
+                ...p, 
+                [field]: value, 
+                age: `${ageYears} (${ageCategory})` 
+              };
             } catch (error) {
               console.error('خطا در محاسبه سن:', error);
               return { ...p, [field]: value };
             }
-          }
-          // اگر فیلد age تغییر کرده و مستقیماً وارد شده
-          else if (field === 'age') {
-            return { ...p, [field]: value, ageInputMethod: 'direct' };
           }
           
           return { ...p, [field]: value };
@@ -287,7 +445,7 @@ export default function FloatingTicket() {
   };
 
   // صادر کردن اطلاعات مسافران به صورت فایل اکسل
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (exportType: string = 'system') => {
     // اعتبارسنجی داده‌ها
     if (passengers.length === 0) {
       return reactToastify.error('حداقل یک مسافر اضافه کنید')
@@ -310,7 +468,8 @@ export default function FloatingTicket() {
           passengers,
           flightInfo,
           airline: selectedAirline,
-          sourceType
+          sourceType,
+          exportType // ارسال نوع خروجی اکسل (system یا airline)
         },
         {
           headers: {
@@ -325,7 +484,7 @@ export default function FloatingTicket() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `passengers-${Date.now()}.xlsx`);
+      link.setAttribute('download', `passengers-${exportType}-${Date.now()}.xlsx`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -657,12 +816,12 @@ export default function FloatingTicket() {
             
             <div>
               <label className="block text-gray-700 mb-2">ساعت پرواز (اختیاری)</label>
-              <input
-                type="time"
+              <TimeSelector
                 value={flightInfo.time || ''}
-                onChange={(e) => updateFlightInfo('time', e.target.value)}
-                className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                onChange={(value) => updateFlightInfo('time', value)}
+                className="w-full"
               />
+              <p className="text-xs text-gray-500 mt-1">فرمت ۲۴ ساعته</p>
             </div>
             
             <div>
@@ -839,7 +998,7 @@ export default function FloatingTicket() {
                 <div className="flex items-center gap-2">
                   {/* دکمه صادر کردن اکسل */}
                   <button
-                    onClick={handleExportExcel}
+                    onClick={() => handleExportExcel('system')}
                     disabled={isExporting || isGenerating || passengers.length === 0}
                     className={`flex items-center justify-center gap-3 px-8 py-5 rounded-full text-xl font-semibold transition-colors shadow-xl ${
                       isExporting || isGenerating || passengers.length === 0
@@ -972,6 +1131,43 @@ export default function FloatingTicket() {
                     </div>
                     
                     <div>
+                      <label className="block text-gray-700 mb-2">جنسیت</label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            checked={passenger.gender === 'male'}
+                            onChange={() => updatePassenger(passenger.id, 'gender', 'male')}
+                            className="w-4 h-4 text-indigo-600"
+                          />
+                          <span className="mr-2 flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clipRule="evenodd" />
+                            </svg>
+                            مرد
+                          </span>
+                        </label>
+                        
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            checked={passenger.gender === 'female'}
+                            onChange={() => updatePassenger(passenger.id, 'gender', 'female')}
+                            className="w-4 h-4 text-indigo-600"
+                          />
+                          <span className="mr-2 flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-pink-500" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clipRule="evenodd" />
+                            </svg>
+                            زن
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                    
+                    <div>
                       <label className="block text-gray-700 mb-2">
                         {passenger.documentType === 'passport' ? 'شماره پاسپورت' : 'کد ملی'}
                       </label>
@@ -1050,65 +1246,41 @@ export default function FloatingTicket() {
                     </div>
                     
                     <div>
-                      <label className="block text-gray-700 mb-2">سن مسافر</label>
-                      <div className="flex">
-                        <div className={`flex-1 ${passenger.ageInputMethod === 'direct' ? 'opacity-100' : 'opacity-50'}`}>
-                          <input
-                            type="number"
-                            min="0"
-                            max="120"
-                            value={passenger.age || ''}
-                            onChange={(e) => {
-                              updatePassenger(passenger.id, 'age', e.target.value);
-                              if (passenger.ageInputMethod !== 'direct') {
-                                updatePassenger(passenger.id, 'ageInputMethod', 'direct');
-                                updatePassenger(passenger.id, 'birthDate', '');
-                              }
-                            }}
-                            onClick={() => {
-                              // تغییر به حالت ورود مستقیم سن هنگام کلیک
-                              if (passenger.ageInputMethod !== 'direct') {
-                                updatePassenger(passenger.id, 'ageInputMethod', 'direct');
-                              }
-                            }}
-                            className="w-full bg-gray-50 border border-gray-300 rounded-l-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="سن مسافر"
-                          />
-                        </div>
-                        <div className="flex border border-gray-300 border-r-0 rounded-r-lg bg-gray-100">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              // تغییر بین حالت‌های ورود سن
-                              const newMethod = passenger.ageInputMethod === 'direct' ? 'birthdate' : 'direct';
-                              updatePassenger(passenger.id, 'ageInputMethod', newMethod);
-                            }}
-                            className="px-3 text-gray-500 hover:text-indigo-600 transition-colors"
-                            title={passenger.ageInputMethod === 'direct' ? 'انتخاب تاریخ تولد' : 'ورود مستقیم سن'}
-                          >
-                            <FaCalendarAlt />
-                          </button>
-                        </div>
-                      </div>
-                      
-                      {/* تاریخ تولد - نمایش در صورت انتخاب حالت محاسبه از تاریخ تولد */}
-                      {passenger.ageInputMethod === 'birthdate' && (
-                        <div className="mt-2">
-                          <label className="block text-gray-700 mb-2 text-xs">تاریخ تولد</label>
-                          <PersianDatePicker
-                            value={passenger.birthDate}
-                            onChange={(date) => updatePassenger(passenger.id, 'birthDate', date)}
-                            placeholder="انتخاب تاریخ تولد"
-                            className="text-sm"
-                          />
-                          {passenger.age && (
-                            <div className="mt-1 text-xs text-indigo-600 bg-indigo-50 p-1 rounded border border-indigo-100">
-                              سن محاسبه شده: <span className="font-bold">{passenger.age} سال</span>
-                            </div>
+                      <label className="block text-gray-700 mb-2">تاریخ تولد</label>
+                      <PersianDatePicker
+                        value={passenger.birthDate || ''}
+                        onChange={(date) => updatePassenger(passenger.id, 'birthDate', date)}
+                        placeholder="انتخاب تاریخ تولد"
+                        className="w-full"
+                      />
+                      {passenger.age && (
+                        <div className="mt-1 text-xs text-indigo-600 bg-indigo-50 p-1 rounded border border-indigo-100 flex flex-wrap items-center gap-2">
+                          <span>سن محاسبه شده: <span className="font-bold">{passenger.age.split('(')[0]}</span></span>
+                          {passenger.age.includes('بزرگسال') && (
+                            <span className="bg-blue-500 text-white px-2 py-0.5 rounded-full text-xs">بزرگسال</span>
+                          )}
+                          {passenger.age.includes('کودک') && (
+                            <span className="bg-green-500 text-white px-2 py-0.5 rounded-full text-xs">کودک</span>
+                          )}
+                          {passenger.age.includes('نوزاد') && (
+                            <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-xs">نوزاد</span>
                           )}
                         </div>
                       )}
                     </div>
+                    
+                    {/* فیلد تاریخ انقضای پاسپورت - فقط زمانی نمایش داده می‌شود که نوع سند پاسپورت باشد */}
+                    {passenger.documentType === 'passport' && (
+                      <div>
+                        <label className="block text-gray-700 mb-2">تاریخ انقضای پاسپورت (اختیاری)</label>
+                        <PersianDatePicker
+                          value={passenger.passportExpiry || ''}
+                          onChange={(date) => updatePassenger(passenger.id, 'passportExpiry', date)}
+                          placeholder="انتخاب تاریخ انقضا"
+                          className="w-full"
+                        />
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               ))}
@@ -1119,44 +1291,68 @@ export default function FloatingTicket() {
         {/* دکمه تولید و دانلود */}
         <div className="mt-10 flex justify-center gap-4 flex-wrap">
           {/* دکمه‌های صادر کردن و وارد کردن */}
-          <button
-            onClick={handleExportExcel}
-            disabled={isExporting || isGenerating || passengers.length === 0}
-            className={`flex items-center justify-center gap-3 px-8 py-5 rounded-full text-xl font-semibold transition-colors shadow-xl ${
-              isExporting || isGenerating || passengers.length === 0
-                ? 'bg-gray-400 text-white cursor-not-allowed' 
-                : 'bg-emerald-600 text-white hover:bg-emerald-700 transform hover:scale-105'
-            }`}
-          >
-            {isExporting ? (
-              <FaSpinner className="animate-spin text-2xl" />
-            ) : (
-              <FaFileExcel className="text-2xl" />
-            )}
-            <span>{isExporting ? 'در حال صادر کردن...' : 'صادر کردن به اکسل'}</span>
-          </button>
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="bg-white p-3 rounded-xl shadow-md">
+              <h3 className="text-lg font-bold mb-3 text-center">صادر کردن به اکسل</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => handleExportExcel('system')}
+                  disabled={isExporting || isGenerating || passengers.length === 0}
+                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    isExporting || isGenerating || passengers.length === 0
+                      ? 'bg-gray-400 text-white cursor-not-allowed' 
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  }`}
+                >
+                  {isExporting ? (
+                    <FaSpinner className="animate-spin" />
+                  ) : (
+                    <FaFileExcel />
+                  )}
+                  <span>{isExporting ? 'در حال صادر کردن...' : 'فرمت سیستمی'}</span>
+                </button>
+                
+                <button
+                  onClick={() => handleExportExcel('airline')}
+                  disabled={isExporting || isGenerating || passengers.length === 0}
+                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    isExporting || isGenerating || passengers.length === 0
+                      ? 'bg-gray-400 text-white cursor-not-allowed' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {isExporting ? (
+                    <FaSpinner className="animate-spin" />
+                  ) : (
+                    <FaPlane className="mr-1" />
+                  )}
+                  <span>{isExporting ? 'در حال صادر کردن...' : 'فرمت خطوط هوایی'}</span>
+                </button>
+              </div>
+            </div>
           
-          <label
-            className={`flex items-center justify-center gap-3 px-8 py-5 rounded-full text-xl font-semibold transition-all duration-300 shadow-xl ${
-              isImporting || isGenerating
-                ? 'bg-gray-400 text-white cursor-wait' 
-                : 'bg-amber-600 text-white hover:bg-amber-700 cursor-pointer transform hover:scale-105'
-            }`}
-          >
-            {isImporting ? (
-              <FaSpinner className="animate-spin text-2xl" />
-            ) : (
-              <FaUpload className="text-2xl" />
-            )}
-            <span>{isImporting ? 'در حال وارد کردن...' : 'بارگذاری از اکسل'}</span>
-            <input
-              type="file"
-              accept=".xlsx"
-              onChange={handleImportExcel}
-              disabled={isImporting || isGenerating}
-              className="hidden"
-            />
-          </label>
+            <label
+              className={`flex items-center justify-center gap-3 px-8 py-5 rounded-full text-lg font-semibold transition-all duration-300 shadow-xl ${
+                isImporting || isGenerating
+                  ? 'bg-gray-400 text-white cursor-wait' 
+                  : 'bg-amber-600 text-white hover:bg-amber-700 cursor-pointer transform hover:scale-105'
+              }`}
+            >
+              {isImporting ? (
+                <FaSpinner className="animate-spin text-xl" />
+              ) : (
+                <FaUpload className="text-xl" />
+              )}
+              <span>{isImporting ? 'در حال وارد کردن...' : 'بارگذاری از اکسل'}</span>
+              <input
+                type="file"
+                accept=".xlsx"
+                onChange={handleImportExcel}
+                disabled={isImporting || isGenerating}
+                className="hidden"
+              />
+            </label>
+          </div>
           
           {/* دکمه تولید و دانلود PDF */}
           <button

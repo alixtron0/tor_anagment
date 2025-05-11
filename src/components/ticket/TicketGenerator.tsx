@@ -50,12 +50,13 @@ interface ReservationData {
 interface TicketGeneratorProps {
   reservation: ReservationData
   passengers: Passenger[]
+  onGenerateTicket: (passengerId: string) => void
 }
 
 // Add type declaration
 declare module 'qrcode'
 
-const TicketGenerator: React.FC<TicketGeneratorProps> = ({ reservation, passengers }) => {
+const TicketGenerator: React.FC<TicketGeneratorProps> = ({ reservation, passengers, onGenerateTicket }) => {
   const ticketContainerRef = useRef<HTMLDivElement>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [completePackageData, setCompletePackageData] = useState<any>(null)
@@ -554,51 +555,11 @@ const TicketGenerator: React.FC<TicketGeneratorProps> = ({ reservation, passenge
 
   const generateSingleTicket = async (passengerIndex: number) => {
     try {
-      setIsGenerating(true);
       const passenger = passengers[passengerIndex];
-      
-      // ایجاد نمونه جدید از jsPDF با اندازه A4
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-      
-      // تولید QR کد برای مسافر
-      const qrCodeUrl = await generateQRCodeAsync(reservation._id, passenger);
-      
-      // ایجاد مقدار تصادفی برای شماره بلیط
-      const randomTicketNumber = Math.floor(Math.random() * 10000000).toString().padStart(7, '0');
-      
-      // HTML بلیط
-      const ticketHTML = generateTicketHTML(passenger, passengerIndex, qrCodeUrl, randomTicketNumber);
-      
-      // افزودن HTML بلیط به صفحه
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = ticketHTML;
-      document.body.appendChild(tempDiv);
-      
-      // تبدیل HTML به canvas
-      const tempTicket = document.getElementById(`ticket-${passengerIndex}`);
-      if (tempTicket) {
-        const canvas = await html2canvas(tempTicket);
-        const imgData = canvas.toDataURL('image/png');
-        
-        // اضافه کردن به PDF
-        pdf.addImage(imgData, 'PNG', 10, 10, 190, 140);
-        
-        // حذف المان موقت
-        document.body.removeChild(tempDiv);
-      }
-      
-      // ذخیره PDF با نام مناسب
-      pdf.save(`ticket_${passenger.firstName}_${passenger.lastName}_${reservation._id}.pdf`);
-      
+      onGenerateTicket(passenger._id);
     } catch (error) {
-      console.error('خطا در تولید بلیط:', error);
-      alert('خطا در تولید بلیط. لطفاً مجدداً تلاش کنید.');
-    } finally {
-      setIsGenerating(false);
+      console.error('خطا در آماده‌سازی تولید بلیط:', error);
+      alert('خطا در عملیات تولید بلیط. لطفاً مجدداً تلاش کنید.');
     }
   }
 
@@ -611,19 +572,7 @@ const TicketGenerator: React.FC<TicketGeneratorProps> = ({ reservation, passenge
         </div>
       ) : (
         <>
-          <div className="flex flex-col gap-4">
-            <h3 className="text-lg font-bold text-gray-800">دریافت بلیط‌ها</h3>
-            
-            {/* گزینه تمام بلیط‌ها در یک فایل */}
-            <button
-              onClick={generateAllTicketsInOnePDF}
-              disabled={isGenerating || isLoadingPackage}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50"
-            >
-              <FaTicketAlt />
-              <span>دریافت همه بلیط‌ها در یک فایل (PDF)</span>
-            </button>
-          </div>
+          
           
           {/* لیست مسافران برای دریافت تکی بلیط‌ها */}
           <div className="mt-6">

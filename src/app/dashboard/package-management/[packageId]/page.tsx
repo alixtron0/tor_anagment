@@ -23,12 +23,15 @@ import {
   FaUsers,
   FaCog,
   FaFileExcel,
-  FaTicketAlt
+  FaTicketAlt,
+  FaEdit,
+  FaTrash
 } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import { Package } from '@/components/types'
 import moment from 'jalali-moment'
 import ReservationModal from './ReservationModal'
+import EditReservationModal from './EditReservationModal'
 
 interface Reservation {
   _id: string;
@@ -60,6 +63,11 @@ interface Reservation {
   actualChildren?: number;
   actualInfants?: number;
   actualCount?: number;
+  sellingPrices?: {
+    adult: number;
+    child: number;
+    infant: number;
+  };
 }
 
 export default function PackageDetails() {
@@ -69,6 +77,8 @@ export default function PackageDetails() {
   const [loadingReservations, setLoadingReservations] = useState(false)
   const [remainingCapacity, setRemainingCapacity] = useState(0)
   const [isReservationModalOpen, setIsReservationModalOpen] = useState(false)
+  const [isEditReservationModalOpen, setIsEditReservationModalOpen] = useState(false)
+  const [selectedReservationId, setSelectedReservationId] = useState<string>('')
   const [isDownloadingPackageExcel, setIsDownloadingPackageExcel] = useState(false)
   const [isDownloadingTicketExcel, setIsDownloadingTicketExcel] = useState(false)
   const [isDownloadingHotelReport, setIsDownloadingHotelReport] = useState(false)
@@ -83,6 +93,13 @@ export default function PackageDetails() {
   // تابع هدایت به صفحه مدیریت مسافران
   const goToPassengerManagement = (reservationId: string) => {
     router.push(`/dashboard/package-management/${params.packageId}/reservation/${reservationId}`);
+  };
+
+  // تابع باز کردن مودال ویرایش رزرو
+  const openEditReservationModal = (reservationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedReservationId(reservationId);
+    setIsEditReservationModalOpen(true);
   };
 
   // دریافت اطلاعات کاربر
@@ -279,6 +296,39 @@ export default function PackageDetails() {
       fetchReservations()
     } catch (error: any) {
       console.error('خطا در تغییر وضعیت رزرو:', error)
+      
+      if (error.response) {
+        toast.error(`خطا: ${error.response.data.message || error.response.statusText}`)
+      } else {
+        toast.error('خطا در ارتباط با سرور')
+      }
+    }
+  }
+
+  // حذف رزرو
+  const handleDeleteReservation = async (reservationId: string) => {
+    if (!window.confirm('آیا از حذف این رزرو اطمینان دارید؟')) {
+      return
+    }
+    
+    try {
+      const token = localStorage.getItem('token')
+      
+      await axios.delete(
+        `http://185.94.99.35:5000/api/reservations/${reservationId}`,
+        {
+          headers: {
+            'x-auth-token': token
+          }
+        }
+      )
+      
+      toast.success('رزرو با موفقیت حذف شد')
+      
+      // به‌روزرسانی لیست رزروها
+      fetchReservations()
+    } catch (error: any) {
+      console.error('خطا در حذف رزرو:', error)
       
       if (error.response) {
         toast.error(`خطا: ${error.response.data.message || error.response.statusText}`)
@@ -770,6 +820,7 @@ export default function PackageDetails() {
                     <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نوع رزرو</th>
                     <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تعداد</th>
                     <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">مبلغ کل</th>
+                    <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">قیمت فروش</th>
                     <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">وضعیت</th>
                     <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">رزرو کننده</th>
                     <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاریخ ثبت</th>
@@ -839,6 +890,36 @@ export default function PackageDetails() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
+                        {reservation.sellingPrices ? (
+                          <div className="flex flex-col">
+                            <div className="font-medium text-gray-900">
+                              {((reservation.sellingPrices.adult * reservation.adults) +
+                                 (reservation.sellingPrices.child * reservation.children) + 
+                                 (reservation.sellingPrices.infant * reservation.infants)).toLocaleString('fa-IR')} تومان
+                            </div>
+                            <div className="flex items-center justify-start gap-2 mt-1 flex-wrap">
+                              {reservation.adults > 0 && (
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                  بزرگسال: {reservation.sellingPrices.adult.toLocaleString('fa-IR')}
+                                </span>
+                              )}
+                              {reservation.children > 0 && (
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                  کودک: {reservation.sellingPrices.child.toLocaleString('fa-IR')}
+                                </span>
+                              )}
+                              {reservation.infants > 0 && (
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                  نوزاد: {reservation.sellingPrices.infant.toLocaleString('fa-IR')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-500">تنظیم نشده</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                           reservation.status === 'pending' ? 'bg-yellow-50 text-yellow-700' :
                           reservation.status === 'confirmed' ? 'bg-green-50 text-green-700' :
@@ -869,32 +950,22 @@ export default function PackageDetails() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleStatusChange(reservation._id, 'confirmed')
+                              openEditReservationModal(reservation._id, e)
                             }}
-                            className={`p-1.5 rounded-full transition-all ${
-                              reservation.status === 'confirmed' 
-                                ? 'bg-green-50 text-green-600 cursor-default' 
-                                : 'text-gray-400 hover:bg-green-50 hover:text-green-600'
-                            }`}
-                            disabled={reservation.status === 'confirmed'}
-                            title="تایید رزرو"
+                            className="p-1.5 rounded-full transition-all text-gray-400 hover:bg-blue-50 hover:text-blue-600"
+                            title="ویرایش رزرو"
                           >
-                            <FaCheck className="text-sm" />
+                            <FaEdit className="text-sm" />
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleStatusChange(reservation._id, 'canceled')
+                              handleDeleteReservation(reservation._id)
                             }}
-                            className={`p-1.5 rounded-full transition-all ${
-                              reservation.status === 'canceled' 
-                                ? 'bg-red-50 text-red-600 cursor-default' 
-                                : 'text-gray-400 hover:bg-red-50 hover:text-red-600'
-                            }`}
-                            disabled={reservation.status === 'canceled'}
-                            title="لغو رزرو"
+                            className="p-1.5 rounded-full transition-all text-gray-400 hover:bg-red-50 hover:text-red-600"
+                            title="حذف رزرو"
                           >
-                            <FaTimes className="text-sm" />
+                            <FaTrash className="text-sm" />
                           </button>
                         </div>
                       </td>
@@ -1171,6 +1242,22 @@ export default function PackageDetails() {
                 fetchReservations()
               }, 500)
               setIsReservationModalOpen(false)
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* مودال ویرایش رزرو */}
+      <AnimatePresence>
+        {isEditReservationModalOpen && selectedReservationId && (
+          <EditReservationModal 
+            isOpen={isEditReservationModalOpen}
+            onClose={() => setIsEditReservationModalOpen(false)}
+            reservationId={selectedReservationId}
+            packageId={packageId}
+            onSuccess={() => {
+              fetchReservations()
+              setIsEditReservationModalOpen(false)
             }}
           />
         )}

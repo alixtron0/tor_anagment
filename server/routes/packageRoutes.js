@@ -966,10 +966,34 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
     
     // اطلاعات بلیط رفت
     if (ticketType === 'departure' || ticketType === 'both') {
+      // دریافت اطلاعات فرودگاه‌ها برای این مسیر
+      let fromair = '';
+      let toair = '';
+      let fromAirportCode = '';
+      let toAirportCode = '';
+      
+      try {
+        // استفاده از آدرس نسبی API داخلی
+        const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/airports/info/${packageData.route.origin}/${packageData.route.destination}`);
+        if (airportInfo.data) {
+          // استخراج اطلاعات فرودگاه‌ها
+          fromair = airportInfo.data.originAirport?.name || '';
+          toair = airportInfo.data.destinationAirport?.name || '';
+          fromAirportCode = airportInfo.data.originAirport?.code || '';
+          toAirportCode = airportInfo.data.destinationAirport?.code || '';
+        }
+      } catch (airportError) {
+        console.error('Error fetching departure airport info:', airportError);
+      }
+      
       ticketsToGenerate.push({
         type: 'departure',
         origin: packageData.route.origin,
         destination: packageData.route.destination,
+        fromair, // نام فرودگاه مبدا
+        toair,   // نام فرودگاه مقصد
+        fromAirportCode, // کد فرودگاه مبدا
+        toAirportCode,   // کد فرودگاه مقصد
         date: packageData.startDate,
         time: packageData.startTime,
         airline: packageData.transportation.departureAirline,
@@ -979,10 +1003,34 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
     
     // اطلاعات بلیط برگشت
     if (ticketType === 'return' || ticketType === 'both') {
+      // دریافت اطلاعات فرودگاه‌ها برای مسیر برگشت (مقصد به مبدا)
+      let fromair = '';
+      let toair = '';
+      let fromAirportCode = '';
+      let toAirportCode = '';
+      
+      try {
+        // استفاده از آدرس نسبی API داخلی با معکوس کردن مبدا و مقصد
+        const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/airports/info/${packageData.route.destination}/${packageData.route.origin}`);
+        if (airportInfo.data) {
+          // استخراج اطلاعات فرودگاه‌ها
+          fromair = airportInfo.data.originAirport?.name || '';
+          toair = airportInfo.data.destinationAirport?.name || '';
+          fromAirportCode = airportInfo.data.originAirport?.code || '';
+          toAirportCode = airportInfo.data.destinationAirport?.code || '';
+        }
+      } catch (airportError) {
+        console.error('Error fetching return airport info:', airportError);
+      }
+      
       ticketsToGenerate.push({
         type: 'return',
         origin: packageData.route.destination, // معکوس کردن مبدا و مقصد
         destination: packageData.route.origin,
+        fromair, // نام فرودگاه مبدا (در مسیر برگشت)
+        toair,   // نام فرودگاه مقصد (در مسیر برگشت)
+        fromAirportCode, // کد فرودگاه مبدا (در مسیر برگشت)
+        toAirportCode,   // کد فرودگاه مقصد (در مسیر برگشت)
         date: packageData.endDate,
         time: packageData.endTime,
         airline: packageData.transportation.returnAirline,
@@ -1005,7 +1053,7 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
         } catch (loadError) {
           console.error('CRITICAL: Error loading PDF template or registering fontkit:', loadError);
           return res.status(500).json({ message: 'خطای حیاتی در بارگذاری قالب PDF.' });
-        }
+        } 
         
         // --- جاسازی فونت --- 
         let vazirFont = null;
@@ -1063,7 +1111,12 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
           'logo_af_image': isAirTransportation && ticketInfo.airline?.logo ? 
                           ticketInfo.airline.logo : 
                           '',
-          'age': calculateAge(passenger.birthDate) || ''
+          'age': calculateAge(passenger.birthDate) || '',
+          // اضافه کردن فیلدهای فرودگاه
+          'fromair': ticketInfo.fromair || '',
+          'toair': ticketInfo.toair || '',
+          'fromAirportCode': ticketInfo.fromAirportCode || '',
+          'toAirportCode': ticketInfo.toAirportCode || ''
         };
         
         // --- محاسبه قیمت براساس رده سنی مسافر ---
@@ -1072,7 +1125,7 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
         let ticketTotal = 0;
 
         // محاسبه قیمت براساس رده سنی مسافر
-        const age = parseInt(calculateAge(passenger.birthDate) || '0');
+        const age = getNumericAge(passenger.birthDate);
         if (age < 2) {
           // نوزاد
           ticketPrice = packageData.infantPrice;
@@ -1114,7 +1167,11 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
           'tax': ['tax', 'Tax', 'مالیات'],
           'total': ['total', 'Total', 'totalPrice', 'TotalPrice', 'قیمت_کل', 'قیمت کل'],
           'logo_af_image': ['logo_af_image', 'Logo', 'logo', 'airlineLogo', 'AirlineLogo', 'لوگو'],
-          'age': ['age', 'Age', 'passengerAge', 'PassengerAge', 'سن']
+          'age': ['age', 'Age', 'passengerAge', 'PassengerAge', 'سن'],
+          'fromair': ['fromair', 'Fromair', 'originAirport', 'OriginAirport', 'departureAirport', 'DepartureAirport', 'مبدافرودگاه'],
+          'toair': ['toair', 'Toair', 'destinationAirport', 'DestinationAirport', 'arrivalAirport', 'ArrivalAirport', 'مقصدفرودگاه'],
+          'fromAirportCode': ['fromAirportCode', 'FromAirportCode', 'originAirportCode', 'OriginAirportCode', 'departureAirportCode', 'DepartureAirportCode', 'مبدافرودگاهکد'],
+          'toAirportCode': ['toAirportCode', 'ToAirportCode', 'destinationAirportCode', 'DestinationAirportCode', 'arrivalAirportCode', 'ArrivalAirportCode', 'مقصدفرودگاهکد']
         };
         
         // پر کردن فیلدهای فرم
@@ -1507,10 +1564,34 @@ router.post('/reservation/:id/generate-tickets', auth, async (req, res) => {
     
     // اطلاعات بلیط رفت
     if (ticketType === 'departure' || ticketType === 'both') {
+      // دریافت اطلاعات فرودگاه‌ها برای این مسیر
+      let fromair = '';
+      let toair = '';
+      let fromAirportCode = '';
+      let toAirportCode = '';
+      
+      try {
+        // استفاده از آدرس نسبی API داخلی
+        const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/airports/info/${packageData.route.origin}/${packageData.route.destination}`);
+        if (airportInfo.data) {
+          // استخراج اطلاعات فرودگاه‌ها
+          fromair = airportInfo.data.originAirport?.name || '';
+          toair = airportInfo.data.destinationAirport?.name || '';
+          fromAirportCode = airportInfo.data.originAirport?.code || '';
+          toAirportCode = airportInfo.data.destinationAirport?.code || '';
+        }
+      } catch (airportError) {
+        console.error('Error fetching departure airport info:', airportError);
+      }
+      
       ticketsToGenerate.push({
         type: 'departure',
         origin: packageData.route.origin,
         destination: packageData.route.destination,
+        fromair, // نام فرودگاه مبدا
+        toair,   // نام فرودگاه مقصد
+        fromAirportCode, // کد فرودگاه مبدا
+        toAirportCode,   // کد فرودگاه مقصد
         date: packageData.startDate,
         time: packageData.startTime,
         airline: packageData.transportation.departureAirline,
@@ -1520,10 +1601,34 @@ router.post('/reservation/:id/generate-tickets', auth, async (req, res) => {
     
     // اطلاعات بلیط برگشت
     if (ticketType === 'return' || ticketType === 'both') {
+      // دریافت اطلاعات فرودگاه‌ها برای مسیر برگشت (مقصد به مبدا)
+      let fromair = '';
+      let toair = '';
+      let fromAirportCode = '';
+      let toAirportCode = '';
+      
+      try {
+        // استفاده از آدرس نسبی API داخلی با معکوس کردن مبدا و مقصد
+        const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/airports/info/${packageData.route.destination}/${packageData.route.origin}`);
+        if (airportInfo.data) {
+          // استخراج اطلاعات فرودگاه‌ها
+          fromair = airportInfo.data.originAirport?.name || '';
+          toair = airportInfo.data.destinationAirport?.name || '';
+          fromAirportCode = airportInfo.data.originAirport?.code || '';
+          toAirportCode = airportInfo.data.destinationAirport?.code || '';
+        }
+      } catch (airportError) {
+        console.error('Error fetching return airport info:', airportError);
+      }
+      
       ticketsToGenerate.push({
         type: 'return',
         origin: packageData.route.destination, // معکوس کردن مبدا و مقصد
         destination: packageData.route.origin,
+        fromair, // نام فرودگاه مبدا (در مسیر برگشت)
+        toair,   // نام فرودگاه مقصد (در مسیر برگشت)
+        fromAirportCode, // کد فرودگاه مبدا (در مسیر برگشت)
+        toAirportCode,   // کد فرودگاه مقصد (در مسیر برگشت)
         date: packageData.endDate,
         time: packageData.endTime,
         airline: packageData.transportation.returnAirline,
@@ -1596,7 +1701,12 @@ router.post('/reservation/:id/generate-tickets', auth, async (req, res) => {
           'logo_af_image': isAirTransportation && ticketInfo.airline?.logo ? 
                           ticketInfo.airline.logo : 
                           '',
-          'age': calculateAge(passenger.birthDate) || ''
+          'age': calculateAge(passenger.birthDate) || '',
+          // اضافه کردن فیلدهای فرودگاه
+          'fromair': ticketInfo.fromair || '',
+          'toair': ticketInfo.toair || '',
+          'fromAirportCode': ticketInfo.fromAirportCode || '',
+          'toAirportCode': ticketInfo.toAirportCode || ''
         };
         
         // --- محاسبه قیمت براساس رده سنی مسافر ---
@@ -1639,7 +1749,11 @@ router.post('/reservation/:id/generate-tickets', auth, async (req, res) => {
           'tax': ['tax', 'Tax', 'مالیات'],
           'total': ['total', 'Total', 'totalPrice', 'TotalPrice', 'قیمت_کل', 'قیمت کل'],
           'logo_af_image': ['logo_af_image', 'Logo', 'logo', 'airlineLogo', 'AirlineLogo', 'لوگو'],
-          'age': ['age', 'Age', 'passengerAge', 'PassengerAge', 'سن']
+          'age': ['age', 'Age', 'passengerAge', 'PassengerAge', 'سن'],
+          'fromair': ['fromair', 'Fromair', 'originAirport', 'OriginAirport', 'departureAirport', 'DepartureAirport', 'مبدافرودگاه'],
+          'toair': ['toair', 'Toair', 'destinationAirport', 'DestinationAirport', 'arrivalAirport', 'ArrivalAirport', 'مقصدفرودگاه'],
+          'fromAirportCode': ['fromAirportCode', 'FromAirportCode', 'originAirportCode', 'OriginAirportCode', 'departureAirportCode', 'DepartureAirportCode', 'مبدافرودگاهکد'],
+          'toAirportCode': ['toAirportCode', 'ToAirportCode', 'destinationAirportCode', 'DestinationAirportCode', 'arrivalAirportCode', 'ArrivalAirportCode', 'مقصدفرودگاهکد']
         };
         
         // پر کردن فیلدهای فرم
@@ -1907,30 +2021,70 @@ router.post('/reservation/:id/generate-tickets', auth, async (req, res) => {
  */
 router.get('/stats/summary', auth, async (req, res) => {
   try {
-    const currentDate = new Date().toISOString().split('T')[0]; // تاریخ امروز به فرمت YYYY-MM-DD
+    console.log("شروع دریافت آمار پکیج‌ها");
     
     // دریافت همه پکیج‌ها
-    const packages = await Package.find({}).select('name startDate endDate capacity');
+    const packages = await Package.find({}).select('name startDate endDate startTime endTime capacity');
+    console.log(`تعداد کل پکیج‌ها: ${packages.length}`);
     
     // آمار وضعیت پکیج‌ها
     const packageStats = {
       notStarted: 0,
       inProgress: 0,
-      completed: 0,
-      packagesByCategory: {}
+      completed: 0
     };
     
     // بررسی و دسته‌بندی پکیج‌ها
     packages.forEach(pkg => {
-      // بررسی وضعیت زمانی پکیج
-      if (pkg.startDate > currentDate) {
-        packageStats.notStarted++;
-      } else if (pkg.endDate < currentDate) {
-        packageStats.completed++;
-      } else {
-        packageStats.inProgress++;
+      try {
+        // استخراج مقادیر تاریخ و زمان
+        const startDate = pkg.startDate || ''; // مثال: "2025/03/17" (میلادی)
+        const endDate = pkg.endDate || '';     // مثال: "2025/03/20" (میلادی)
+        const startTime = pkg.startTime || '00:00'; // مثال: "08:30"
+        const endTime = pkg.endTime || '00:00';     // مثال: "12:00"
+
+        console.log(`پکیج ${pkg._id || 'نامشخص'}: تاریخ شروع=${startDate} ${startTime}, تاریخ پایان=${endDate} ${endTime}`);
+        
+        // تبدیل به timestamp برای مقایسه دقیق‌تر (فرض بر این است که تاریخ‌ها میلادی هستند)
+        // به جای استفاده از jMoment.isBefore/isAfter، از مقایسه timestamp استفاده می‌کنیم
+        
+        const jMoment = require('moment-jalaali');
+        
+        // تاریخ شروع و پایان پکیج به timestamp (میلادی)
+        const startTimestamp = new Date(`${startDate.replace(/\//g, '-')}T${startTime}`).getTime();
+        const endTimestamp = new Date(`${endDate.replace(/\//g, '-')}T${endTime}`).getTime();
+        
+        // تاریخ و زمان فعلی به timestamp (میلادی)
+        const nowTimestamp = new Date().getTime();
+        
+        // برای اطلاعات بیشتر در لاگ، تاریخ‌ها را فرمت می‌کنیم
+        const formattedNow = new Date(nowTimestamp).toISOString().replace('T', ' ').substring(0, 19);
+        const formattedStart = new Date(startTimestamp).toISOString().replace('T', ' ').substring(0, 19);
+        const formattedEnd = new Date(endTimestamp).toISOString().replace('T', ' ').substring(0, 19);
+        
+        console.log(`مقایسه timestamp: الان=${formattedNow} (${nowTimestamp}), شروع=${formattedStart} (${startTimestamp}), پایان=${formattedEnd} (${endTimestamp})`);
+        
+        // بررسی وضعیت زمانی پکیج با مقایسه timestamp
+        if (nowTimestamp < startTimestamp) {
+          // تاریخ فعلی قبل از تاریخ شروع است - در انتظار شروع
+          console.log(`پکیج ${pkg._id}: در انتظار شروع (nowTimestamp < startTimestamp)`);
+          packageStats.notStarted++;
+        } else if (nowTimestamp > endTimestamp) {
+          // تاریخ فعلی بعد از تاریخ پایان است - پایان یافته
+          console.log(`پکیج ${pkg._id}: پایان یافته (nowTimestamp > endTimestamp)`);
+          packageStats.completed++;
+        } else {
+          // تاریخ فعلی بین تاریخ شروع و پایان است - در حال اجرا
+          console.log(`پکیج ${pkg._id}: در حال اجرا (startTimestamp <= nowTimestamp <= endTimestamp)`);
+          packageStats.inProgress++;
+        }
+      } catch (error) {
+        console.error(`خطا در پردازش وضعیت پکیج ${pkg._id}:`, error);
+        // در صورت خطا، ادامه دهید و به وضعیت نامشخص بیفزایید (یا می‌توانید وضعیت پیش‌فرض تعیین کنید)
       }
     });
+    
+    console.log("آمار پکیج‌ها:", packageStats);
     
     // دریافت آمار تعداد پکیج‌ها بر اساس مقصد
     const routeAggregation = await Package.aggregate([
@@ -2034,20 +2188,38 @@ router.get('/stats/summary', auth, async (req, res) => {
 // تبدیل تاریخ به فرمت فارسی
 function formatPersianDate(dateString) {
   try {
-    // تبدیل تاریخ به فرمت فارسی
-    const dateParts = dateString.split('/');
-    if (dateParts.length === 3) {
-      const year = dateParts[0];
-      const month = dateParts[1];
-      const day = dateParts[2];
-      
-      // بدون تبدیل اعداد به فارسی - فقط بازگرداندن فرمت
-      return `${year}/${month}/${day}`;
+    // بررسی خالی بودن تاریخ
+    if (!dateString) {
+      return '';
     }
-    return dateString;
+    
+    // تشخیص نوع تاریخ (میلادی یا شمسی)
+    const isGregorianDate = dateString.startsWith('20') || dateString.startsWith('19'); // اگر با 20 یا 19 شروع شود احتمالاً میلادی است
+    
+    // اگر تاریخ شمسی است، فقط آن را برگردان
+    if (!isGregorianDate) {
+      const dateParts = dateString.split('/');
+      if (dateParts.length === 3) {
+        return dateString;
+      }
+    }
+    
+    // استفاده از جلالی-مومنت برای تبدیل تاریخ میلادی به شمسی
+    const jalaliMoment = require('jalali-moment');
+    
+    // تبدیل فرمت yyyy/mm/dd به فرمت قابل پردازش برای جاوااسکریپت
+    const normalizedDate = dateString.replace(/\//g, '-');
+    
+    // تبدیل به تاریخ شمسی
+    const jalaliDate = jalaliMoment(normalizedDate, 'YYYY-MM-DD').locale('fa').format('jYYYY/jMM/jDD');
+    
+    // لاگ برای اطمینان از تبدیل صحیح
+    console.log(`تبدیل تاریخ: ${dateString} (میلادی) به ${jalaliDate} (شمسی)`);
+    
+    return jalaliDate;
   } catch (error) {
-    console.error('Error formatting date:', error);
-    return dateString;
+    console.error('خطا در تبدیل تاریخ:', error);
+    return dateString; // در صورت بروز خطا، همان تاریخ اصلی را برگردان
   }
 }
 
@@ -2073,11 +2245,574 @@ function calculateAge(birthDate) {
       age--;
     }
     
-    return String(age);
+    // به جای برگرداندن عدد سن، دسته‌بندی سنی را به فارسی بر می‌گردانیم
+    if (age < 2) {
+      return 'نوزاد';
+    } else if (age < 12) {
+      return 'کودک';
+    } else {
+      return 'بزرگسال';
+    }
   } catch (error) {
     console.error('Error calculating age:', error);
-    return '';
+    return 'بزرگسال'; // مقدار پیش‌فرض در صورت خطا
   }
 }
+
+/**
+ * محاسبه سن عددی بر اساس تاریخ تولد
+ * @param {string} birthDate - تاریخ تولد
+ * @returns {number} سن به عدد
+ */
+function getNumericAge(birthDate) {
+  try {
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    
+    return age;
+  } catch (error) {
+    console.error('Error calculating numeric age:', error);
+    return 0; // مقدار پیش‌فرض در صورت خطا
+  }
+}
+
+/**
+ * @route   POST /api/packages/reservation/:id/passenger/:passengerId/generate-ticket
+ * @desc    تولید بلیط برای یک مسافر خاص
+ * @access  خصوصی
+ */
+router.post('/reservation/:id/passenger/:passengerId/generate-ticket', auth, async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const passengerId = req.params.passengerId;
+    const { ticketType } = req.body; // رفت (departure)، برگشت (return) یا هر دو (both)
+    
+    // بررسی نوع بلیط
+    if (!['departure', 'return', 'both'].includes(ticketType)) {
+      return res.status(400).json({ message: 'نوع بلیط نامعتبر است' });
+    }
+
+    // دریافت اطلاعات رزرواسیون
+    const reservation = await Reservation.findById(reservationId)
+      .populate('package');
+    
+    if (!reservation) {
+      return res.status(404).json({ message: 'رزرواسیون مورد نظر یافت نشد' });
+    }
+
+    // دریافت اطلاعات پکیج
+    const packageData = await Package.findById(reservation.package._id)
+      .populate('route')
+      .populate({
+        path: 'transportation.departureAirline',
+        model: 'airline'
+      })
+      .populate({
+        path: 'transportation.returnAirline',
+        model: 'airline'
+      });
+    
+    if (!packageData) {
+      return res.status(404).json({ message: 'پکیج مربوط به این رزرواسیون یافت نشد' });
+    }
+
+    // دریافت مسافر
+    const passenger = await Passenger.findOne({ _id: passengerId, reservation: reservationId });
+
+    if (!passenger) {
+      return res.status(404).json({ message: 'مسافر مورد نظر یافت نشد' });
+    }
+
+    // --- مسیر قالب و فونت --- 
+    const templatePath = path.join(__dirname, '..', 'assets', 'templates', 'package-ticket-template.pdf');
+    const fontPath = path.join(__dirname, '..', 'assets', 'fonts', 'ttf', 'Vazirmatn-Regular.ttf');
+
+    // --- خواندن فایل‌ها --- 
+    let templateBytes, vazirFontBytes;
+    try {
+      // اگر فایل قالب وجود نداشت، از قالب بلیط شناور استفاده می‌کنیم
+      if (!fs.existsSync(templatePath)) {
+        const floatingTicketTemplatePath = path.join(__dirname, '..', 'assets', 'templates', 'template.pdf');
+        templateBytes = fs.readFileSync(floatingTicketTemplatePath);
+      } else {
+        templateBytes = fs.readFileSync(templatePath);
+      }
+      console.log('PDF template read successfully.');
+    } catch (err) {
+        console.error("CRITICAL: Could not read PDF template file:", err);
+        return res.status(500).json({ message: 'خطا در خواندن فایل قالب PDF.' });
+    }
+    
+    try {
+      vazirFontBytes = fs.readFileSync(fontPath);
+      console.log('Vazir font file read successfully.');
+    } catch (err) {
+        console.warn("Could not read Vazir font file:", err, "Proceeding without custom font.");
+        vazirFontBytes = null;
+    }
+
+    // ایجاد فایل PDF خروجی نهایی
+    const finalPdfDoc = await PDFDocument.create();
+    if (vazirFontBytes) {
+      finalPdfDoc.registerFontkit(fontkit);
+    }
+
+    // مشخص کردن اطلاعات بلیط‌ها (رفت، برگشت یا هر دو)
+    const ticketsToGenerate = [];
+    
+    // اطلاعات بلیط رفت
+    if (ticketType === 'departure' || ticketType === 'both') {
+      // دریافت اطلاعات فرودگاه‌ها برای این مسیر
+      let fromair = '';
+      let toair = '';
+      let fromAirportCode = '';
+      let toAirportCode = '';
+      
+      try {
+        // استفاده از آدرس نسبی API داخلی
+        const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/airports/info/${packageData.route.origin}/${packageData.route.destination}`);
+        if (airportInfo.data) {
+          // استخراج اطلاعات فرودگاه‌ها
+          fromair = airportInfo.data.originAirport?.name || '';
+          toair = airportInfo.data.destinationAirport?.name || '';
+          fromAirportCode = airportInfo.data.originAirport?.code || '';
+          toAirportCode = airportInfo.data.destinationAirport?.code || '';
+        }
+      } catch (airportError) {
+        console.error('Error fetching departure airport info:', airportError);
+      }
+      
+      ticketsToGenerate.push({
+        type: 'departure',
+        origin: packageData.route.origin,
+        destination: packageData.route.destination,
+        fromair, // نام فرودگاه مبدا
+        toair,   // نام فرودگاه مقصد
+        fromAirportCode, // کد فرودگاه مبدا
+        toAirportCode,   // کد فرودگاه مقصد
+        date: packageData.startDate,
+        time: packageData.startTime,
+        airline: packageData.transportation.departureAirline,
+        transportation: packageData.transportation.departure
+      });
+    }
+    
+    // اطلاعات بلیط برگشت
+    if (ticketType === 'return' || ticketType === 'both') {
+      // دریافت اطلاعات فرودگاه‌ها برای مسیر برگشت (مقصد به مبدا)
+      let fromair = '';
+      let toair = '';
+      let fromAirportCode = '';
+      let toAirportCode = '';
+      
+      try {
+        // استفاده از آدرس نسبی API داخلی با معکوس کردن مبدا و مقصد
+        const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/airports/info/${packageData.route.destination}/${packageData.route.origin}`);
+        if (airportInfo.data) {
+          // استخراج اطلاعات فرودگاه‌ها
+          fromair = airportInfo.data.originAirport?.name || '';
+          toair = airportInfo.data.destinationAirport?.name || '';
+          fromAirportCode = airportInfo.data.originAirport?.code || '';
+          toAirportCode = airportInfo.data.destinationAirport?.code || '';
+        }
+      } catch (airportError) {
+        console.error('Error fetching return airport info:', airportError);
+      }
+      
+      ticketsToGenerate.push({
+        type: 'return',
+        origin: packageData.route.destination, // معکوس کردن مبدا و مقصد
+        destination: packageData.route.origin,
+        fromair, // نام فرودگاه مبدا (در مسیر برگشت)
+        toair,   // نام فرودگاه مقصد (در مسیر برگشت)
+        fromAirportCode, // کد فرودگاه مبدا (در مسیر برگشت)
+        toAirportCode,   // کد فرودگاه مقصد (در مسیر برگشت)
+        date: packageData.endDate,
+        time: packageData.endTime,
+        airline: packageData.transportation.returnAirline,
+        transportation: packageData.transportation.return
+      });
+    }
+
+    // پردازش بلیط‌های مسافر
+    for (const ticketInfo of ticketsToGenerate) {
+      // بررسی نوع وسیله نقلیه - اگر هوایی نیست، شاید بخواهیم رفتار متفاوتی داشته باشیم
+      const isAirTransportation = ticketInfo.transportation === 'havaii';
+      
+      // --- بارگذاری PDF و ثبت Fontkit برای هر مسافر --- 
+      let pdfDoc;
+      try {
+        pdfDoc = await PDFDocument.load(templateBytes);
+        pdfDoc.registerFontkit(fontkit); 
+        console.log(`PDF Template loaded for passenger ${passenger.englishFirstName} ${passenger.englishLastName}`);
+      } catch (loadError) {
+        console.error('CRITICAL: Error loading PDF template or registering fontkit:', loadError);
+        return res.status(500).json({ message: 'خطای حیاتی در بارگذاری قالب PDF.' });
+      }
+      
+      // --- جاسازی فونت --- 
+      let vazirFont = null;
+      if (vazirFontBytes) {
+        try {
+          vazirFont = await pdfDoc.embedFont(vazirFontBytes);
+        } catch (fontEmbedError) {
+          console.error("ERROR: Could not embed Vazir font:", fontEmbedError);
+        }
+      }
+        
+      // --- دریافت فرم و فیلدها --- 
+      let form;
+      try {
+        form = pdfDoc.getForm();
+        console.log("Form fields retrieved successfully.");
+      } catch (formError) {
+        console.error('CRITICAL: Error getting form from PDF:', formError);
+        if (formError.message.includes('does not contain a form')) {
+          console.warn("The PDF template does not seem to contain an AcroForm.");
+        }
+        return res.status(500).json({ message: 'خطای حیاتی در پردازش فرم PDF.' });
+      }
+      
+      // عنوان نوع بلیط به فارسی (فقط برای لاگ)
+      const ticketTypeText = ticketInfo.type === 'departure' ? 'بلیط رفت' : 'بلیط برگشت';
+      
+      // تولید شماره بلیط تصادفی
+      const randomTicketNumber = Math.floor(Math.random() * 10000000).toString().padStart(7, '0');
+      
+      // --- نگاشت داده‌ها به نام فیلدها --- 
+      const fieldDataMap = {
+        'from': ticketInfo.origin || '',
+        'to': ticketInfo.destination || '',
+        'date': ticketInfo.date || '',
+        'time': ticketInfo.time || '',
+        'name': passenger.englishFirstName || '',
+        'familiy': passenger.englishLastName || '',
+        'pnumber': passenger.passportNumber || passenger.nationalId || '',
+        'flightn': ticketInfo.type === 'departure' ? 'Departure' : 'Return',
+        'aircraft': isAirTransportation && ticketInfo.airline?.aircraftModel ? 
+                    ticketInfo.airline.aircraftModel : 
+                    '',
+        'price': '', 
+        'tax': '',
+        'total': '',
+        'logo_af_image': isAirTransportation && ticketInfo.airline?.logo ? 
+                        ticketInfo.airline.logo : 
+                        '',
+        'age': calculateAge(passenger.birthDate) || '',
+        // اضافه کردن فیلدهای فرودگاه
+        'fromair': ticketInfo.fromair || '',
+        'toair': ticketInfo.toair || '',
+        'fromAirportCode': ticketInfo.fromAirportCode || '',
+        'toAirportCode': ticketInfo.toAirportCode || ''
+      };
+      
+      // --- محاسبه قیمت براساس رده سنی مسافر ---
+      let ticketPrice = 0;
+      let ticketTax = 0;
+      let ticketTotal = 0;
+
+      // محاسبه قیمت براساس رده سنی مسافر
+      if (passenger.ageCategory === 'infant') {
+        // نوزاد
+        ticketPrice = packageData.infantPrice;
+      } else {
+        // بزرگسال و کودک (قیمت یکسان)
+        ticketPrice = packageData.basePrice;
+      }
+      
+      // محاسبه مالیات (در این سیستم صفر است)
+      ticketTax = 0;
+      
+      // محاسبه جمع کل
+      ticketTotal = ticketPrice + ticketTax;
+      
+      // به‌روزرسانی مقادیر در فیلدها
+      fieldDataMap['price'] = ticketPrice.toString();
+      fieldDataMap['tax'] = ticketTax.toString();
+      fieldDataMap['total'] = ticketTotal.toString();
+      
+      // بررسی نام‌های جایگزین برای فیلدها - ممکن است نام‌های فیلدها در قالب متفاوت باشند
+      const alternativeFieldNames = {
+        'from': ['from', 'From', 'origin', 'Origin', 'departure', 'Departure', 'مبدا'],
+        'to': ['to', 'To', 'destination', 'Destination', 'arrival', 'Arrival', 'مقصد'],
+        'date': ['date', 'Date', 'flightDate', 'FlightDate', 'تاریخ'],
+        'time': ['time', 'Time', 'flightTime', 'FlightTime', 'ساعت'],
+        'name': ['name', 'Name', 'firstName', 'FirstName', 'نام'],
+        'familiy': ['familiy', 'Familiy', 'family', 'Family', 'lastName', 'LastName', 'نام_خانوادگی', 'نام خانوادگی'],
+        'pnumber': ['pnumber', 'Pnumber', 'documentNumber', 'DocumentNumber', 'passportNumber', 'PassportNumber', 'شماره_سند', 'شماره سند'],
+        'flightn': ['flightn', 'Flightn', 'flightNumber', 'FlightNumber', 'شماره_پرواز', 'شماره پرواز'],
+        'aircraft': ['aircraft', 'Aircraft', 'aircraftModel', 'AircraftModel', 'مدل_هواپیما', 'مدل هواپیما'],
+        'price': ['price', 'Price', 'ticketPrice', 'TicketPrice', 'قیمت'],
+        'tax': ['tax', 'Tax', 'مالیات'],
+        'total': ['total', 'Total', 'totalPrice', 'TotalPrice', 'قیمت_کل', 'قیمت کل'],
+        'logo_af_image': ['logo_af_image', 'Logo', 'logo', 'airlineLogo', 'AirlineLogo', 'لوگو'],
+        'age': ['age', 'Age', 'passengerAge', 'PassengerAge', 'سن'],
+        'fromair': ['fromair', 'Fromair', 'originAirport', 'OriginAirport', 'departureAirport', 'DepartureAirport', 'مبدافرودگاه'],
+        'toair': ['toair', 'Toair', 'destinationAirport', 'DestinationAirport', 'arrivalAirport', 'ArrivalAirport', 'مقصدفرودگاه'],
+        'fromAirportCode': ['fromAirportCode', 'FromAirportCode', 'originAirportCode', 'OriginAirportCode', 'departureAirportCode', 'DepartureAirportCode', 'مبدافرودگاهکد'],
+        'toAirportCode': ['toAirportCode', 'ToAirportCode', 'destinationAirportCode', 'DestinationAirportCode', 'arrivalAirportCode', 'ArrivalAirportCode', 'مقصدفرودگاهکد']
+      };
+      
+      // پر کردن فیلدهای فرم
+      for (const [mainFieldName, fieldValue] of Object.entries(fieldDataMap)) {
+        let fieldFilled = false;
+        
+        // ابتدا تلاش می‌کنیم با نام اصلی
+        try {
+          const field = form.getTextField(mainFieldName);
+          if (field) {
+            field.setText(fieldValue);
+            
+            // مطمئن شویم که از فونت وزیر استفاده می‌کنیم
+            if (vazirFont) {
+              try {
+                field.updateAppearances(vazirFont);
+              } catch (fontError) {
+                console.warn(`Could not update appearance with Vazir font for field ${mainFieldName}:`, fontError);
+              }
+            }
+            
+            fieldFilled = true;
+          }
+        } catch (fieldError) {
+          // ادامه با نام‌های جایگزین
+        }
+        
+        // اگر با نام اصلی موفق نبودیم، نام‌های جایگزین را امتحان می‌کنیم
+        if (!fieldFilled && alternativeFieldNames[mainFieldName]) {
+          for (const altFieldName of alternativeFieldNames[mainFieldName]) {
+            if (altFieldName === mainFieldName) continue; // نام اصلی را دوباره امتحان نکن
+            
+            try {
+              const field = form.getTextField(altFieldName);
+              if (field) {
+                field.setText(fieldValue);
+                
+                // مطمئن شویم که از فونت وزیر استفاده می‌کنیم
+                if (vazirFont) {
+                  try {
+                    field.updateAppearances(vazirFont);
+                  } catch (fontError) {
+                    console.warn(`Could not update appearance with Vazir font for field ${altFieldName}:`, fontError);
+                  }
+                }
+                
+                fieldFilled = true;
+                break; // از حلقه خارج شو چون فیلد را پر کردیم
+              }
+            } catch (altFieldError) {
+              // ادامه به نام جایگزین بعدی
+            }
+          }
+        }
+      }
+      
+      // پردازش ویژه برای لوگوی ایرلاین
+      if (isAirTransportation && ticketInfo.airline?.logo) {
+        try {
+          console.log("RESERVATION: Processing airline logo:", ticketInfo.airline.logo);
+          console.log("RESERVATION: Full airline data:", JSON.stringify(ticketInfo.airline, null, 2));
+          let logoUrl = ticketInfo.airline.logo;
+          let logoImage = null;
+          
+          // بررسی مسیر لوگو
+          if (logoUrl.includes('/uploads/')) {
+            // استخراج بخش آخر مسیر
+            const parts = logoUrl.split('/uploads/');
+            const relativePath = parts.length > 1 ? parts[1] : logoUrl;
+            const filePath = path.join(__dirname, '..', 'uploads', relativePath);
+            console.log(`RESERVATION: Looking for logo at: ${filePath}`);
+            
+            if (fs.existsSync(filePath)) {
+              try {
+                // خواندن فایل از مسیر محلی
+                const logoBuffer = fs.readFileSync(filePath);
+                console.log("RESERVATION: Logo file read successfully");
+                
+                // تعیین فرمت تصویر بر اساس پسوند فایل
+                if (filePath.toLowerCase().endsWith('.png')) {
+                  logoImage = await pdfDoc.embedPng(logoBuffer);
+                } else if (filePath.toLowerCase().endsWith('.jpg') || filePath.toLowerCase().endsWith('.jpeg')) {
+                  logoImage = await pdfDoc.embedJpg(logoBuffer);
+                } else {
+                  try {
+                    logoImage = await pdfDoc.embedPng(logoBuffer);
+                  } catch (e) {
+                    logoImage = await pdfDoc.embedJpg(logoBuffer);
+                  }
+                }
+                console.log("RESERVATION: Successfully loaded logo image");
+              } catch (logoError) {
+                console.error("RESERVATION: Error loading logo:", logoError);
+              }
+            } else {
+              // جستجو در پوشه‌های دیگر
+              console.log("RESERVATION: Logo not found, searching in alternative directories");
+              const airlineLogoPath = path.join(__dirname, '..', 'uploads', 'airlines');
+              if (fs.existsSync(airlineLogoPath)) {
+                const fileName = path.basename(logoUrl);
+                const airlineFilePath = path.join(airlineLogoPath, fileName);
+                console.log(`RESERVATION: Looking for logo in airlines folder: ${airlineFilePath}`);
+                
+                if (fs.existsSync(airlineFilePath)) {
+                  try {
+                    const logoBuffer = fs.readFileSync(airlineFilePath);
+                    if (airlineFilePath.toLowerCase().endsWith('.png')) {
+                      logoImage = await pdfDoc.embedPng(logoBuffer);
+                    } else {
+                      logoImage = await pdfDoc.embedJpg(logoBuffer);
+                    }
+                    console.log("RESERVATION: Found logo in airlines directory");
+                  } catch (err) {
+                    console.error("RESERVATION: Error loading logo from airlines directory:", err);
+                  }
+                }
+              }
+            }
+          }
+          
+          // اگر لوگو بارگذاری شد، آن را به PDF اضافه کنیم
+          if (logoImage) {
+            // ابتدا تلاش می‌کنیم آن را در فیلد logo_af_image قرار دهیم
+            try {
+              const fields = form.getFields();
+              const logoField = fields.find(field => field.getName() === 'logo_af_image');
+              
+              if (logoField) {
+                console.log(`RESERVATION: Found logo field with type: ${logoField.constructor.name}`);
+                
+                // بررسی نوع فیلد
+                if (logoField.constructor.name === 'PDFButton') {
+                  console.log("RESERVATION: Logo field is a button, setting button image");
+                  try {
+                    const button = form.getButton('logo_af_image');
+                    button.setImage(logoImage);
+                    console.log("RESERVATION: Successfully set button image");
+                  } catch (buttonErr) {
+                    console.error("RESERVATION: Error setting button image:", buttonErr);
+                  }
+                } else {
+                  console.log("RESERVATION: Logo field is not a button, trying standard method");
+                  try {
+                    const textField = form.getTextField('logo_af_image');
+                    textField.setImage(logoImage);
+                    console.log("RESERVATION: Successfully set image on text field");
+                  } catch (textFieldErr) {
+                    console.error("RESERVATION: Error setting image on text field:", textFieldErr);
+                  }
+                }
+              } else {
+                console.log("RESERVATION: logo_af_image field not found, adding logo directly to page");
+                
+                // اگر فیلد پیدا نشد، لوگو را مستقیماً روی صفحه قرار می‌دهیم
+                const pages = pdfDoc.getPages();
+                const firstPage = pages[0];
+                const { width, height } = firstPage.getSize();
+                
+                firstPage.drawImage(logoImage, {
+                  x: width - 100,
+                  y: height - 50,
+                  width: 80,
+                  height: 40
+                });
+                
+                console.log("RESERVATION: Successfully added logo directly to page");
+              }
+            } catch (logoFieldError) {
+              console.error("RESERVATION: Error processing logo field:", logoFieldError);
+              
+              // اگر هر خطایی رخ داد، لوگو را مستقیماً روی صفحه قرار می‌دهیم
+              try {
+                const pages = pdfDoc.getPages();
+                const firstPage = pages[0];
+                const { width, height } = firstPage.getSize();
+                
+                firstPage.drawImage(logoImage, {
+                  x: width - 100,
+                  y: height - 50,
+                  width: 80,
+                  height: 40
+                });
+                
+                console.log("RESERVATION: Successfully added logo directly to page as fallback");
+              } catch (drawError) {
+                console.error("RESERVATION: Final error when drawing logo:", drawError);
+              }
+            }
+          } else {
+            console.log("RESERVATION: No logo image loaded, skipping logo");
+          }
+        } catch (mainLogoError) {
+          console.error("RESERVATION: Main logo processing error:", mainLogoError);
+        }
+      } else {
+        console.log("RESERVATION: Skip logo processing - isAirTransportation:", isAirTransportation, "has logo:", !!ticketInfo.airline?.logo);
+      }
+      
+      // نهایی کردن فرم
+      try {
+        form.flatten();
+      } catch (flattenError) {
+        console.error('Error flattening form:', flattenError);
+      }
+
+      // --- اضافه کردن صفحات این مسافر به PDF نهایی ---
+      try {
+        const pdfBytes = await pdfDoc.save();
+        const loadedPdf = await PDFDocument.load(pdfBytes);
+        const [passengerPage] = await finalPdfDoc.copyPages(loadedPdf, [0]);
+        finalPdfDoc.addPage(passengerPage);
+      } catch (pageError) {
+        console.error('Error adding page to final PDF:', pageError);
+      }
+    }
+
+    // --- ذخیره PDF نهایی ---
+    let finalPdfBytes;
+    try {
+      finalPdfBytes = await finalPdfDoc.save();
+    } catch (saveError) {
+      console.error('CRITICAL: Error saving final PDF:', saveError);
+      return res.status(500).json({ message: 'خطای حیاتی در ذخیره‌سازی PDF نهایی.' });
+    }
+
+    // --- ذخیره فایل PDF در سرور ---
+    const uploadDirectory = path.join(__dirname, '..', 'uploads', 'tickets');
+    
+    // اطمینان از وجود دایرکتوری
+    if (!fs.existsSync(uploadDirectory)) {
+      fs.mkdirSync(uploadDirectory, { recursive: true });
+    }
+    
+    // ایجاد نام فایل منحصر به فرد
+    const uniqueFilename = `passenger-ticket-${passengerId}-${uuidv4()}.pdf`;
+    const filePath = path.join(uploadDirectory, uniqueFilename);
+    
+    try {
+      fs.writeFileSync(filePath, finalPdfBytes);
+      
+      // ارسال پاسخ به کلاینت
+      res.json({
+        success: true,
+        message: 'بلیط با موفقیت تولید شد',
+        fileName: uniqueFilename,
+        downloadUrl: `/api/packages/download-ticket/${uniqueFilename}`,
+        passengerName: `${passenger.firstName} ${passenger.lastName}`
+      });
+    } catch (writeError) {
+      console.error(`CRITICAL: Error writing PDF file to ${filePath}:`, writeError);
+      return res.status(500).json({ message: 'خطا در ذخیره فایل PDF در سرور.' });
+    }
+  } catch (err) {
+    console.error('خطای کلی در تولید PDF:', err);
+    res.status(500).json({ message: 'خطای داخلی سرور هنگام تولید PDF.' });
+  }
+});
 
 module.exports = router; 

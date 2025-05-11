@@ -13,6 +13,7 @@ const { v4: uuidv4 } = require('uuid');
 const ExcelJS = require('exceljs');
 const multer = require('multer');
 const axios = require('axios');
+const moment = require('moment-jalaali'); // اضافه کردن کتابخانه moment-jalaali
 
 /**
  * @route   GET /api/floating-ticket/airlines
@@ -102,7 +103,7 @@ router.post('/generate', [
   }
 
   try {
-    const { passengers, flightInfo, route, airline, sourceType } = req.body;
+    const { passengers, flightInfo, route, airline, sourceType, exportType = 'system' } = req.body;
     
     // لاگ درخواست برای دیباگ
     console.log("================== REQUEST DATA DEBUG ==================");
@@ -122,6 +123,23 @@ router.post('/generate', [
         if (routeData) {
           origin = routeData.origin;
           destination = routeData.destination;
+          
+          // دریافت اطلاعات فرودگاه‌ها از API جدید
+          try {
+            // استفاده از آدرس نسبی API داخلی
+            const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/ticket-airports/${route._id}`);
+            if (airportInfo.data) {
+              // افزودن فیلدهای فرودگاه به flightInfo
+              flightInfo.fromair = airportInfo.data.fromair || '';
+              flightInfo.toair = airportInfo.data.toair || '';
+              flightInfo.fromAirportCode = airportInfo.data.fromAirportCode || '';
+              flightInfo.toAirportCode = airportInfo.data.toAirportCode || '';
+              console.log('Airport info retrieved from API:', flightInfo.fromair, flightInfo.toair);
+            }
+          } catch (airportError) {
+            console.error('Error fetching airport info from API:', airportError);
+            // خطا را نادیده می‌گیریم و بدون اطلاعات فرودگاه ادامه می‌دهیم
+          }
         }
       } catch (routeError) {
         console.error('خطا در دریافت اطلاعات مسیر:', routeError);
@@ -136,6 +154,11 @@ router.post('/generate', [
           const originCity = await City.findById(flightInfo.originCityId);
           if (originCity) {
             origin = originCity.name;
+            // اضافه کردن اطلاعات فرودگاه مبدا
+            if (originCity.airport && originCity.airport.name) {
+              flightInfo.fromair = originCity.airport.name;
+              flightInfo.fromAirportCode = originCity.airport.code || '';
+            }
           }
         } catch (cityError) {
           console.error('خطا در دریافت اطلاعات شهر مبدا:', cityError);
@@ -147,6 +170,11 @@ router.post('/generate', [
           const destinationCity = await City.findById(flightInfo.destinationCityId);
           if (destinationCity) {
             destination = destinationCity.name;
+            // اضافه کردن اطلاعات فرودگاه مقصد
+            if (destinationCity.airport && destinationCity.airport.name) {
+              flightInfo.toair = destinationCity.airport.name;
+              flightInfo.toAirportCode = destinationCity.airport.code || '';
+            }
           }
         } catch (cityError) {
           console.error('خطا در دریافت اطلاعات شهر مقصد:', cityError);
@@ -233,10 +261,11 @@ router.post('/generate', [
         'from': origin || '',
         'to': destination || '',
         'date': flightInfo.date ? formatPersianDate(flightInfo.date) : '',
-        'time': flightInfo.time || '',
+        'time': flightInfo.time ? formatTimeToHours24(flightInfo.time) : '',
         'name': passenger.englishFirstName || '',
         'familiy': passenger.englishLastName || '',
         'pnumber': passenger.documentNumber || '',
+        'pexpiry': passenger.passportExpiry ? formatPersianDate(passenger.passportExpiry) : '',
         'flightn': flightInfo.flightNumber || '',
         'aircraft': airline && airline.aircraftModel ? 
                       airline.aircraftModel : 
@@ -246,7 +275,12 @@ router.post('/generate', [
         'total': flightInfo.price && flightInfo.tax ? 
                  String(parseInt(flightInfo.price) + parseInt(flightInfo.tax)) : '',
         'logo_af_image': airline && airline.logo ? airline.logo : '',
-        'age': passenger.age || '---'
+        'age': passenger.birthDate ? calculateAgeCategory(passenger.birthDate) : '---',
+        // اضافه کردن فیلدهای فرودگاه
+        'fromair': flightInfo.fromair || '',
+        'toair': flightInfo.toair || '',
+        'fromAirportCode': flightInfo.fromAirportCode || '',
+        'toAirportCode': flightInfo.toAirportCode || ''
       };
 
       // لاگ کردن همه فیلدهای موجود در فرم برای دیباگ
@@ -275,7 +309,6 @@ router.post('/generate', [
         try {
           // دریافت لوگو از مسیر کامل
           let logoUrl = airline.logo;
-          // متغیر logoImage قبلاً تعریف شده است
           
           // بررسی فرمت آدرس لوگو و اصلاح آن
           if (logoUrl.includes('http://185.94.99.35:5000/uploads/')) {
@@ -308,25 +341,7 @@ router.post('/generate', [
                   }
                 }
                 
-                // دریافت صفحه اول
-                const pages = pdfDoc.getPages();
-                const firstPage = pages[0];
-                
-                // تعیین مختصات برای لوگو - اصلاح موقعیت لوگو
-                const { width, height } = firstPage.getSize();
-                const logoX = width - 100;  // سمت راست بالا
-                const logoY = height - 50;
-                
-                // درج تصویر در PDF
-                firstPage.drawImage(logoImage, {
-                  x: logoX,
-                  y: logoY,
-                  width: 70,
-                  height: 35,
-                  opacity: 1.0,
-                });
-                
-                console.log("Successfully added logo image to PDF from local file");
+                console.log("Successfully loaded logo image from local file");
               } else {
                 console.error(`Logo file not found at: ${filePath}`);
               }
@@ -359,25 +374,7 @@ router.post('/generate', [
                 }
               }
               
-            // دریافت صفحه اول
-            const pages = pdfDoc.getPages();
-            const firstPage = pages[0];
-            
-            // تعیین مختصات برای لوگو
-            const { width, height } = firstPage.getSize();
-              const logoX = width - 100;  // سمت راست بالا
-              const logoY = height - 50;
-              
-              // درج تصویر در PDF
-              firstPage.drawImage(logoImage, {
-                x: logoX,
-                y: logoY,
-                width: 70,
-                height: 35,
-                opacity: 1.0,
-              });
-              
-              console.log("Successfully added logo image to PDF from relative path");
+              console.log("Successfully loaded logo image from relative path");
             } else {
               console.error(`Logo file not found at: ${filePath}`);
               
@@ -414,25 +411,7 @@ router.post('/generate', [
                     }
                   }
                   
-                  // دریافت صفحه اول
-                  const pages = pdfDoc.getPages();
-                  const firstPage = pages[0];
-                  
-                  // تعیین مختصات برای لوگو
-                  const { width, height } = firstPage.getSize();
-                  const logoX = width - 100;
-                  const logoY = height - 50;
-                  
-                  // درج تصویر در PDF
-                  firstPage.drawImage(logoImage, {
-                    x: logoX,
-                    y: logoY,
-                    width: 70,
-                    height: 35,
-                    opacity: 1.0,
-                  });
-                  
-                  console.log("Successfully added logo image from default airlines folder");
+                  console.log("Successfully loaded logo image from default airlines folder");
                 }
               }
             }
@@ -467,25 +446,7 @@ router.post('/generate', [
               }
             }
             
-            // دریافت صفحه اول
-            const pages = pdfDoc.getPages();
-            const firstPage = pages[0];
-            
-            // تعیین مختصات برای لوگو
-            const { width, height } = firstPage.getSize();
-            const logoX = width - 100;  // سمت راست بالا
-            const logoY = height - 50;
-            
-            // درج تصویر در PDF
-            firstPage.drawImage(logoImage, {
-              x: logoX,
-              y: logoY,
-              width: 70,
-              height: 35,
-              opacity: 1.0,
-            });
-            
-            console.log("Successfully added logo image to PDF from URL");
+            console.log("Successfully loaded logo image from URL");
           }
           
           // اگر هنوز لوگویی پیدا نشده، یک لوگوی پیش‌فرض اضافه کنیم
@@ -524,26 +485,6 @@ router.post('/generate', [
                         // اگر موفق به بارگذاری تصویر شدیم، از حلقه خارج شو
                         if (logoImage) {
                           console.log(`Successfully loaded logo: ${file}`);
-                          
-                          // دریافت صفحه اول
-                          const pages = pdfDoc.getPages();
-                          const firstPage = pages[0];
-                          
-                          // تعیین مختصات برای لوگو
-                          const { width, height } = firstPage.getSize();
-                          const logoX = width - 100;
-                          const logoY = height - 50;
-                          
-                          // درج تصویر در PDF
-                          firstPage.drawImage(logoImage, {
-                            x: logoX,
-                            y: logoY,
-                            width: 70,
-                            height: 35,
-                            opacity: 1.0,
-                          });
-                          
-                          console.log("Successfully added logo image by pattern matching");
                           break;
                         }
                       } catch (error) {
@@ -588,26 +529,7 @@ router.post('/generate', [
                   
                   if (embedLogo) {
                     logoImage = embedLogo;
-                    
-                    // دریافت صفحه اول
-                    const pages = pdfDoc.getPages();
-                    const firstPage = pages[0];
-                    
-                    // تعیین مختصات برای لوگو
-                    const { width, height } = firstPage.getSize();
-                    const logoX = width - 100;
-                    const logoY = height - 50;
-                    
-                    // درج تصویر در PDF
-                    firstPage.drawImage(logoImage, {
-                      x: logoX,
-                      y: logoY,
-                      width: 70,
-                      height: 35,
-                      opacity: 1.0,
-                    });
-                    
-                    console.log(`Successfully added generic logo: ${file}`);
+                    console.log(`Successfully loaded generic logo: ${file}`);
                     break;
                   }
                 } catch (error) {
@@ -890,22 +812,127 @@ function persianize(text) {
 }
 
 /**
- * تبدیل تاریخ میلادی به شمسی
+ * محاسبه دسته سنی بر اساس تاریخ تولد
+ * @param {string} birthDateString - تاریخ تولد به فرمت YYYY/MM/DD
+ * @returns {string} دسته سنی (بزرگسال، کودک، نوزاد)
+ */
+function calculateAgeCategory(birthDateString) {
+  try {
+    // تبدیل تاریخ تولد به آبجکت moment
+    const birthDate = moment(birthDateString, 'YYYY/MM/DD');
+    const now = moment();
+    
+    // محاسبه سن به سال
+    const ageYears = now.diff(birthDate, 'years');
+    
+    // تعیین دسته سنی
+    if (ageYears >= 12) {
+      return 'بزرگسال';
+    } else if (ageYears >= 2) {
+      return 'کودک';
+    } else {
+      return 'نوزاد';
+    }
+  } catch (error) {
+    console.error('خطا در محاسبه دسته سنی:', error);
+    return '---';  // برگرداندن مقدار پیش‌فرض در صورت خطا
+  }
+}
+
+/**
+ * تبدیل تاریخ شمسی به قالب استاندارد
  */
 function formatPersianDate(dateString) {
   if (!dateString) return '';
   try {
-    // پیاده‌سازی دقیق ممکن است متفاوت باشد
-    const date = new Date(dateString);
-    const formatter = new Intl.DateTimeFormat('fa-IR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    return formatter.format(date);
+    // اگر تاریخ خالی است، مقدار خالی برگردان
+    if (dateString.trim() === '') {
+      return '';
+    }
+    
+    // همه تاریخ‌ها را به عنوان میلادی در نظر بگیر و به شمسی تبدیل کن
+    let mDate;
+    
+    // بررسی فرمت‌های مختلف تاریخ
+    if (dateString.includes('-')) {
+      // فرمت ISO (YYYY-MM-DD)
+      mDate = moment(dateString, 'YYYY-MM-DD');
+    } 
+    else if (dateString.includes('/')) {
+      // فرمت YYYY/MM/DD یا MM/DD/YYYY
+      const parts = dateString.split('/');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          // تاریخ در فرمت YYYY/MM/DD است (احتمالاً میلادی)
+          mDate = moment(dateString, 'YYYY/MM/DD');
+        } else {
+          // فرمت MM/DD/YYYY
+          mDate = moment(dateString, 'MM/DD/YYYY');
+        }
+      }
+    } 
+    else {
+      // سایر فرمت‌ها
+      mDate = moment(dateString);
+    }
+    
+    // بررسی اعتبار تاریخ
+    if (mDate && mDate.isValid()) {
+      // تبدیل به شمسی با فرمت YYYY/MM/DD
+      return mDate.format('jYYYY/jMM/jDD');
+    }
+    
+    console.warn(`تاریخ '${dateString}' با فرمت نامعتبر یا ناشناخته. برگرداندن همان تاریخ.`);
+    return dateString; // اگر نتوانستیم تبدیل کنیم، همان مقدار اصلی را برمی‌گردانیم
   } catch (e) {
-    console.error("Error formatting date:", e);
+    console.error("خطا در تبدیل تاریخ:", e);
     return dateString; // بازگرداندن مقدار اصلی در صورت خطا
+  }
+}
+
+/**
+ * تابع تبدیل زمان به فرمت 24 ساعته
+ */
+function formatTimeToHours24(timeString) {
+  if (!timeString) return '';
+  
+  try {
+    // اگر زمان از قبل در فرمت 24 ساعته باشد، آن را برمی‌گردانیم
+    const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+    if (timeRegex.test(timeString)) {
+      // اطمینان از اینکه فرمت دو رقمی باشد (مثلاً 9:30 را به 09:30 تبدیل می‌کنیم)
+      const [hours, minutes] = timeString.split(':');
+      const formattedHours = hours.padStart(2, '0');
+      const formattedMinutes = minutes.padStart(2, '0');
+      return `${formattedHours}:${formattedMinutes}`;
+    }
+    
+    // اگر در فرمت 12 ساعته با AM/PM باشد، آن را به 24 ساعته تبدیل می‌کنیم
+    const timeWithAMPM = /^(1[0-2]|0?[1-9]):([0-5][0-9])\s*(AM|PM|ق.ظ|ب.ظ)$/i;
+    const match = timeString.match(timeWithAMPM);
+    
+    if (match) {
+      let hours = parseInt(match[1], 10);
+      const minutes = match[2];
+      const period = match[3].toUpperCase();
+      
+      if (period === 'PM' || period === 'ب.ظ') {
+        if (hours < 12) hours += 12;
+      } else if ((period === 'AM' || period === 'ق.ظ') && hours === 12) {
+        hours = 0;
+      }
+      
+      // فرمت‌بندی ساعت و دقیقه به صورت دو رقمی
+      const formattedHours = hours.toString().padStart(2, '0');
+      const formattedMinutes = minutes.padStart(2, '0');
+      return `${formattedHours}:${formattedMinutes}`;
+    }
+    
+    // اگر فرمت قابل تشخیص نبود، همان مقدار اصلی را برگردان
+    return timeString;
+  } catch (e) {
+    console.error("Error formatting time:", e);
+    return timeString; // بازگرداندن مقدار اصلی در صورت خطا
   }
 }
 
@@ -985,7 +1012,7 @@ router.post('/export-passengers', [
   }
 
   try {
-    const { passengers, flightInfo, airline, aircraft, sourceType } = req.body;
+    const { passengers, flightInfo, airline, aircraft, sourceType, exportType = 'system' } = req.body;
 
     // ایجاد فایل اکسل
     const workbook = new ExcelJS.Workbook();
@@ -996,153 +1023,321 @@ router.post('/export-passengers', [
     workbook.created = new Date();
     workbook.modified = new Date();
     
-    // افزودن شیت اطلاعات پرواز
-    const flightSheet = workbook.addWorksheet('اطلاعات پرواز', {
-      properties: { tabColor: { argb: '4167B2' }, rtl: true } // فعال‌سازی راست به چپ
-    });
-    
-    // تنظیم ستون‌های صفحه اطلاعات پرواز
-    flightSheet.columns = [
-      { header: 'ویژگی', key: 'property', width: 25 },
-      { header: 'مقدار', key: 'value', width: 40 }
-    ];
-    
-    // استایل هدر
-    flightSheet.getRow(1).font = { bold: true, size: 12, color: { argb: 'FFFFFF' } };
-    flightSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '4167B2' } };
-    flightSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
-    
-    // افزودن داده‌های اطلاعات پرواز
-    const flightData = [
-      { property: 'نوع انتخاب مسیر', value: sourceType === 'route' ? 'مسیر آماده' : 'انتخاب شهر' },
-      { property: 'مبدأ', value: flightInfo.origin },
-      { property: 'مقصد', value: flightInfo.destination },
-      { property: 'تاریخ پرواز', value: flightInfo.date },
-      { property: 'ساعت پرواز', value: flightInfo.time || 'تعیین نشده' },
-      { property: 'شماره پرواز', value: flightInfo.flightNumber || 'تعیین نشده' },
-      { property: 'شرکت هواپیمایی', value: airline ? airline.name : 'تعیین نشده' },
-      { property: 'مدل هواپیما', value: airline && airline.aircraftModel ? 
-        airline.aircraftModel : 
-        (flightInfo && flightInfo.aircraft ? flightInfo.aircraft : 'تعیین نشده') },
-      { property: 'تعداد مسافران', value: passengers.length }
-    ];
-    
-    flightData.forEach(item => {
-      flightSheet.addRow(item);
-    });
-    
-    // تنظیم استایل برای همه سلول‌ها
-    flightSheet.eachRow((row, rowNumber) => {
-      if (rowNumber > 1) { // به جز هدر
-        row.eachCell((cell) => {
-          cell.alignment = { vertical: 'middle', rtl: true };
-          cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-          };
-        });
-        
-        // خطوط متناوب
-        if (rowNumber % 2 === 0) {
-          row.eachCell((cell) => {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'F2F6FC' }
-            };
-          });
-        }
-      }
-    });
-    
-    // افزودن شیت مسافران
-    const passengersSheet = workbook.addWorksheet('مسافران', {
-      properties: { tabColor: { argb: '4167B2' }, rtl: true } // فعال‌سازی راست به چپ
-    });
-    
-    // تنظیم ستون‌های صفحه مسافران
-    passengersSheet.columns = [
-      { header: 'ردیف', key: 'rowNumber', width: 8 },
-      { header: 'نام انگلیسی', key: 'englishFirstName', width: 20 },
-      { header: 'نام خانوادگی انگلیسی', key: 'englishLastName', width: 20 },
-      { header: 'نوع سند', key: 'documentType', width: 15 },
-      { header: 'شماره سند', key: 'documentNumber', width: 20 },
-      { header: 'ملیت', key: 'nationality', width: 15 },
-      { header: 'سن', key: 'age', width: 10 },
-      { header: 'شناسه', key: 'id', width: 30, hidden: true } // شناسه مخفی برای کمک به واردات
-    ];
-    
-    // استایل هدر مسافران
-    passengersSheet.getRow(1).font = { bold: true, size: 12, color: { argb: 'FFFFFF' } };
-    passengersSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '4167B2' } };
-    passengersSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
-    
-    // افزودن داده‌های مسافران
-    passengers.forEach((passenger, index) => {
-      passengersSheet.addRow({
-        rowNumber: index + 1,
-        englishFirstName: passenger.englishFirstName,
-        englishLastName: passenger.englishLastName,
-        documentType: passenger.documentType === 'passport' ? 'پاسپورت' : 'کد ملی',
-        documentNumber: passenger.documentNumber,
-        nationality: passenger.nationality || 'تعیین نشده',
-        age: passenger.age || '',
-        id: passenger.id
+    // انتخاب نوع قالب اکسل
+    if (exportType === 'airline') {
+      // === قالب خطوط هوایی ===
+      const passengerSheet = workbook.addWorksheet('Passengers', {
+        properties: { tabColor: { argb: '4167B2' } }
       });
-    });
-    
-    // تنظیم استایل برای همه سلول‌های مسافران
-    passengersSheet.eachRow((row, rowNumber) => {
-      if (rowNumber > 1) { // به جز هدر
-        row.eachCell((cell) => {
-          cell.alignment = { vertical: 'middle', rtl: true };
-          cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-          };
+      
+      // تنظیم ستون‌های اکسل خطوط هوایی (LTR)
+      passengerSheet.columns = [
+        { header: 'ردیف', key: 'row', width: 8, style: { alignment: { horizontal: 'center' } } },
+        { header: 'نام لاتین', key: 'firstName', width: 15, style: { alignment: { horizontal: 'center' } } },
+        { header: 'نام خانوادگی لاتین', key: 'lastName', width: 15, style: { alignment: { horizontal: 'center' } } },
+        { header: 'جنسیت', key: 'gender', width: 10, style: { alignment: { horizontal: 'center' } } },
+        { header: 'نوع', key: 'type', width: 10, style: { alignment: { horizontal: 'center' } } },
+        { header: 'تاریخ تولد', key: 'birthDate', width: 15, style: { alignment: { horizontal: 'center' } } },
+        { header: 'ملیت', key: 'nationality', width: 10, style: { alignment: { horizontal: 'center' } } },
+        { header: 'شماره پاسپورت', key: 'passportNumber', width: 15, style: { alignment: { horizontal: 'center' } } },
+        { header: 'کشور محل تولد', key: 'birthCountry', width: 15, style: { alignment: { horizontal: 'center' } } },
+        { header: 'تاریخ اتمام اعتبار گذرنامه', key: 'passportExpiry', width: 15, style: { alignment: { horizontal: 'center' } } },
+      ];
+      
+      // استایل‌بندی هدر
+      passengerSheet.getRow(1).font = { bold: true, size: 12 };
+      passengerSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'D0CECE' } };
+      passengerSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      passengerSheet.getRow(1).height = 30;
+      
+      // اضافه کردن داده مسافران
+      passengers.forEach((passenger, index) => {
+        // تبدیل دسته سنی به فرمت کوتاه برای خطوط هوایی
+        let passengerType = 'Adu'; // پیش‌فرض بزرگسال
+        
+        if (passenger.birthDate) {
+          const birthDate = moment(passenger.birthDate, 'YYYY/MM/DD');
+          const now = moment();
+          const ageYears = now.diff(birthDate, 'years');
           
-          // تنظیم فونت
-          cell.font = { name: 'Tahoma', size: 11 };
+          if (ageYears < 2) {
+            passengerType = 'Inf'; // نوزاد
+          } else if (ageYears < 12) {
+            passengerType = 'Chd'; // کودک
+          }
+        } else if (passenger.age) {
+          // اگر فقط سن ذخیره شده داریم
+          if (passenger.age.includes('نوزاد')) {
+            passengerType = 'Inf';
+          } else if (passenger.age.includes('کودک')) {
+            passengerType = 'Chd';
+          }
+        }
+        
+        // تعیین جنسیت برای اکسل
+        const gender = passenger.gender === 'female' ? 'Female' : 'Male';
+        
+        passengerSheet.addRow({
+          row: index + 1,
+          firstName: passenger.englishFirstName,
+          lastName: passenger.englishLastName,
+          gender: gender,
+          type: passengerType,
+          birthDate: passenger.birthDate || '2003/01/1', // تاریخ تولد فرضی اگر وجود نداشت
+          nationality: 'IRN', // فرض می‌کنیم ملیت ایرانی است
+          passportNumber: passenger.documentNumber,
+          birthCountry: 'IRN', // فرض می‌کنیم محل تولد ایران است
+          passportExpiry: passenger.passportExpiry || '2025/01/10', // تاریخ انقضای فرضی اگر وجود نداشت
+        });
+      });
+      
+      // تنظیم استایل برای سلول‌ها
+      passengerSheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 1) { // به جز هدر
+          // مرکزی کردن متن همه سلول‌ها
+          row.eachCell((cell) => {
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          });
+          
+          // استایل متناوب برای ردیف‌ها
+          if (rowNumber % 2 === 0) {
+            row.eachCell((cell) => {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'F2F2F2' }
+              };
+            });
+          }
+        }
+      });
+    } else {
+      // === قالب سیستمی (فرمت فعلی) ===
+      const flightSheet = workbook.addWorksheet('اطلاعات پرواز', {
+        properties: { tabColor: { argb: '4167B2' }, rtl: true } // فعال‌سازی راست به چپ
+      });
+      
+      // تنظیم ستون‌های صفحه اطلاعات پرواز
+      flightSheet.columns = [
+        { header: 'ویژگی', key: 'property', width: 25, style: { alignment: { horizontal: 'center' } } },
+        { header: 'مقدار', key: 'value', width: 40, style: { alignment: { horizontal: 'center' } } }
+      ];
+      
+      // استایل هدر
+      flightSheet.getRow(1).font = { bold: true, size: 12, color: { argb: 'FFFFFF' } };
+      flightSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '4167B2' } };
+      flightSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
+      flightSheet.getRow(1).height = 25; // ارتفاع ردیف هدر
+      
+      // اضافه کردن حاشیه به هدر
+      flightSheet.getRow(1).eachCell((cell) => {
+        cell.border = {
+          top: { style: 'medium', color: { argb: '3949AB' } },
+          left: { style: 'thin', color: { argb: '3949AB' } },
+          bottom: { style: 'medium', color: { argb: '3949AB' } },
+          right: { style: 'thin', color: { argb: '3949AB' } }
+        };
+      });
+      
+      // اضافه کردن عنوان برای شیت اطلاعات پرواز
+      flightSheet.spliceRows(1, 0, []); // افزودن یک ردیف خالی در ابتدا
+      
+      // مرج سلول‌ها برای عنوان
+      flightSheet.mergeCells('A1:B1');
+      const flightTitleCell = flightSheet.getCell('A1');
+      flightTitleCell.value = 'اطلاعات پرواز'; 
+      flightTitleCell.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+      flightTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '3949AB' } };
+      flightTitleCell.alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
+      flightSheet.getRow(1).height = 35; // ارتفاع ردیف عنوان
+      
+      // افزودن خط تزئینی زیر عنوان
+      flightTitleCell.border = {
+        bottom: { style: 'medium', color: { argb: '3949AB' } }
+      };
+      
+      // افزودن داده‌های اطلاعات پرواز
+      const flightData = [
+        { property: 'نوع انتخاب مسیر', value: sourceType === 'route' ? 'مسیر آماده' : 'انتخاب شهر' },
+        { property: 'مبدأ', value: flightInfo.origin },
+        { property: 'مقصد', value: flightInfo.destination },
+        { property: 'تاریخ پرواز', value: flightInfo.date },
+        { property: 'ساعت پرواز', value: flightInfo.time ? formatTimeToHours24(flightInfo.time) : 'تعیین نشده' },
+        { property: 'شماره پرواز', value: flightInfo.flightNumber || 'تعیین نشده' },
+        { property: 'شرکت هواپیمایی', value: airline ? airline.name : 'تعیین نشده' },
+        { property: 'مدل هواپیما', value: airline && airline.aircraftModel ? 
+          airline.aircraftModel : 
+          (flightInfo && flightInfo.aircraft ? flightInfo.aircraft : 'تعیین نشده') },
+        { property: 'تعداد مسافران', value: passengers.length }
+      ];
+      
+      flightData.forEach((item, index) => {
+        const row = flightSheet.addRow(item);
+        
+        // مرکزی کردن متن سلول‌ها
+        row.eachCell((cell) => {
+          cell.alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
         });
         
-        // خطوط متناوب
-        if (rowNumber % 2 === 0) {
+        // استایل دهی به ردیف‌های با ایندکس فرد و زوج متفاوت
+        if ((index + 1) % 2 === 0) {
+          row.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'F2F6FC' }
+          };
+        } else {
+          row.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFFFF' }
+          };
+        }
+      });
+      
+      // تنظیم استایل برای همه سلول‌های اطلاعات پرواز
+      flightSheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 2) { // به جز هدر و عنوان
+          row.height = 22; // ارتفاع یکسان برای همه ردیف‌ها
           row.eachCell((cell) => {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'F2F6FC' }
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'D0D0D0' } },
+              left: { style: 'thin', color: { argb: 'D0D0D0' } },
+              bottom: { style: 'thin', color: { argb: 'D0D0D0' } },
+              right: { style: 'thin', color: { argb: 'D0D0D0' } }
             };
+            
+            // تنظیم فونت
+            cell.font = { name: 'Tahoma', size: 11 };
           });
         }
-      }
-    });
-    
-    // اضافه کردن عنوان برای شیت مسافران (به عنوان سطر ثابت)
-    passengersSheet.spliceRows(1, 0, []); // افزودن یک ردیف خالی در ابتدا
-    
-    // مرج سلول‌ها برای عنوان
-    passengersSheet.mergeCells('A1:H1');
-    const titleCell = passengersSheet.getCell('A1');
-    titleCell.value = 'اطلاعات مسافران'; 
-    titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '3949AB' } };
-    titleCell.alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
-    passengersSheet.getRow(1).height = 30; // ارتفاع ردیف عنوان
-    
-    // تنظیم فریز پنل برای ستون‌های هدر
-    passengersSheet.views = [
-      { state: 'frozen', xSplit: 0, ySplit: 2, activeCell: 'A3', zoomScale: 100 }
-    ];
+      });
+      
+      // تنظیم فریز پنل برای ستون‌های هدر
+      flightSheet.views = [
+        { state: 'frozen', xSplit: 0, ySplit: 2, topLeftCell: 'A3', activeCell: 'A3', zoomScale: 100 }
+      ];
+      
+      // افزودن شیت مسافران
+      const passengersSheet = workbook.addWorksheet('مسافران', {
+        properties: { tabColor: { argb: '4167B2' }, rtl: true } // فعال‌سازی راست به چپ
+      });
+      
+      // تنظیم ستون‌های صفحه مسافران
+      passengersSheet.columns = [
+        { header: 'ردیف', key: 'rowNumber', width: 8, style: { alignment: { horizontal: 'center' } } },
+        { header: 'نام انگلیسی', key: 'englishFirstName', width: 20, style: { alignment: { horizontal: 'center' } } },
+        { header: 'نام خانوادگی انگلیسی', key: 'englishLastName', width: 20, style: { alignment: { horizontal: 'center' } } },
+        { header: 'نوع سند', key: 'documentType', width: 15, style: { alignment: { horizontal: 'center' } } },
+        { header: 'شماره سند', key: 'documentNumber', width: 20, style: { alignment: { horizontal: 'center' } } },
+        { header: 'تاریخ انقضای پاسپورت', key: 'passportExpiry', width: 20, style: { alignment: { horizontal: 'center' } } },
+        { header: 'ملیت', key: 'nationality', width: 15, style: { alignment: { horizontal: 'center' } } },
+        { header: 'سن', key: 'age', width: 10, style: { alignment: { horizontal: 'center' } } },
+        { header: 'شناسه', key: 'id', width: 30, hidden: true } // شناسه مخفی برای کمک به واردات
+      ];
+      
+      // استایل هدر مسافران
+      passengersSheet.getRow(2).font = { bold: true, size: 12, color: { argb: 'FFFFFF' } };
+      passengersSheet.getRow(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '4167B2' } };
+      passengersSheet.getRow(2).alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
+      passengersSheet.getRow(2).height = 25; // ارتفاع ردیف هدر
+
+      // اضافه کردن حاشیه به ستون‌های هدر
+      passengersSheet.getRow(2).eachCell((cell) => {
+        cell.border = {
+          top: { style: 'medium', color: { argb: '3949AB' } },
+          left: { style: 'thin', color: { argb: '3949AB' } },
+          bottom: { style: 'medium', color: { argb: '3949AB' } },
+          right: { style: 'thin', color: { argb: '3949AB' } }
+        };
+      });
+      
+      // افزودن داده‌های مسافران
+      passengers.forEach((passenger, index) => {
+        const rowData = {
+          rowNumber: index + 1,
+          englishFirstName: passenger.englishFirstName,
+          englishLastName: passenger.englishLastName,
+          documentType: passenger.documentType === 'passport' ? 'پاسپورت' : 'کد ملی',
+          documentNumber: passenger.documentNumber,
+          passportExpiry: passenger.passportExpiry || '',
+          nationality: passenger.nationality || 'تعیین نشده',
+          age: passenger.birthDate ? calculateAgeCategory(passenger.birthDate) : '---',
+          id: passenger.id
+        };
+        
+        const newRow = passengersSheet.addRow(rowData);
+        
+        // استایل دهی به ردیف‌های با ایندکس فرد و زوج متفاوت
+        if ((index + 1) % 2 === 0) {
+          newRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'F2F6FC' }
+          };
+        } else {
+          newRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFFFF' }
+          };
+        }
+        
+        // مرکزی کردن متن همه سلول‌ها
+        newRow.eachCell((cell) => {
+          cell.alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
+        });
+      });
+      
+      // تنظیم استایل برای همه سلول‌های مسافران
+      passengersSheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 2) { // به جز هدر و عنوان
+          row.height = 22; // ارتفاع یکسان برای همه ردیف‌ها
+          row.eachCell((cell) => {
+            // حفظ تراز افقی مرکز
+            cell.alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'D0D0D0' } },
+              left: { style: 'thin', color: { argb: 'D0D0D0' } },
+              bottom: { style: 'thin', color: { argb: 'D0D0D0' } },
+              right: { style: 'thin', color: { argb: 'D0D0D0' } }
+            };
+            
+            // تنظیم فونت
+            cell.font = { name: 'Tahoma', size: 11 };
+          });
+        }
+      });
+      
+      // اضافه کردن عنوان برای شیت مسافران (به عنوان سطر ثابت)
+      passengersSheet.spliceRows(1, 0, []); // افزودن یک ردیف خالی در ابتدا
+      
+      // مرج سلول‌ها برای عنوان
+      passengersSheet.mergeCells('A1:I1');
+      const titleCell = passengersSheet.getCell('A1');
+      titleCell.value = 'اطلاعات مسافران'; 
+      titleCell.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '3949AB' } };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle', rtl: true };
+      passengersSheet.getRow(1).height = 35; // ارتفاع ردیف عنوان
+      
+      // افزودن خط تزئینی زیر عنوان
+      titleCell.border = {
+        bottom: { style: 'medium', color: { argb: '3949AB' } }
+      };
+      
+      // تنظیم فریز پنل برای ستون‌های هدر و ثابت کردن عنوان
+      passengersSheet.views = [
+        { state: 'frozen', xSplit: 0, ySplit: 2, topLeftCell: 'A3', activeCell: 'A3', zoomScale: 100 }
+      ];
+    }
     
     // تنظیم اندازه صفحه برای چاپ
-    passengersSheet.pageSetup.paperSize = 9; // A4
-    passengersSheet.pageSetup.orientation = 'landscape';
-    passengersSheet.pageSetup.fitToPage = true;
+    workbook.eachSheet(sheet => {
+      sheet.pageSetup.paperSize = 9; // A4
+      sheet.pageSetup.orientation = 'landscape';
+      sheet.pageSetup.fitToPage = true;
+    });
     
     // گرفتن بافر فایل اکسل
     const buffer = await workbook.xlsx.writeBuffer();
@@ -1210,9 +1405,11 @@ router.post('/import-passengers', [auth, upload.single('file')], async (req, res
       englishLastName: 0,
       documentType: 0,
       documentNumber: 0,
+      passportExpiry: 0,
       nationality: 0,
       age: 0,
-      id: 0
+      id: 0,
+      gender: 0
     };
     
     // پیدا کردن شماره ستون‌ها با بررسی مقادیر سلول‌ها
@@ -1220,12 +1417,14 @@ router.post('/import-passengers', [auth, upload.single('file')], async (req, res
       const headerValue = cell.value;
       
       if (headerValue === 'ردیف') columnIndexes.rowNumber = colNumber;
-      else if (headerValue === 'نام انگلیسی') columnIndexes.englishFirstName = colNumber;
-      else if (headerValue === 'نام خانوادگی انگلیسی') columnIndexes.englishLastName = colNumber;
+      else if (headerValue === 'نام انگلیسی' || headerValue === 'نام لاتین') columnIndexes.englishFirstName = colNumber;
+      else if (headerValue === 'نام خانوادگی انگلیسی' || headerValue === 'نام خانوادگی لاتین') columnIndexes.englishLastName = colNumber;
       else if (headerValue === 'نوع سند') columnIndexes.documentType = colNumber;
-      else if (headerValue === 'شماره سند') columnIndexes.documentNumber = colNumber;
+      else if (headerValue === 'شماره سند' || headerValue === 'شماره پاسپورت') columnIndexes.documentNumber = colNumber;
+      else if (headerValue === 'تاریخ انقضای پاسپورت' || headerValue === 'تاریخ اتمام اعتبار گذرنامه') columnIndexes.passportExpiry = colNumber;
       else if (headerValue === 'ملیت') columnIndexes.nationality = colNumber;
       else if (headerValue === 'سن') columnIndexes.age = colNumber;
+      else if (headerValue === 'جنسیت') columnIndexes.gender = colNumber;
       else if (headerValue === 'شناسه') columnIndexes.id = colNumber;
     });
     
@@ -1270,10 +1469,33 @@ router.post('/import-passengers', [auth, upload.single('file')], async (req, res
         if (nationalityValue) nationality = nationalityValue.toString();
       }
       
+      let passportExpiry = '';
+      if (columnIndexes.passportExpiry > 0) {
+        const passportExpiryValue = row.getCell(columnIndexes.passportExpiry).value;
+        if (passportExpiryValue) passportExpiry = passportExpiryValue.toString();
+      }
+      
       let age = '';
       if (columnIndexes.age > 0) {
         const ageValue = row.getCell(columnIndexes.age).value;
         if (ageValue) age = ageValue.toString();
+      }
+      
+      // خواندن جنسیت از فایل اکسل
+      let gender = 'male'; // مقدار پیش‌فرض
+      if (columnIndexes.gender > 0) {
+        const genderValue = row.getCell(columnIndexes.gender).value;
+        if (genderValue) {
+          const genderStr = genderValue.toString().toLowerCase();
+          // بررسی مقادیر مختلف جنسیت
+          if (genderStr.startsWith('f') || 
+              genderStr.includes('زن') || 
+              genderStr.includes('دختر') || 
+              genderStr === 'fs' || 
+              genderStr === 'female') {
+            gender = 'female';
+          }
+        }
       }
       
       // فقط مسافران با حداقل یک فیلد معتبر را اضافه کن
@@ -1284,9 +1506,17 @@ router.post('/import-passengers', [auth, upload.single('file')], async (req, res
           englishLastName,
           documentType,
           documentNumber,
+          passportExpiry,
           nationality: nationality === 'تعیین نشده' ? 'Iranian' : nationality,
           customNationality: nationality && nationality !== 'Iranian' && nationality !== 'تعیین نشده',
-          age
+          age,
+          // بررسی جنسیت از فیلد 'جنسیت' در اکسل
+          gender: gender && (
+            gender.toLowerCase().includes('f') || 
+            gender.toLowerCase().includes('زن') || 
+            gender.toLowerCase().includes('fs') || 
+            gender.toLowerCase() === 'female'
+          ) ? 'female' : 'male'
         };
         
         passengers.push(passenger);
@@ -1306,7 +1536,8 @@ router.post('/import-passengers', [auth, upload.single('file')], async (req, res
         'مقصد': 'destination',
         'تاریخ پرواز': 'date',
         'ساعت پرواز': 'time',
-        'شماره پرواز': 'flightNumber'
+        'شماره پرواز': 'flightNumber',
+        'تاریخ انقضای پاسپورت': 'passportExpiry'
       };
       
       // دسترسی به سلول‌ها با استفاده از اندیس ستون
@@ -1406,25 +1637,20 @@ async function insertAirlineLogo(field, logoFilename, pdfDoc) {
             }
           }
           
-          // دریافت صفحه اول
-          const pages = pdfDoc.getPages();
-          const firstPage = pages[0];
-          
-          // تعیین مختصات برای لوگو - اصلاح موقعیت لوگو
-          const { width, height } = firstPage.getSize();
-          const logoX = width - 100;  // سمت راست بالا
-          const logoY = height - 50;
-          
-          // درج تصویر در PDF
-          firstPage.drawImage(logoImage, {
-            x: logoX,
-            y: logoY,
-            width: 70,
-            height: 35,
-            opacity: 1.0,
-          });
-          
-          console.log("Successfully added logo image from default airlines folder");
+          // تلاش برای تنظیم آن در فیلد
+          if (logoImage) {
+            if (field.constructor.name === 'PDFButton') {
+              field.setImage(logoImage);
+            } else if (field.constructor.name === 'PDFTextField') {
+              try {
+                field.setImage(logoImage);
+              } catch (err) {
+                console.warn(`Cannot set image for text field: ${err.message}`);
+              }
+            }
+            console.log("Successfully set logo image from default airlines folder");
+            return true;
+          }
         }
       }
   }
@@ -1450,32 +1676,12 @@ async function insertLogoAsImage(pdfDoc, logoFilename) {
       const logoBytes = fs.readFileSync(logoPath);
       const logoImage = await pdfDoc.embedPng(logoBytes);
       
-      // دریافت صفحه فعلی
-      const pages = pdfDoc.getPages();
-      const firstPage = pages[0];
+      // در این نسخه، لوگو را به عنوان تصویر به PDF اضافه نمی‌کنیم
+      // فقط تصویر logo را برمی‌گردانیم تا در جایی دیگر استفاده شود
       
-      // اندازه صفحه
-      const { width, height } = firstPage.getSize();
-      
-      // اندازه تصویر
-      const logoWidth = 100;
-      const logoHeight = 50;
-      
-      // موقعیت تصویر (بالا سمت راست)
-      const x = width - logoWidth - 50;
-      const y = height - logoHeight - 50;
-      
-      // درج تصویر
-      firstPage.drawImage(logoImage, {
-          x,
-          y,
-          width: logoWidth,
-          height: logoHeight,
-      });
-      
-      return true;
+      return logoImage;
   } catch (err) {
-      console.error(`Failed to insert logo as image:`, err);
+      console.error(`Failed to load logo as image:`, err);
       return false;
   }
 }

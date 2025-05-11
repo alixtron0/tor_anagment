@@ -1,13 +1,14 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { FaTimes, FaSearch, FaUserAlt, FaUserFriends, FaChild, FaBaby, FaBed, FaMoneyBillWave } from 'react-icons/fa'
+import { FaTimes, FaSearch, FaUserAlt, FaUserFriends, FaChild, FaBaby, FaBed, FaMoneyBillWave, FaShoppingCart } from 'react-icons/fa'
 import { useForm, Controller } from 'react-hook-form'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { Package } from '@/components/types'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import PriceInput from '@/components/PriceInput'
 
 interface Admin {
   _id: string
@@ -47,6 +48,11 @@ function ReservationModalComponent({
   const [totalPrice, setTotalPrice] = useState(0)
   const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null)
   const [userRole, setUserRole] = useState<string>('')
+  const [sellingPrices, setSellingPrices] = useState({
+    adult: 0,
+    child: 0,
+    infant: 0
+  })
 
   const { register, watch, control, setValue, handleSubmit, formState: { errors } } = useForm<ReservationType>({
     defaultValues: {
@@ -189,6 +195,25 @@ function ReservationModalComponent({
     }
   }, [setValue])
 
+  // تنظیم قیمت‌های اولیه فروش
+  useEffect(() => {
+    if (packageData) {
+      setSellingPrices({
+        adult: packageData.basePrice || 0,
+        child: packageData.basePrice ? Math.round(packageData.basePrice * 0.7) : 0,
+        infant: packageData.infantPrice || 0
+      })
+    }
+  }, [packageData])
+
+  // تغییر قیمت‌های فروش
+  const handleSellingPriceChange = (field: 'adult' | 'child' | 'infant', value: number) => {
+    setSellingPrices(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
   // ارسال فرم
   const onSubmit = async (data: ReservationType) => {
     try {
@@ -224,21 +249,26 @@ function ReservationModalComponent({
         userId: parsedUser.id || parsedUser._id
       })
       
+      // تعیین تعداد بزرگسال، کودک و نوزاد
+      const { adults = data.count, children = 0, infants = 0 } = data
+      
+      // ارسال درخواست رزرو
       const response = await axios.post(
-        `http://185.94.99.35:5000/api/reservations/package/${packageData._id}`, 
+        `http://185.94.99.35:5000/api/reservations/package/${packageData._id}`,
         {
           ...data,
-          adults: data.count, // به جای مقدار ثابت، کل ظرفیت را به عنوان بزرگسال در نظر می‌گیریم
-          children: data.count, // کل ظرفیت را به عنوان حداکثر تعداد کودک در نظر می‌گیریم
-          infants: data.count, // کل ظرفیت را به عنوان حداکثر تعداد نوزاد در نظر می‌گیریم
-          room: 'double', // مقدار پیش‌فرض
+          userId: parsedUser.id || parsedUser._id,
+          services: selectedServices,
           totalPrice,
-          userId: parsedUser.id || parsedUser._id // ارسال شناسه کاربر در بدنه درخواست
+          adults,
+          children,
+          infants,
+          sellingPrices
         },
         {
           headers: {
             'Content-Type': 'application/json',
-            'x-auth-token': token // اضافه کردن توکن به هدر
+            'x-auth-token': token
           }
         }
       )
@@ -480,6 +510,51 @@ function ReservationModalComponent({
               </div>
             </div>
           )}
+
+          {/* بخش جدید: قیمت‌های فروش */}
+          <div className="my-6">
+            <div className="flex items-center mb-4">
+              <FaShoppingCart className="ml-2 text-indigo-600" />
+              <h3 className="text-md font-medium text-gray-800">قیمت‌های فروش</h3>
+            </div>
+            
+            <div className="bg-indigo-50/50 rounded-lg p-4 border border-indigo-100">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* قیمت فروش بزرگسال */}
+                <div>
+                  <PriceInput
+                    label="قیمت فروش بزرگسال"
+                    name="adultSellingPrice"
+                    value={sellingPrices.adult}
+                    onChange={(value) => handleSellingPriceChange('adult', value)}
+                    placeholder="قیمت بزرگسال"
+                  />
+                </div>
+                
+                {/* قیمت فروش کودک */}
+                <div>
+                  <PriceInput
+                    label="قیمت فروش کودک"
+                    name="childSellingPrice"
+                    value={sellingPrices.child}
+                    onChange={(value) => handleSellingPriceChange('child', value)}
+                    placeholder="قیمت کودک"
+                  />
+                </div>
+                
+                {/* قیمت فروش نوزاد */}
+                <div>
+                  <PriceInput
+                    label="قیمت فروش نوزاد"
+                    name="infantSellingPrice"
+                    value={sellingPrices.infant}
+                    onChange={(value) => handleSellingPriceChange('infant', value)}
+                    placeholder="قیمت نوزاد"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* دکمه‌های عملیات */}
           <div className="flex gap-4 justify-end mt-8">

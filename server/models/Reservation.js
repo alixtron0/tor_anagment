@@ -45,6 +45,21 @@ const ReservationSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  // قیمت‌های فروش
+  sellingPrices: {
+    adult: {
+      type: Number,
+      default: 0
+    },
+    child: {
+      type: Number,
+      default: 0
+    },
+    infant: {
+      type: Number,
+      default: 0
+    }
+  },
   createdBy: {
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -59,7 +74,7 @@ const ReservationSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['pending', 'confirmed', 'canceled'],
-    default: 'pending'
+    default: 'confirmed'
   },
   code: {
     type: String,

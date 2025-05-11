@@ -15,6 +15,34 @@ const RouteSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  originAirport: {
+    name: {
+      type: String,
+      trim: true
+    },
+    code: {
+      type: String,
+      trim: true
+    }
+  },
+  destinationAirport: {
+    name: {
+      type: String,
+      trim: true
+    },
+    code: {
+      type: String,
+      trim: true
+    }
+  },
+  distance: {
+    type: Number,
+    default: 0
+  },
+  flightTime: {
+    type: Number,  // مدت زمان پرواز به دقیقه
+    default: 0
+  },
   isActive: {
     type: Boolean,
     default: true

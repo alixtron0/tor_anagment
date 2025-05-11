@@ -24,7 +24,8 @@ import {
   FaChartLine,
   FaTicketAlt,
   FaDollarSign,
-  FaRegBell
+  FaRegBell,
+  FaPhone
 } from 'react-icons/fa'
 
 // تعریف متغیرهای رنگی اصلی برای استفاده در سراسر کامپوننت
@@ -128,19 +129,19 @@ const menuItemsData: MenuItem[] = [
     roles: ['super-admin', 'admin', 'admin+']
   },
   {
-    title: 'مدیریت ادمین‌ها',
+    title: 'مدیریت همکاران',
     path: '/dashboard/admin-management',
     icon: <FaUsersCog />,
     roles: ['super-admin'],
     subMenu: [
       {
-        title: 'افزودن ادمین',
+        title: 'افزودن همکار',
         path: '/dashboard/admin-management/add',
         icon: <FaUserPlus />,
         roles: ['super-admin']
       },
       {
-        title: 'لیست ادمین‌ها',
+        title: 'لیست همکاران',
         path: '/dashboard/admin-management/list',
         icon: <FaList />,
         roles: ['super-admin']
@@ -163,7 +164,7 @@ const menuItemsData: MenuItem[] = [
     title: 'بلیط شناور',
     path: '/dashboard/floating-ticket',
     icon: <FaTicketAlt />,
-    roles: ['super-admin', 'admin', 'admin+']
+    roles: ['super-admin', 'admin']
   },
   {
     title: 'مدیریت راه‌ها',
@@ -1022,14 +1023,35 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   transition={{ duration: 0.3, delay: 0.2 }}
                   className="px-4 pt-6 mt-4 border-t border-slate-100"
                 >
-                  <div className="p-3 rounded-2xl bg-blue-50 border border-blue-100">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-xs font-medium text-blue-700">نکته روز</h3>
-                      <span className="text-xs text-blue-500 bg-blue-100 px-1.5 py-0.5 rounded-full">جدید</span>
+                  <div className="rounded-2xl overflow-hidden shadow-lg shadow-blue-500/10 border border-indigo-100">
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 relative">
+                      <div className="absolute -right-6 -top-6 w-16 h-16 rounded-full bg-blue-400/20 backdrop-blur-xl"></div>
+                      <div className="absolute -left-6 -bottom-6 w-24 h-24 rounded-full bg-indigo-400/20 backdrop-blur-xl"></div>
+                      <h3 className="text-white font-bold text-lg relative z-10">علی فراست</h3>
+                      <p className="text-blue-100 text-xs relative z-10">توسعه‌دهنده وب‌سایت</p>
                     </div>
-                    <p className="text-xs text-blue-700/80 leading-5">
-                      برای مدیریت بهتر مسافران، از بخش «مدیریت مسافران» استفاده کنید.
-                    </p>
+                    
+                    <div className="p-4 bg-gradient-to-br from-white to-blue-50">
+                      <div className="flex items-center mb-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 ml-3">
+                          <FiGlobe className="text-sm" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-blue-900 font-medium">وب‌سایت شخصی</p>
+                          <a href="https://web.xtr.lol" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">web.xtr.lol</a>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 ml-3">
+                          <FaPhone className="text-sm" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-blue-900 font-medium">تماس</p>
+                          <a href="tel:+989134398990" className="text-xs text-indigo-600 hover:underline">۰۹۱۳۴۳۹۸۹۹۰</a>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               )}

@@ -238,7 +238,7 @@ export default function AirlineManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-white p-8">
+    <div className="min-h-screen bg-white p-8 dark:bg-slate-900">
       <div className="max-w-7xl mx-auto">
         {/* هدر صفحه - طراحی جدید */}
         <motion.div 
@@ -250,13 +250,13 @@ export default function AirlineManagement() {
           <div className="inline-flex items-center justify-center mb-4">
             <div className="relative">
               <div className="absolute inset-0 bg-blue-500 rounded-full blur-lg opacity-20 transform scale-150"></div>
-              <div className="relative bg-white p-5 rounded-full shadow-xl border-2 border-blue-100">
-                <FaPlane size={40} className="text-blue-600" />
+              <div className="relative bg-white p-5 rounded-full shadow-xl border-2 border-blue-100 dark:bg-slate-800 dark:border-sky-700">
+                <FaPlane size={40} className="text-blue-600 dark:text-sky-500" />
               </div>
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-gray-800 mb-3">مدیریت شرکت‌های هواپیمایی</h1>
-          <p className="text-gray-500 max-w-2xl mx-auto">
+          <h1 className="text-4xl font-bold text-gray-800 mb-3 dark:text-slate-200">مدیریت شرکت‌های هواپیمایی</h1>
+          <p className="text-gray-500 max-w-2xl mx-auto dark:text-slate-400">
             در این بخش می‌توانید شرکت‌های هواپیمایی را مدیریت کنید، اطلاعات آن‌ها را ویرایش کنید و شرکت‌های جدید اضافه نمایید.
           </p>
           
@@ -266,9 +266,9 @@ export default function AirlineManagement() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="جستجو در شرکت‌های هواپیمایی..."
-              className="w-full px-6 py-4 pl-12 bg-white border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-700 placeholder-gray-400 transition-all shadow-md"
+              className="w-full px-6 py-4 pl-12 bg-white border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-700 placeholder-gray-400 transition-all shadow-md dark:bg-slate-700 dark:border-slate-600 dark:focus:ring-sky-500 dark:text-slate-200 dark:placeholder-slate-400"
             />
-            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-500">
+            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-500 dark:text-sky-500">
               <FaSearch size={18} />
             </span>
           </div>
@@ -279,12 +279,12 @@ export default function AirlineManagement() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="bg-white rounded-3xl mb-8 overflow-hidden transition-all duration-300 transform hover:shadow-xl border border-gray-200 shadow-lg"
+          className="bg-white rounded-3xl mb-8 overflow-hidden transition-all duration-300 transform hover:shadow-xl border border-gray-200 shadow-lg dark:bg-slate-800 dark:border-slate-700"
         >
           <div className={`p-1 ${editMode ? 'bg-gradient-to-r from-yellow-400 to-amber-500' : 'bg-gradient-to-r from-blue-500 to-indigo-600'}`}></div>
           <div className="p-8">
-            <h2 className="text-2xl font-bold flex items-center mb-8 text-gray-800">
-              <div className={`p-4 rounded-xl mr-5 ${editMode ? 'bg-yellow-100 text-yellow-600' : 'bg-blue-100 text-blue-600'}`}>
+            <h2 className="text-2xl font-bold flex items-center mb-8 text-gray-800 dark:text-slate-200">
+              <div className={`p-4 rounded-xl mr-5 ${editMode ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-700/50 dark:text-yellow-400' : 'bg-blue-100 text-blue-600 dark:bg-sky-700/50 dark:text-sky-400'}`}>
                 {editMode ? <FaPen size={22} /> : <FaPlus size={22} />}
               </div>
               <span className="mr-4">{editMode ? 'ویرایش شرکت هواپیمایی' : 'افزودن شرکت هواپیمایی جدید'}</span>
@@ -292,40 +292,40 @@ export default function AirlineManagement() {
             
             <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-2">
-                <label className="block text-lg font-medium text-gray-700">نام شرکت هواپیمایی</label>
+                <label className="block text-lg font-medium text-gray-700 dark:text-slate-300">نام شرکت هواپیمایی</label>
                 <input
                   type="text"
                   {...register('name')}
-                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all dark:bg-slate-700 dark:border-slate-600 dark:focus:ring-sky-500 dark:focus:bg-slate-600 dark:text-slate-200 dark:placeholder-slate-400"
                   placeholder="مثال: ایران ایر"
                 />
                 {errors.name && (
-                  <span className="text-red-500 text-sm">{errors.name.message}</span>
+                  <span className="text-red-500 text-sm dark:text-red-400">{errors.name.message}</span>
                 )}
               </div>
               
               <div className="space-y-2">
-                <label className="block text-lg font-medium text-gray-700">مدل هواپیما</label>
+                <label className="block text-lg font-medium text-gray-700 dark:text-slate-300">مدل هواپیما</label>
                 <input
                   type="text"
                   {...register('aircraftModel')}
-                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all dark:bg-slate-700 dark:border-slate-600 dark:focus:ring-sky-500 dark:focus:bg-slate-600 dark:text-slate-200 dark:placeholder-slate-400"
                   placeholder="مثال: Airbus A320"
                 />
               </div>
               
               <div className="md:col-span-2">
-                <label className="block text-lg font-medium text-gray-700 mb-2">توضیحات</label>
+                <label className="block text-lg font-medium text-gray-700 mb-2 dark:text-slate-300">توضیحات</label>
                 <textarea
                   {...register('description')}
-                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all"
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white text-gray-800 placeholder-gray-400 transition-all dark:bg-slate-700 dark:border-slate-600 dark:focus:ring-sky-500 dark:focus:bg-slate-600 dark:text-slate-200 dark:placeholder-slate-400"
                   rows={4}
                   placeholder="توضیحات اضافی درباره این شرکت هواپیمایی..."
                 ></textarea>
               </div>
               
               <div className="md:col-span-2">
-                <label className="block text-lg font-medium text-gray-700 mb-2">لوگو</label>
+                <label className="block text-lg font-medium text-gray-700 mb-2 dark:text-slate-300">لوگو</label>
                 <div className="flex flex-wrap items-center gap-6">
                   <div className="relative group">
                     <input
@@ -338,7 +338,7 @@ export default function AirlineManagement() {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-6 py-4 bg-blue-100 text-blue-600 rounded-xl hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all flex items-center group-hover:shadow-lg"
+                      className="px-6 py-4 bg-blue-100 text-blue-600 rounded-xl hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all flex items-center group-hover:shadow-lg dark:bg-sky-700/50 dark:text-sky-400 dark:hover:bg-sky-600/50 dark:focus:ring-sky-500"
                     >
                       <FaUpload className="ml-3" size={18} />
                       <span>انتخاب فایل لوگو</span>
@@ -346,13 +346,13 @@ export default function AirlineManagement() {
                   </div>
                   
                   {logoFile && (
-                    <span className="text-gray-600 text-sm px-4 py-2 bg-gray-100 rounded-lg border border-gray-200">
+                    <span className="text-gray-600 text-sm px-4 py-2 bg-gray-100 rounded-lg border border-gray-200 dark:text-slate-400 dark:bg-slate-700 dark:border-slate-600">
                       {logoFile.name}
                     </span>
                   )}
                   
                   {logoPreview && (
-                    <div className="relative w-24 h-24 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 p-2 shadow-lg">
+                    <div className="relative w-24 h-24 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 p-2 shadow-lg dark:border-slate-600 dark:bg-slate-700">
                       <img 
                         src={logoPreview} 
                         alt="Logo Preview" 
@@ -365,7 +365,7 @@ export default function AirlineManagement() {
                           setLogoFile(null);
                           if (fileInputRef.current) fileInputRef.current.value = '';
                         }}
-                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-md text-xs"
+                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-md text-xs dark:bg-red-600 dark:text-red-100"
                         title="حذف تصویر"
                       >
                         <FaTrash size={10} />
@@ -380,7 +380,7 @@ export default function AirlineManagement() {
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="px-8 py-4 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-all flex items-center"
+                    className="px-8 py-4 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-all flex items-center dark:bg-slate-600 dark:text-slate-300 dark:hover:bg-slate-500 dark:focus:ring-slate-500"
                   >
                     <span className="ml-2">انصراف</span>
                   </button>
@@ -406,62 +406,62 @@ export default function AirlineManagement() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-200"
+          className="bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-200 dark:bg-slate-800 dark:border-slate-700"
         >
           <div className="p-1 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
           <div className="p-8">
-            <h2 className="text-2xl font-bold mb-8 text-gray-800 flex items-center">
-              <span className="bg-blue-100 text-blue-600 p-4 rounded-xl mr-5">
+            <h2 className="text-2xl font-bold mb-8 text-gray-800 flex items-center dark:text-slate-200">
+              <span className="bg-blue-100 text-blue-600 p-4 rounded-xl mr-5 dark:bg-sky-700/50 dark:text-sky-400">
                 <FaPlane size={22} />
               </span>
               <span className="mr-4">لیست شرکت‌های هواپیمایی</span>
-              <span className="mr-4 text-base text-gray-500 font-normal bg-gray-100 px-4 py-1.5 rounded-full">
+              <span className="mr-4 text-base text-gray-500 font-normal bg-gray-100 px-4 py-1.5 rounded-full dark:text-slate-400 dark:bg-slate-700">
                 {filteredAirlines.length} شرکت
               </span>
             </h2>
             
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-t-blue-500 border-r-blue-500 border-b-transparent border-l-transparent"></div>
-                <p className="mr-4 text-gray-600 text-lg">در حال بارگذاری...</p>
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-t-blue-500 border-r-blue-500 border-b-transparent border-l-transparent dark:border-t-sky-500 dark:border-r-sky-500"></div>
+                <p className="mr-4 text-gray-600 text-lg dark:text-slate-400">در حال بارگذاری...</p>
               </div>
             ) : error ? (
-              <div className="bg-red-100 text-red-600 p-6 rounded-xl border border-red-200 flex items-center">
+              <div className="bg-red-100 text-red-600 p-6 rounded-xl border border-red-200 flex items-center dark:bg-red-800/50 dark:text-red-400 dark:border-red-700/60">
                 <span className="ml-3 text-2xl">⚠️</span>
                 <span>{error}</span>
               </div>
             ) : (
               <>
                 {filteredAirlines.length === 0 ? (
-                  <div className="bg-gray-100 text-gray-600 p-12 rounded-xl border border-gray-200 text-center">
+                  <div className="bg-gray-100 text-gray-600 p-12 rounded-xl border border-gray-200 text-center dark:bg-slate-700/50 dark:text-slate-300 dark:border-slate-600">
                     <div className="text-6xl mb-4">🔍</div>
                     <p className="text-xl">هیچ شرکت هواپیمایی یافت نشد</p>
-                    <p className="text-gray-500 mt-3">می‌توانید با کلیک بر روی «افزودن شرکت هواپیمایی جدید» شروع کنید</p>
+                    <p className="text-gray-500 mt-3 dark:text-slate-400">می‌توانید با کلیک بر روی «افزودن شرکت هواپیمایی جدید» شروع کنید</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-600">
+                      <thead className="bg-gray-50 dark:bg-slate-700/60">
                         <tr>
-                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider">لوگو</th>
-                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider">نام شرکت</th>
-                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider">مدل هواپیما</th>
-                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider">وضعیت</th>
-                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider">عملیات</th>
+                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider dark:text-slate-400">لوگو</th>
+                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider dark:text-slate-400">نام شرکت</th>
+                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider dark:text-slate-400">مدل هواپیما</th>
+                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider dark:text-slate-400">وضعیت</th>
+                          <th className="py-5 px-6 text-right text-sm font-medium text-gray-600 uppercase tracking-wider dark:text-slate-400">عملیات</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-200 bg-white">
+                      <tbody className="divide-y divide-gray-200 bg-white dark:divide-slate-600 dark:bg-slate-800">
                         {filteredAirlines.map((airline, index) => (
                           <motion.tr 
                             key={airline._id} 
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.05 + 0.5 }}
-                            className="hover:bg-gray-50 transition-colors"
+                            className="hover:bg-gray-50 transition-colors dark:hover:bg-slate-700/70"
                           >
                             <td className="py-5 px-6">
                               {airline.logo ? (
-                                <div className="w-16 h-16 relative border border-gray-200 rounded-xl overflow-hidden bg-white p-2 shadow-md">
+                                <div className="w-16 h-16 relative border border-gray-200 rounded-xl overflow-hidden bg-white p-2 shadow-md dark:border-slate-600 dark:bg-slate-700">
                                   <img 
                                     src={`http://185.94.99.35:5000${airline.logo}`} 
                                     alt={airline.name} 
@@ -469,22 +469,22 @@ export default function AirlineManagement() {
                                   />
                                 </div>
                               ) : (
-                                <div className="w-16 h-16 bg-gray-100 flex items-center justify-center rounded-xl border border-gray-200">
-                                  <span className="text-gray-400 text-xs">بدون لوگو</span>
+                                <div className="w-16 h-16 bg-gray-100 flex items-center justify-center rounded-xl border border-gray-200 dark:bg-slate-600 dark:border-slate-500">
+                                  <span className="text-gray-400 text-xs dark:text-slate-500">بدون لوگو</span>
                                 </div>
                               )}
                             </td>
-                            <td className="py-5 px-6 font-medium text-gray-800 text-lg">{airline.name}</td>
-                            <td className="py-5 px-6 text-gray-600">
+                            <td className="py-5 px-6 font-medium text-gray-800 text-lg dark:text-slate-200">{airline.name}</td>
+                            <td className="py-5 px-6 text-gray-600 dark:text-slate-300">
                               {airline.aircraftModel || (
-                                <span className="text-gray-400 text-sm">مشخص نشده</span>
+                                <span className="text-gray-400 text-sm dark:text-slate-500">مشخص نشده</span>
                               )}
                             </td>
                             <td className="py-5 px-6">
                               <span className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium ${
                                 airline.isActive 
-                                  ? 'bg-green-100 text-green-700 border border-green-200' 
-                                  : 'bg-red-100 text-red-700 border border-red-200'
+                                  ? 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-700/50 dark:text-green-300 dark:border-green-600/50' 
+                                  : 'bg-red-100 text-red-700 border border-red-200 dark:bg-red-700/50 dark:text-red-300 dark:border-red-600/50'
                               }`}>
                                 <span className={`w-2 h-2 ml-2 rounded-full ${
                                   airline.isActive ? 'bg-green-500' : 'bg-red-500'
@@ -496,7 +496,7 @@ export default function AirlineManagement() {
                               <div className="flex items-center justify-center gap-3">
                                 <button
                                   onClick={() => handleEdit(airline)}
-                                  className="p-3 bg-yellow-100 text-yellow-600 rounded-lg hover:bg-yellow-200 transition-all flex items-center"
+                                  className="p-3 bg-yellow-100 text-yellow-600 rounded-lg hover:bg-yellow-200 transition-all flex items-center dark:bg-yellow-700/50 dark:text-yellow-400 dark:hover:bg-yellow-600/50"
                                   title="ویرایش"
                                 >
                                   <FaPen size={14} />
@@ -506,8 +506,8 @@ export default function AirlineManagement() {
                                   onClick={() => toggleAirlineStatus(airline._id, airline.isActive)}
                                   className={`p-3 rounded-lg transition-all flex items-center ${
                                     airline.isActive 
-                                      ? 'bg-red-100 text-red-600 hover:bg-red-200' 
-                                      : 'bg-green-100 text-green-600 hover:bg-green-200'
+                                      ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-700/50 dark:text-red-400 dark:hover:bg-red-600/50' 
+                                      : 'bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-700/50 dark:text-green-400 dark:hover:bg-green-600/50'
                                   }`}
                                   title={airline.isActive ? 'غیرفعال کردن' : 'فعال کردن'}
                                 >
@@ -516,7 +516,7 @@ export default function AirlineManagement() {
                                 </button>
                                 <button
                                   onClick={() => handleDelete(airline._id)}
-                                  className="p-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all flex items-center"
+                                  className="p-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all flex items-center dark:bg-red-700/50 dark:text-red-400 dark:hover:bg-red-600/50"
                                   title="حذف"
                                 >
                                   <FaTrash size={14} />

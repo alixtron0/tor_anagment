@@ -659,45 +659,51 @@ export default function PackageDetails() {
         </div>
 
         {/* کارت‌های اطلاعاتی */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 flex flex-col">
-            <div className="text-indigo-500 mb-3">
-              <FaUserFriends className="text-2xl" />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 flex flex-col">
+            <div className="flex items-center mb-2">
+              <div className="text-indigo-500 mr-2">
+                <FaUserFriends className="text-lg" />
+              </div>
+              <div className="text-gray-500 text-xs">ظرفیت</div>
             </div>
-            <div className="text-gray-500 text-sm mb-2">ظرفیت</div>
-            <div className="text-2xl font-bold text-gray-900">{packageData.capacity}</div>
-            <div className={`text-sm mt-1 ${remainingCapacity > 10 ? 'text-green-600' : remainingCapacity > 0 ? 'text-orange-500' : 'text-red-600'}`}>
+            <div className="text-lg font-bold text-gray-900">{packageData.capacity}</div>
+            <div className={`text-xs mt-1 ${remainingCapacity > 10 ? 'text-green-600' : remainingCapacity > 0 ? 'text-orange-500' : 'text-red-600'}`}>
               {remainingCapacity} نفر باقی‌مانده
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 flex flex-col">
-            <div className="text-indigo-500 mb-3">
-              <FaHotel className="text-2xl" />
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 flex flex-col">
+            <div className="flex items-center mb-2">
+              <div className="text-indigo-500 mr-2">
+                <FaHotel className="text-lg" />
+              </div>
+              <div className="text-gray-500 text-xs">هتل‌ها</div>
             </div>
-            <div className="text-gray-500 text-sm mb-2">هتل‌ها</div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-lg font-bold text-gray-900">
               {packageData.hotels?.length || 0}
             </div>
-            <div className="text-sm text-gray-500 mt-1">
+            <div className="text-xs text-gray-500 mt-1">
               {packageData.hotels && packageData.hotels.length > 0 ? 'هتل' : 'بدون هتل'}
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 flex flex-col">
-            <div className="text-indigo-500 mb-3 flex gap-2">
-              {packageData.transportation?.departure === 'havaii' ? (
-                <FaPlane className="text-2xl" />
-              ) : (
-                <FaBus className="text-2xl" />
-              )}
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 flex flex-col">
+            <div className="flex items-center mb-2">
+              <div className="text-indigo-500 mr-2">
+                {packageData.transportation?.departure === 'havaii' ? (
+                  <FaPlane className="text-lg" />
+                ) : (
+                  <FaBus className="text-lg" />
+                )}
+              </div>
+              <div className="text-gray-500 text-xs">رفت</div>
             </div>
-            <div className="text-gray-500 text-sm mb-2">حمل و نقل رفت</div>
-            <div className="text-xl font-bold text-gray-900">
+            <div className="text-sm font-bold text-gray-900">
               {packageData.transportation?.departure === 'havaii' ? 'هوایی' : 'زمینی'}
             </div>
             {packageData.transportation?.departureAirline && (
-              <div className="text-sm text-gray-500 mt-1">
+              <div className="text-xs text-gray-500 mt-1 truncate">
                 {packageData.transportation.departureAirline && 
                 typeof packageData.transportation.departureAirline === 'string' 
                 ? packageData.transportation.departureAirline 
@@ -710,20 +716,22 @@ export default function PackageDetails() {
             )}
           </div>
           
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 flex flex-col">
-            <div className="text-indigo-500 mb-3 flex gap-2">
-              {packageData.transportation?.return === 'havaii' ? (
-                <FaPlane className="text-2xl" />
-              ) : (
-                <FaBus className="text-2xl" />
-              )}
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 flex flex-col">
+            <div className="flex items-center mb-2">
+              <div className="text-indigo-500 mr-2">
+                {packageData.transportation?.return === 'havaii' ? (
+                  <FaPlane className="text-lg" />
+                ) : (
+                  <FaBus className="text-lg" />
+                )}
+              </div>
+              <div className="text-gray-500 text-xs">برگشت</div>
             </div>
-            <div className="text-gray-500 text-sm mb-2">حمل و نقل برگشت</div>
-            <div className="text-xl font-bold text-gray-900">
+            <div className="text-sm font-bold text-gray-900">
               {packageData.transportation?.return === 'havaii' ? 'هوایی' : 'زمینی'}
             </div>
             {packageData.transportation?.returnAirline && (
-              <div className="text-sm text-gray-500 mt-1">
+              <div className="text-xs text-gray-500 mt-1 truncate">
                 {packageData.transportation.returnAirline && 
                 typeof packageData.transportation.returnAirline === 'string' 
                 ? packageData.transportation.returnAirline 
@@ -735,22 +743,19 @@ export default function PackageDetails() {
               </div>
             )}
           </div>
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 flex flex-col">
-            <div className="text-indigo-500 mb-3">
-              <FaCalendarAlt className="text-2xl" />
+          
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 flex flex-col">
+            <div className="flex items-center mb-2">
+              <div className="text-indigo-500 mr-2">
+                <FaCalendarAlt className="text-lg" />
+              </div>
+              <div className="text-gray-500 text-xs">تاریخ سفر</div>
             </div>
-            <div className="text-gray-500 text-sm mb-2">تاریخ سفر</div>
-            <div className="text-md font-bold text-gray-900">
-              {formatDate(packageData.startDate)} {packageData.startTime && `ساعت ${packageData.startTime}`}
+            <div className="text-xs font-bold text-gray-900 leading-tight">
+              {formatDate(packageData.startDate)}
             </div>
-            <div className="text-md font-bold text-gray-900 mt-1">
-              تا
-            </div>
-            <div className="text-md font-bold text-gray-900 mt-1">
-              {formatDate(packageData.endDate)} {packageData.endTime && `ساعت ${packageData.endTime}`}
-            </div>
-            <div className="text-sm text-gray-500 mt-1">
-              {calculateDuration(packageData.startDate, packageData.endDate)} روز
+            <div className="text-xs font-bold text-gray-900 mt-0.5 leading-tight">
+              تا {formatDate(packageData.endDate)}
             </div>
           </div>
         </div>
@@ -1141,7 +1146,7 @@ export default function PackageDetails() {
                             </div>
                           </div>
                           <div className="bg-amber-100 px-4 py-2 rounded-full text-amber-700 text-sm font-medium">
-                            {hotelItem.stayDuration} روز اقامت
+                            {hotelItem.stayDuration} شب اقامت
                           </div>
                         </div>
                         
@@ -1149,7 +1154,7 @@ export default function PackageDetails() {
                           <div className="bg-white p-4 rounded-lg border border-gray-100">
                             <div className="text-sm font-medium text-gray-700 mb-3 flex items-center">
                               <FaClock className="ml-2 text-amber-500" />
-                              وعده‌های غذایی روز اول
+                              وعده‌های غذایی شب اول
                             </div>
                             <div className="flex gap-2">
                               {hotelItem.firstMeal?.sobhane && (
@@ -1170,7 +1175,7 @@ export default function PackageDetails() {
                           <div className="bg-white p-4 rounded-lg border border-gray-100">
                             <div className="text-sm font-medium text-gray-700 mb-3 flex items-center">
                               <FaClock className="ml-2 text-amber-500" />
-                              وعده‌های غذایی روز آخر
+                              وعده‌های غذایی شب آخر
                             </div>
                             <div className="flex gap-2">
                               {hotelItem.lastMeal?.sobhane && (

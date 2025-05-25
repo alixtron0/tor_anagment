@@ -128,7 +128,7 @@ export default function BarChartComponent({ data, title, color }: BarChartProps)
     const colors = [];
     
     for (let i = 0; i < count; i++) {
-      // کاهش اشباع و روشنایی برای هر میله با اشباع و روشنایی کمتر
+      // کاهش ا شب اع و روشنایی برای هر میله با ا شب اع و روشنایی کمتر
       const newS = Math.max(s - (i * 5), s - 30);
       const newL = Math.min(l + (i * 3), l + 15);
       colors.push(hslToHex(h, newS, newL));

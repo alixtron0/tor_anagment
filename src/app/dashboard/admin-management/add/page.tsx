@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FaUserPlus, FaTimes, FaCheck, FaEye, FaEyeSlash, FaChevronDown, FaCrown, FaUser } from 'react-icons/fa'
 import axios from 'axios'
+import React from 'react'
 
 export default function AddAdmin() {
   const router = useRouter()
@@ -38,7 +39,7 @@ export default function AddAdmin() {
       const parsedUser = JSON.parse(storedUser)
       setUser(parsedUser)
       
-      // اگر سوپر ادمین نیست، به صفحه داشبورد منتقل می‌شود
+      // اگر سوپر ادمین نیست، به صفحه دا شب ورد منتقل می‌شود
       if (parsedUser.role !== 'super-admin') {
         router.push('/dashboard')
         return
@@ -110,30 +111,30 @@ export default function AddAdmin() {
   
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[60vh] bg-white rounded-xl shadow-sm">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center min-h-[60vh] bg-white rounded-xl shadow-sm dark:bg-slate-800">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 dark:border-sky-500"></div>
       </div>
     )
   }
   
   return (
-    <main className="px-6 py-8">
+    <main className="px-6 py-8 dark:bg-slate-900">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-4 text-gray-800">افزودن ادمین جدید</h1>
-        <p className="text-gray-600">
+        <h1 className="text-2xl font-bold mb-4 text-gray-800 dark:text-slate-200">افزودن ادمین جدید</h1>
+        <p className="text-gray-600 dark:text-slate-400">
           در این بخش می‌توانید کاربران جدید با نقش ادمین به سیستم اضافه کنید.
         </p>
       </div>
       
       {/* نمایش خطا یا پیام موفقیت */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 px-5 py-4 rounded-lg mb-6">
+        <div className="bg-red-50 border border-red-200 text-red-600 px-5 py-4 rounded-lg mb-6 dark:bg-red-900/50 dark:border-red-700/60 dark:text-red-400">
           {error}
         </div>
       )}
       
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-600 px-5 py-4 rounded-lg mb-6">
+        <div className="bg-green-50 border border-green-200 text-green-600 px-5 py-4 rounded-lg mb-6 dark:bg-green-900/50 dark:border-green-700/60 dark:text-green-400">
           {success}
         </div>
       )}
@@ -142,12 +143,12 @@ export default function AddAdmin() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-8 mb-6 shadow-md border border-gray-100"
+        className="bg-white rounded-xl p-8 mb-6 shadow-md border border-gray-100 dark:bg-slate-800 dark:border-slate-700"
       >
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div>
-              <label className="block text-gray-700 mb-2" htmlFor="fullName">
+              <label className="block text-gray-700 mb-2 dark:text-slate-300" htmlFor="fullName">
                 نام و نام خانوادگی
               </label>
               <input
@@ -156,13 +157,13 @@ export default function AddAdmin() {
                 name="fullName"
                 value={formData.fullName}
                 onChange={handleInputChange}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:focus:ring-sky-500 dark:placeholder-slate-400"
                 required
               />
             </div>
             
             <div>
-              <label className="block text-gray-700 mb-2" htmlFor="phoneNumber">
+              <label className="block text-gray-700 mb-2 dark:text-slate-300" htmlFor="phoneNumber">
                 شماره موبایل
               </label>
               <input
@@ -172,13 +173,13 @@ export default function AddAdmin() {
                 value={formData.phoneNumber}
                 onChange={handleInputChange}
                 placeholder="مثال: 09123456789"
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 ltr"
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 ltr dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:focus:ring-sky-500 dark:placeholder-slate-400"
                 required
               />
             </div>
             
             <div>
-              <label className="block text-gray-700 mb-2" htmlFor="password">
+              <label className="block text-gray-700 mb-2 dark:text-slate-300" htmlFor="password">
                 رمز عبور
               </label>
               <div className="relative">
@@ -188,13 +189,13 @@ export default function AddAdmin() {
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:focus:ring-sky-500 dark:placeholder-slate-400"
                   required
                 />
                 <button 
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-gray-800 transition-colors"
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-gray-800 transition-colors dark:text-slate-400 dark:hover:text-slate-200"
                 >
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
@@ -202,17 +203,18 @@ export default function AddAdmin() {
             </div>
             
             <div>
-              <label className="block text-gray-700 mb-2">
+              <label className="block text-gray-700 mb-2 dark:text-slate-300">
                 نقش
               </label>
               <div className="relative" ref={dropdownRef}>
                 <button
                   type="button"
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex justify-between items-center"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex justify-between items-center dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:focus:ring-sky-500"
                 >
                   <div className="flex items-center">
-                    {roleOptions.find(option => option.id === formData.role)?.icon}
+                    {roleOptions.find(option => option.id === formData.role)?.icon && 
+                      React.cloneElement(roleOptions.find(option => option.id === formData.role)!.icon as React.ReactElement<any>, { className: `ml-2 ${formData.role === 'admin' ? 'text-blue-400 dark:text-sky-400' : 'text-emerald-400 dark:text-emerald-400'}` })}
                     <span>
                       {formData.role === 'admin' ? 'ادمین' : 'همکار'}
                     </span>
@@ -227,20 +229,20 @@ export default function AddAdmin() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2 }}
-                      className="absolute z-10 mt-1 w-full bg-gray-100 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg overflow-hidden"
+                      className="absolute z-10 mt-1 w-full bg-gray-100 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg overflow-hidden dark:bg-slate-700/80 dark:border-slate-600"
                     >
                       <div className="py-1">
                         {roleOptions.map(option => (
                           <div
                             key={option.id}
                             onClick={() => handleRoleSelect(option.id)}
-                            className={`flex items-center px-4 py-3 hover:bg-gray-200 cursor-pointer transition-colors
-                              ${formData.role === option.id ? 'bg-blue-500/20 text-blue-500' : 'text-gray-800'}`}
+                            className={`flex items-center px-4 py-3 hover:bg-gray-200 cursor-pointer transition-colors dark:hover:bg-slate-600
+                              ${formData.role === option.id ? 'bg-blue-500/20 text-blue-500 dark:bg-sky-500/30 dark:text-sky-400' : 'text-gray-800 dark:text-slate-200'}`}
                           >
-                            {option.icon}
+                            {React.cloneElement(option.icon as React.ReactElement<any>, { className: `ml-2 ${option.id === 'admin' ? 'text-blue-400 dark:text-sky-400' : 'text-emerald-400 dark:text-emerald-400'}` })}
                             <span>{option.label}</span>
                             {formData.role === option.id && (
-                              <FaCheck className="mr-auto text-blue-500" />
+                              <FaCheck className="mr-auto text-blue-500 dark:text-sky-400" />
                             )}
                           </div>
                         ))}
@@ -256,14 +258,14 @@ export default function AddAdmin() {
             <button
               type="button"
               onClick={() => router.push('/dashboard/admin-management/list')}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2.5 px-6 rounded-lg transition-colors ml-4 shadow-md"
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2.5 px-6 rounded-lg transition-colors ml-4 shadow-md dark:bg-slate-600 dark:hover:bg-slate-500 dark:text-slate-200"
             >
               انصراف
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="bg-blue-500 hover:bg-blue-600 text-white py-2.5 px-6 rounded-lg transition-colors flex items-center gap-2 shadow-md"
+              className="bg-blue-500 hover:bg-blue-600 text-white py-2.5 px-6 rounded-lg transition-colors flex items-center gap-2 shadow-md dark:bg-sky-600 dark:hover:bg-sky-700"
             >
               {submitting ? 'در حال ارسال...' : 'افزودن ادمین'}
               {!submitting && <FaUserPlus />}

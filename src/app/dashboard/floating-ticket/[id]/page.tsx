@@ -29,7 +29,7 @@ export default function TicketDetail() {
         // اما فعلاً از داده‌های محلی استفاده می‌کنیم
         // می‌توانید منطق را برای دریافت داده‌ها از سرور گسترش دهید
         
-        // شبیه‌سازی دریافت داده از سرور
+        //  شب یه‌سازی دریافت داده از سرور
         setTimeout(() => {
           const dummyTicketData = {
             ticketId: params.id,

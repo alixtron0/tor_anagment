@@ -25,7 +25,7 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-      <body className={`${vazirmatn.variable} font-sans text-slate-800 bg-white min-h-screen`}>
+      <body suppressHydrationWarning={true} className={`${vazirmatn.variable} font-sans text-slate-800 bg-white min-h-screen`}>
         <div className="relative z-10">
           {children}
         </div>

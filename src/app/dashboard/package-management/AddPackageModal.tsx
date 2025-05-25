@@ -91,7 +91,9 @@ export default function AddPackageModal({
     endTime: '00:00',
     transportation: {
       departure: 'zamini' as 'zamini' | 'havaii',
-      return: 'zamini' as 'zamini' | 'havaii'
+      return: 'zamini' as 'zamini' | 'havaii',
+      departureFlightNumber: '',
+      returnFlightNumber: ''
     },
     basePrice: 0,
     infantPrice: 0,
@@ -135,7 +137,7 @@ export default function AddPackageModal({
       
       // محاسبه تفاوت به روز
       const diffDays = endDate.diff(startDate, 'days')
-      return diffDays + 1 // شامل روز آخر
+      return diffDays + 1 // شامل شب آخر
     } catch (error) {
       console.error('خطا در محاسبه روزها:', error)
       return 0
@@ -257,6 +259,11 @@ export default function AddPackageModal({
           const packageData = response.data;
           console.log('Package data for editing:', packageData);
           
+          // اضافه کردن لاگ برای بررسی داده‌های حمل و نقل
+          console.log('Transportation data:', packageData.transportation);
+          console.log('Departure Flight Number:', packageData.transportation.departureFlightNumber);
+          console.log('Return Flight Number:', packageData.transportation.returnFlightNumber);
+          
           // تنظیم داده‌های فرم
           reset({
             _id: packageData._id,
@@ -268,7 +275,14 @@ export default function AddPackageModal({
             startTime: packageData.startTime || '00:00',
             endDate: packageData.endDate,
             endTime: packageData.endTime || '00:00',
-            transportation: packageData.transportation,
+            transportation: {
+              departure: packageData.transportation.departure,
+              return: packageData.transportation.return,
+              departureAirline: packageData.transportation.departureAirline || '',
+              returnAirline: packageData.transportation.returnAirline || '',
+              departureFlightNumber: packageData.transportation.departureFlightNumber || '',
+              returnFlightNumber: packageData.transportation.returnFlightNumber || ''
+            },
             basePrice: packageData.basePrice,
             infantPrice: packageData.infantPrice,
             servicesFee: packageData.servicesFee,
@@ -283,6 +297,29 @@ export default function AddPackageModal({
             image: packageData.image,
             isActive: packageData.isActive
           });
+          
+          // تنظیم حالت نمایش ایرلاین‌ها بر اساس نوع حمل و نقل
+          setShowDepartureAirline(packageData.transportation.departure === 'havaii');
+          setShowReturnAirline(packageData.transportation.return === 'havaii');
+          
+          // تنظیم ایرلاین‌های انتخاب شده
+          if (packageData.transportation.departureAirline) {
+            const departureAirlineId = typeof packageData.transportation.departureAirline === 'object' 
+              ? packageData.transportation.departureAirline._id 
+              : packageData.transportation.departureAirline;
+            
+            setSelectedDepartureAirline(departureAirlineId);
+            console.log('Setting departure airline ID:', departureAirlineId);
+          }
+          
+          if (packageData.transportation.returnAirline) {
+            const returnAirlineId = typeof packageData.transportation.returnAirline === 'object' 
+              ? packageData.transportation.returnAirline._id 
+              : packageData.transportation.returnAirline;
+            
+            setSelectedReturnAirline(returnAirlineId);
+            console.log('Setting return airline ID:', returnAirlineId);
+          }
           
           // تنظیم سرویس‌ها
           if (packageData.services && packageData.services.length > 0) {
@@ -479,7 +516,9 @@ export default function AddPackageModal({
           departure: data.transportation?.departure || 'zamini',
           return: data.transportation?.return || 'zamini',
           departureAirline: data.transportation?.departureAirline || undefined,
-          returnAirline: data.transportation?.returnAirline || undefined
+          returnAirline: data.transportation?.returnAirline || undefined,
+          departureFlightNumber: data.transportation?.departureFlightNumber || '',
+          returnFlightNumber: data.transportation?.returnFlightNumber || ''
         },
         rooms: {
           single: { 
@@ -931,16 +970,6 @@ export default function AddPackageModal({
                         />
                       )}
                     />
-                    
-                    {/* زمان شروع */}
-                    <div className="mt-2">
-                      <label className="block mb-2 font-medium text-gray-700">ساعت شروع</label>
-                      <input
-                        type="time"
-                        {...register('startTime')}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all bg-white text-gray-900"
-                      />
-                    </div>
                   </div>
 
                   {/* تاریخ پایان */}
@@ -962,16 +991,6 @@ export default function AddPackageModal({
                         />
                       )}
                     />
-                    
-                    {/* زمان پایان */}
-                    <div className="mt-2">
-                      <label className="block mb-2 font-medium text-gray-700">ساعت پایان</label>
-                      <input
-                        type="time"
-                        {...register('endTime')}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all bg-white text-gray-900"
-                      />
-                    </div>
                   </div>
                 </div>
 
@@ -1049,15 +1068,37 @@ export default function AddPackageModal({
                       </label>
                     </div>
                     
-                    {/* انتخاب شرکت هواپیمایی برای رفت */}
+                    {/* انتخاب شرکت هواپیمایی و شماره پرواز برای رفت */}
                     {showDepartureAirline && (
-                      <div className="space-y-4">
+                      <div className="space-y-4 p-4 rounded-lg bg-blue-50 border border-blue-100">
                         <AirlineSelect
                           label="شرکت هواپیمایی (رفت)"
                           name="transportation.departureAirline"
                           register={register}
                           onAirlineChange={(airlineId) => setSelectedDepartureAirline(airlineId)}
+                          defaultValue={selectedDepartureAirline}
                         />
+                        
+                        {/* زمان پرواز رفت */}
+                        <div>
+                          <label className="block mb-2 font-medium text-gray-700">ساعت پرواز (رفت)</label>
+                          <input
+                            type="time"
+                            {...register('startTime')}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all bg-white text-gray-900"
+                          />
+                        </div>
+                        
+                        {/* شماره پرواز رفت */}
+                        <div>
+                          <label className="block mb-2 font-medium text-gray-700">شماره پرواز (رفت)</label>
+                          <input
+                            type="text"
+                            {...register('transportation.departureFlightNumber')}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all bg-white text-gray-900"
+                            placeholder="مثال: W5 5022"
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1092,15 +1133,37 @@ export default function AddPackageModal({
                       </label>
                     </div>
 
-                    {/* انتخاب شرکت هواپیمایی برای برگشت */}
+                    {/* انتخاب شرکت هواپیمایی و شماره پرواز برای برگشت */}
                     {showReturnAirline && (
-                      <div className="space-y-4">
+                      <div className="space-y-4 p-4 rounded-lg bg-blue-50 border border-blue-100">
                         <AirlineSelect
                           label="شرکت هواپیمایی (برگشت)"
                           name="transportation.returnAirline"
                           register={register}
                           onAirlineChange={(airlineId) => setSelectedReturnAirline(airlineId)}
+                          defaultValue={selectedReturnAirline}
                         />
+                        
+                        {/* زمان پرواز برگشت */}
+                        <div>
+                          <label className="block mb-2 font-medium text-gray-700">ساعت پرواز (برگشت)</label>
+                          <input
+                            type="time"
+                            {...register('endTime')}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all bg-white text-gray-900"
+                          />
+                        </div>
+                        
+                        {/* شماره پرواز برگشت */}
+                        <div>
+                          <label className="block mb-2 font-medium text-gray-700">شماره پرواز (برگشت)</label>
+                          <input
+                            type="text"
+                            {...register('transportation.returnFlightNumber')}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all bg-white text-gray-900"
+                            placeholder="مثال: W5 5023"
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1218,9 +1281,9 @@ export default function AddPackageModal({
 
                     {/* وعده‌های غذایی */}
                     <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* وعده‌های غذایی روز اول */}
+                      {/* وعده‌های غذایی شب اول */}
                       <div className="p-4 border-2 border-blue-200 rounded-lg bg-white shadow-md">
-                        <h6 className="font-bold text-blue-800 mb-3 text-lg">وعده‌های غذایی روز اول</h6>
+                        <h6 className="font-bold text-blue-800 mb-3 text-lg">وعده‌های غذایی شب اول</h6>
                         <div className="flex flex-wrap gap-6">
                           {['sobhane', 'nahar', 'sham'].map((meal) => (
                             <div key={meal} className="flex items-center">
@@ -1248,9 +1311,9 @@ export default function AddPackageModal({
                         </div>
                       </div>
 
-                      {/* وعده‌های غذایی روز آخر */}
+                      {/* وعده‌های غذایی شب آخر */}
                       <div className="p-4 border-2 border-blue-200 rounded-lg bg-white shadow-md">
-                        <h6 className="font-bold text-blue-800 mb-3 text-lg">وعده‌های غذایی روز آخر</h6>
+                        <h6 className="font-bold text-blue-800 mb-3 text-lg">وعده‌های غذایی شب آخر</h6>
                         <div className="flex flex-wrap gap-6">
                           {['sobhane', 'nahar', 'sham'].map((meal) => (
                             <div key={meal} className="flex items-center">

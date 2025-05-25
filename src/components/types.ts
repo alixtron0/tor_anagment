@@ -49,6 +49,8 @@ export interface Transportation {
   departureAircraft?: string;
   returnAirline?: string;
   returnAircraft?: string;
+  departureFlightNumber?: string;
+  returnFlightNumber?: string;
 }
 
 export interface Package {

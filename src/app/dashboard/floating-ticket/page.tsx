@@ -78,7 +78,7 @@ interface FlightInfo {
   aircraft?: string;
 }
 
-// ساخت یک تابع شبیه‌ساز register برای کامپوننت PriceInput
+// ساخت یک تابع  شب یه‌ساز register برای کامپوننت PriceInput
 const mockRegister: UseFormRegister<any> = (name) => {
   return {
     name,
@@ -291,6 +291,8 @@ export default function FloatingTicket() {
   const addPassenger = () => {
     // محاسبه تاریخ تولد پیش‌فرض (30 سال قبل)
     const defaultBirthDate = moment().subtract(30, 'years').format('YYYY/MM/DD');
+    // محاسبه تاریخ انقضای پاسپورت پیش‌فرض (5 سال بعد)
+    const defaultPassportExpiry = moment().add(5, 'years').format('YYYY/MM/DD');
     const ageYears = 30;
     
     const newPassenger: Passenger = {
@@ -299,7 +301,7 @@ export default function FloatingTicket() {
       englishLastName: '',
       documentType: 'passport',
       documentNumber: '',
-      passportExpiry: '',
+      passportExpiry: defaultPassportExpiry,
       nationality: 'Iranian',
       customNationality: false,
       birthDate: defaultBirthDate,
@@ -317,6 +319,8 @@ export default function FloatingTicket() {
     
     // محاسبه تاریخ تولد پیش‌فرض (30 سال قبل)
     const defaultBirthDate = moment().subtract(30, 'years').format('YYYY/MM/DD');
+    // محاسبه تاریخ انقضای پاسپورت پیش‌فرض (5 سال بعد)
+    const defaultPassportExpiry = moment().add(5, 'years').format('YYYY/MM/DD');
     const ageYears = 30;
     
     for (let i = 0; i < count; i++) {
@@ -326,7 +330,7 @@ export default function FloatingTicket() {
         englishLastName: '',
         documentType: 'passport',
         documentNumber: '',
-        passportExpiry: '',
+        passportExpiry: defaultPassportExpiry,
         nationality: 'Iranian',
         customNationality: false,
         birthDate: defaultBirthDate,
@@ -670,6 +674,98 @@ export default function FloatingTicket() {
     }
   }
 
+  // بررسی وجود بلیط ذخیره شده برای ویرایش
+  useEffect(() => {
+    const checkEditTicket = () => {
+      try {
+        const savedTicket = localStorage.getItem('edit_floating_ticket');
+        if (!savedTicket) return;
+        
+        const ticketData = JSON.parse(savedTicket);
+        
+        // بررسی اینکه داده قدیمی نباشد (اگر بیشتر از 10 دقیقه گذشته باشد، نادیده بگیر)
+        const now = Date.now();
+        const maxAge = 10 * 60 * 1000; // 10 دقیقه به میلی‌ثانیه
+        
+        if (now - ticketData.timestamp > maxAge) {
+          // داده قدیمی است، آن را حذف کن
+          localStorage.removeItem('edit_floating_ticket');
+          return;
+        }
+        
+        // داده معتبر است، بلیط را بارگذاری کن
+        const ticket = ticketData.data;
+        
+        // تنظیم نوع منبع (route یا city)
+        if (ticket.sourceType === 'route' && ticket.flightInfo.routeId) {
+          setSourceType('route');
+          
+          // یافتن مسیر در لیست مسیرها
+          const route = routes.find(r => r._id === ticket.flightInfo.routeId);
+          if (route) {
+            setSelectedRoute(route);
+          }
+        } else if (ticket.sourceType === 'city') {
+          setSourceType('city');
+          
+          // یافتن شهرهای مبدا و مقصد
+          if (ticket.flightInfo.originCityId) {
+            const originCity = cities.find(c => c._id === ticket.flightInfo.originCityId);
+            if (originCity) {
+              setOriginCity(originCity);
+            }
+          }
+          
+          if (ticket.flightInfo.destinationCityId) {
+            const destCity = cities.find(c => c._id === ticket.flightInfo.destinationCityId);
+            if (destCity) {
+              setDestinationCity(destCity);
+            }
+          }
+        }
+        
+        // تنظیم اطلاعات پرواز
+        setFlightInfo({
+          ...ticket.flightInfo,
+          // اطمینان از اینکه فیلدهای مهم تعریف شده‌اند
+          origin: ticket.flightInfo.origin || '',
+          destination: ticket.flightInfo.destination || '',
+          date: ticket.flightInfo.date || '',
+          time: ticket.flightInfo.time || '',
+          flightNumber: ticket.flightInfo.flightNumber || '',
+        });
+        
+        // تنظیم ایرلاین
+        if (ticket.airline && ticket.airline._id) {
+          const airline = airlines.find(a => a._id === ticket.airline._id);
+          if (airline) {
+            setSelectedAirline(airline);
+          }
+        }
+        
+        // تنظیم مسافران
+        if (Array.isArray(ticket.passengers) && ticket.passengers.length > 0) {
+          setPassengers(ticket.passengers);
+        }
+        
+        // حذف اطلاعات بلیط از localStorage
+        localStorage.removeItem('edit_floating_ticket');
+        
+        // نمایش پیام موفقیت
+        reactToastify.success('اطلاعات بلیط برای ویرایش بارگذاری شد');
+      } catch (err) {
+        console.error('Error loading edit ticket data:', err);
+        // در صورت خطا، اطلاعات را حذف کن
+        localStorage.removeItem('edit_floating_ticket');
+      }
+    };
+    
+    // فقط زمانی که لیست‌های مورد نیاز بارگذاری شده‌اند، بررسی کن
+    if (airlines.length > 0 && routes.length > 0 && cities.length > 0) {
+      checkEditTicket();
+    }
+  }, [airlines, routes, cities]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
@@ -995,56 +1091,56 @@ export default function FloatingTicket() {
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  {/* دکمه صادر کردن اکسل */}
-                  <button
-                    onClick={() => handleExportExcel('system')}
-                    disabled={isExporting || isGenerating || passengers.length === 0}
-                    className={`flex items-center justify-center gap-3 px-8 py-5 rounded-full text-xl font-semibold transition-colors shadow-xl ${
-                      isExporting || isGenerating || passengers.length === 0
-                        ? 'bg-gray-400 text-white cursor-not-allowed' 
-                        : 'bg-emerald-600 text-white hover:bg-emerald-700 transform hover:scale-105'
-                    }`}
-                  >
-                    {isExporting ? (
-                      <FaSpinner className="animate-spin text-2xl" />
-                    ) : (
-                      <FaFileExcel className="text-2xl" />
-                    )}
-                    <span>{isExporting ? 'در حال صادر کردن...' : 'صادر کردن به اکسل'}</span>
-                  </button>
-                  
-                  {/* دکمه وارد کردن اکسل */}
-                  <label
-                    className={`flex items-center justify-center gap-3 px-8 py-5 rounded-full text-xl font-semibold transition-all duration-300 shadow-xl ${
-                      isImporting || isGenerating
-                        ? 'bg-gray-400 text-white cursor-wait' 
-                        : 'bg-amber-600 text-white hover:bg-amber-700 cursor-pointer transform hover:scale-105'
-                    }`}
-                  >
-                    {isImporting ? (
-                      <FaSpinner className="animate-spin text-2xl" />
-                    ) : (
-                      <FaUpload className="text-2xl" />
-                    )}
-                    <span>{isImporting ? 'در حال وارد کردن...' : 'بارگذاری از اکسل'}</span>
-                    <input
-                      type="file"
-                      accept=".xlsx"
-                      onChange={handleImportExcel}
-                      disabled={isImporting || isGenerating}
-                      className="hidden"
-                    />
-                  </label>
-                  
-                  {/* دکمه افزودن مسافر */}
-                  <button
-                    onClick={addPassenger}
-                    className="bg-indigo-600 text-white px-3 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors"
-                  >
-                    <FaPlus />
-                    <span className="hidden sm:inline">افزودن مسافر</span>
-                  </button>
+                <div className="bg-white p-3 rounded-xl shadow-md">
+                  <h3 className="text-lg font-bold mb-3 text-center">ابزارها</h3>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleExportExcel('system')}
+                      disabled={isExporting || isGenerating || passengers.length === 0}
+                      className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                        isExporting || isGenerating || passengers.length === 0
+                          ? 'bg-gray-400 text-white cursor-not-allowed' 
+                          : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      }`}
+                    >
+                      {isExporting ? (
+                        <FaSpinner className="animate-spin" />
+                      ) : (
+                        <FaFileExcel />
+                      )}
+                      <span>{isExporting ? 'در حال صادر کردن...' : 'صادر کردن اکسل'}</span>
+                    </button>
+                    
+                    <label
+                      className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                        isImporting || isGenerating
+                          ? 'bg-gray-400 text-white cursor-wait' 
+                          : 'bg-amber-600 text-white hover:bg-amber-700 cursor-pointer'
+                      }`}
+                    >
+                      {isImporting ? (
+                        <FaSpinner className="animate-spin" />
+                      ) : (
+                        <FaUpload />
+                      )}
+                      <span>{isImporting ? 'در حال بارگذاری...' : 'بارگذاری اکسل'}</span>
+                      <input
+                        type="file"
+                        accept=".xlsx"
+                        onChange={handleImportExcel}
+                        disabled={isImporting || isGenerating}
+                        className="hidden"
+                      />
+                    </label>
+                    
+                    <button
+                      onClick={addPassenger}
+                      className="bg-indigo-600 text-white px-3 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-indigo-700 transition-colors"
+                    >
+                      <FaPlus />
+                      <span className="hidden sm:inline">افزودن مسافر</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1272,7 +1368,7 @@ export default function FloatingTicket() {
                     {/* فیلد تاریخ انقضای پاسپورت - فقط زمانی نمایش داده می‌شود که نوع سند پاسپورت باشد */}
                     {passenger.documentType === 'passport' && (
                       <div>
-                        <label className="block text-gray-700 mb-2">تاریخ انقضای پاسپورت (اختیاری)</label>
+                        <label className="block text-gray-700 mb-2">تاریخ انقضای پاسپورت</label>
                         <PersianDatePicker
                           value={passenger.passportExpiry || ''}
                           onChange={(date) => updatePassenger(passenger.id, 'passportExpiry', date)}
@@ -1288,94 +1384,91 @@ export default function FloatingTicket() {
           )}
         </div>
         
-        {/* دکمه تولید و دانلود */}
-        <div className="mt-10 flex justify-center gap-4 flex-wrap">
-          {/* دکمه‌های صادر کردن و وارد کردن */}
-          <div className="flex flex-col md:flex-row gap-3">
-            <div className="bg-white p-3 rounded-xl shadow-md">
-              <h3 className="text-lg font-bold mb-3 text-center">صادر کردن به اکسل</h3>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleExportExcel('system')}
-                  disabled={isExporting || isGenerating || passengers.length === 0}
-                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                    isExporting || isGenerating || passengers.length === 0
-                      ? 'bg-gray-400 text-white cursor-not-allowed' 
-                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  }`}
-                >
-                  {isExporting ? (
-                    <FaSpinner className="animate-spin" />
-                  ) : (
-                    <FaFileExcel />
-                  )}
-                  <span>{isExporting ? 'در حال صادر کردن...' : 'فرمت سیستمی'}</span>
-                </button>
+        {/* به جای دو بخش جداگانه دکمه‌های پایین صفحه، آنها را در یک باکس واحد با طراحی بهتر قرار می‌دهیم */}
+        <div className="mt-10 flex justify-center">
+          <div className="bg-white p-5 rounded-xl shadow-lg w-full max-w-4xl">
+            <h2 className="text-xl font-bold mb-6 text-center text-gray-800 border-b pb-3">ابزارهای مدیریت بلیط</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* بخش اول: صادر کردن و بارگذاری اکسل */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <h3 className="text-lg font-semibold mb-4 text-center text-gray-700">مدیریت فایل اکسل</h3>
                 
-                <button
-                  onClick={() => handleExportExcel('airline')}
-                  disabled={isExporting || isGenerating || passengers.length === 0}
-                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                    isExporting || isGenerating || passengers.length === 0
-                      ? 'bg-gray-400 text-white cursor-not-allowed' 
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  {isExporting ? (
-                    <FaSpinner className="animate-spin" />
-                  ) : (
-                    <FaPlane className="mr-1" />
-                  )}
-                  <span>{isExporting ? 'در حال صادر کردن...' : 'فرمت خطوط هوایی'}</span>
-                </button>
+                <div className="space-y-3">
+                  <div className="flex flex-col space-y-2">
+                    <span className="text-sm font-medium text-gray-600">صادر کردن به اکسل:</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleExportExcel('system')}
+                        disabled={isExporting || isGenerating || passengers.length === 0}
+                        className={`flex-1 flex items-center justify-center gap-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                          isExporting || isGenerating || passengers.length === 0
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        }`}
+                      >
+                        {isExporting ? (
+                          <FaSpinner className="animate-spin" />
+                        ) : (
+                          <FaFileExcel />
+                        )}
+                        <span>{isExporting ? 'در حال صادر کردن...' : 'فرمت سیستمی'}</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => handleExportExcel('airline')}
+                        disabled={isExporting || isGenerating || passengers.length === 0}
+                        className={`flex-1 flex items-center justify-center gap-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                          isExporting || isGenerating || passengers.length === 0
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                      >
+                        {isExporting ? (
+                          <FaSpinner className="animate-spin" />
+                        ) : (
+                          <FaPlane className="mr-1" />
+                        )}
+                        <span>{isExporting ? 'در حال صادر کردن...' : 'فرمت خطوط هوایی'}</span>
+                      </button>
+                    </div>
+                  </div>
+                  
+                 
+                </div>
+              </div>
+              
+              {/* بخش دوم: تولید بلیط PDF */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <h3 className="text-lg font-semibold mb-4 text-center text-gray-700">تولید بلیط</h3>
+                
+                <div className="flex flex-col space-y-2">
+                  <span className="text-sm font-medium text-gray-600">دانلود بلیط PDF:</span>
+                  <button
+                    onClick={generateAndDownloadTicket}
+                    disabled={isGenerating || passengers.length === 0}
+                    className={`w-full h-full py-4 rounded-md flex items-center justify-center gap-2 text-base font-semibold transition-colors ${ 
+                      isGenerating || passengers.length === 0
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md'
+                    }`}
+                  >
+                    {isGenerating ? (
+                      <>
+                        <FaSpinner className="animate-spin" />
+                        <span>در حال تولید PDF...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FaFileDownload className="text-lg" />
+                        <span>تولید و دانلود بلیط PDF</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
-          
-            <label
-              className={`flex items-center justify-center gap-3 px-8 py-5 rounded-full text-lg font-semibold transition-all duration-300 shadow-xl ${
-                isImporting || isGenerating
-                  ? 'bg-gray-400 text-white cursor-wait' 
-                  : 'bg-amber-600 text-white hover:bg-amber-700 cursor-pointer transform hover:scale-105'
-              }`}
-            >
-              {isImporting ? (
-                <FaSpinner className="animate-spin text-xl" />
-              ) : (
-                <FaUpload className="text-xl" />
-              )}
-              <span>{isImporting ? 'در حال وارد کردن...' : 'بارگذاری از اکسل'}</span>
-              <input
-                type="file"
-                accept=".xlsx"
-                onChange={handleImportExcel}
-                disabled={isImporting || isGenerating}
-                className="hidden"
-              />
-            </label>
           </div>
-          
-          {/* دکمه تولید و دانلود PDF */}
-          <button
-            onClick={generateAndDownloadTicket}
-            disabled={isGenerating || passengers.length === 0}
-            className={`flex items-center justify-center gap-3 px-8 py-4 rounded-full text-lg font-semibold transition-colors shadow-lg ${ 
-              isGenerating || passengers.length === 0
-                ? 'bg-gray-400 text-white cursor-not-allowed'
-                : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700'
-            }`}
-          >
-            {isGenerating ? (
-              <>
-                <FaSpinner className="animate-spin" />
-                <span>در حال تولید PDF...</span>
-              </>
-            ) : (
-              <>
-                <FaFileDownload />
-                <span>تولید و دانلود بلیط PDF</span>
-              </>
-            )}
-          </button>
         </div>
       </motion.div>
     </div>

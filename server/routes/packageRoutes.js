@@ -325,7 +325,7 @@ router.get('/:id/hotel-report', auth, async (req, res) => {
       worksheet.mergeCells('C5:H5');
       const hotelNames = package.hotels.map(h => {
         if (typeof h.hotel === 'object' && h.hotel !== null && 'name' in h.hotel) {
-          return h.hotel.name + (h.stayDuration ? ` (${h.stayDuration} شب)` : '');
+          return h.hotel.name + (h.stayDuration ? ` (${h.stayDuration}  شب )` : '');
         }
         return 'نامشخص';
       }).join(' / ');
@@ -1093,6 +1093,13 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
         const randomTicketNumber = Math.floor(Math.random() * 10000000).toString().padStart(7, '0');
         
         // --- نگاشت داده‌ها به نام فیلدها --- 
+        // اضافه کردن لاگ برای بررسی مقادیر شماره پرواز
+        console.log('FLIGHT NUMBERS DEBUG:', {
+          departureFlightNumber: packageData.transportation?.departureFlightNumber || 'Not set',
+          returnFlightNumber: packageData.transportation?.returnFlightNumber || 'Not set',
+          ticketType: ticketInfo.type
+        });
+        
         const fieldDataMap = {
           'from': ticketInfo.origin || '',
           'to': ticketInfo.destination || '',
@@ -1101,7 +1108,9 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
           'name': passenger.englishFirstName || '',
           'familiy': passenger.englishLastName || '',
           'pnumber': passenger.passportNumber || passenger.nationalId || '',
-          'flightn': ticketInfo.type === 'departure' ? 'Departure' : 'Return',
+          'flightn': ticketInfo.type === 'departure' 
+                    ? (packageData.transportation?.departureFlightNumber || 'Departure') 
+                    : (packageData.transportation?.returnFlightNumber || 'Return'),
           'aircraft': isAirTransportation && ticketInfo.airline?.aircraftModel ? 
                       ticketInfo.airline.aircraftModel : 
                       '',
@@ -1182,7 +1191,8 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
           try {
             const field = form.getTextField(mainFieldName);
             if (field) {
-              field.setText(fieldValue);
+              // field.setText(fieldValue);
+              setTextWithSkyBlueColor(field, fieldValue);
               
               // مطمئن شویم که از فونت وزیر استفاده می‌کنیم
               if (vazirFont) {
@@ -1207,7 +1217,8 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
               try {
                 const field = form.getTextField(altFieldName);
                 if (field) {
-                  field.setText(fieldValue);
+                  // field.setText(fieldValue);
+                  setTextWithSkyBlueColor(field, fieldValue);
                   
                   // مطمئن شویم که از فونت وزیر استفاده می‌کنیم
                   if (vazirFont) {
@@ -1683,6 +1694,13 @@ router.post('/reservation/:id/generate-tickets', auth, async (req, res) => {
         const randomTicketNumber = Math.floor(Math.random() * 10000000).toString().padStart(7, '0');
         
         // --- نگاشت داده‌ها به نام فیلدها --- 
+        // اضافه کردن لاگ برای بررسی مقادیر شماره پرواز
+        console.log('FLIGHT NUMBERS DEBUG:', {
+          departureFlightNumber: packageData.transportation?.departureFlightNumber || 'Not set',
+          returnFlightNumber: packageData.transportation?.returnFlightNumber || 'Not set',
+          ticketType: ticketInfo.type
+        });
+        
         const fieldDataMap = {
           'from': ticketInfo.origin || '',
           'to': ticketInfo.destination || '',
@@ -1691,7 +1709,9 @@ router.post('/reservation/:id/generate-tickets', auth, async (req, res) => {
           'name': passenger.englishFirstName || '',
           'familiy': passenger.englishLastName || '',
           'pnumber': passenger.passportNumber || passenger.nationalId || '',
-          'flightn': ticketInfo.type === 'departure' ? 'Departure' : 'Return',
+          'flightn': ticketInfo.type === 'departure' 
+                    ? (packageData.transportation?.departureFlightNumber || 'Departure') 
+                    : (packageData.transportation?.returnFlightNumber || 'Return'),
           'aircraft': isAirTransportation && ticketInfo.airline?.aircraftModel ? 
                       ticketInfo.airline.aircraftModel : 
                       '',
@@ -1764,7 +1784,8 @@ router.post('/reservation/:id/generate-tickets', auth, async (req, res) => {
           try {
             const field = form.getTextField(mainFieldName);
             if (field) {
-              field.setText(fieldValue);
+              // field.setText(fieldValue);
+              setTextWithSkyBlueColor(field, fieldValue);
               
               // مطمئن شویم که از فونت وزیر استفاده می‌کنیم
               if (vazirFont) {
@@ -1789,7 +1810,8 @@ router.post('/reservation/:id/generate-tickets', auth, async (req, res) => {
               try {
                 const field = form.getTextField(altFieldName);
                 if (field) {
-                  field.setText(fieldValue);
+                  // field.setText(fieldValue);
+                  setTextWithSkyBlueColor(field, fieldValue);
                   
                   // مطمئن شویم که از فونت وزیر استفاده می‌کنیم
                   if (vazirFont) {
@@ -2486,6 +2508,13 @@ router.post('/reservation/:id/passenger/:passengerId/generate-ticket', auth, asy
       const randomTicketNumber = Math.floor(Math.random() * 10000000).toString().padStart(7, '0');
       
       // --- نگاشت داده‌ها به نام فیلدها --- 
+      // اضافه کردن لاگ برای بررسی مقادیر شماره پرواز
+      console.log('FLIGHT NUMBERS DEBUG:', {
+        departureFlightNumber: packageData.transportation?.departureFlightNumber || 'Not set',
+        returnFlightNumber: packageData.transportation?.returnFlightNumber || 'Not set',
+        ticketType: ticketInfo.type
+      });
+      
       const fieldDataMap = {
         'from': ticketInfo.origin || '',
         'to': ticketInfo.destination || '',
@@ -2494,7 +2523,9 @@ router.post('/reservation/:id/passenger/:passengerId/generate-ticket', auth, asy
         'name': passenger.englishFirstName || '',
         'familiy': passenger.englishLastName || '',
         'pnumber': passenger.passportNumber || passenger.nationalId || '',
-        'flightn': ticketInfo.type === 'departure' ? 'Departure' : 'Return',
+        'flightn': ticketInfo.type === 'departure' 
+                  ? (packageData.transportation?.departureFlightNumber || 'Departure') 
+                  : (packageData.transportation?.returnFlightNumber || 'Return'),
         'aircraft': isAirTransportation && ticketInfo.airline?.aircraftModel ? 
                     ticketInfo.airline.aircraftModel : 
                     '',
@@ -2567,7 +2598,8 @@ router.post('/reservation/:id/passenger/:passengerId/generate-ticket', auth, asy
         try {
           const field = form.getTextField(mainFieldName);
           if (field) {
-            field.setText(fieldValue);
+            // field.setText(fieldValue);
+            setTextWithSkyBlueColor(field, fieldValue);
             
             // مطمئن شویم که از فونت وزیر استفاده می‌کنیم
             if (vazirFont) {
@@ -2592,7 +2624,8 @@ router.post('/reservation/:id/passenger/:passengerId/generate-ticket', auth, asy
             try {
               const field = form.getTextField(altFieldName);
               if (field) {
-                field.setText(fieldValue);
+                // field.setText(fieldValue);
+                setTextWithSkyBlueColor(field, fieldValue);
                 
                 // مطمئن شویم که از فونت وزیر استفاده می‌کنیم
                 if (vazirFont) {
@@ -2814,5 +2847,28 @@ router.post('/reservation/:id/passenger/:passengerId/generate-ticket', auth, asy
     res.status(500).json({ message: 'خطای داخلی سرور هنگام تولید PDF.' });
   }
 });
+
+/**
+ * تابع کمکی برای تنظیم متن با رنگ آبی آسمانی و اندازه کوچکتر
+ * @param {PDFTextField} field - فیلد متنی PDF
+ * @param {string} text - متن مورد نظر
+ * @param {number} fontSize - اندازه فونت (به صورت اختیاری)
+ */
+function setTextWithSkyBlueColor(field, text, fontSize = 9) {
+  try {
+    // تنظیم رنگ آبی آسمانی
+    field.setFontColor(rgb(0.53, 0.81, 0.92));
+    
+    // تنظیم اندازه فونت کوچکتر
+    field.setFontSize(fontSize);
+    
+    // تنظیم متن
+    field.setText(text || '');
+  } catch (error) {
+    console.error(`Error setting text with custom formatting: ${error.message}`);
+    // در صورت خطا، از روش معمولی استفاده می‌کنیم
+    field.setText(text || '');
+  }
+}
 
 module.exports = router; 

@@ -69,15 +69,15 @@ export default function Dashboard() {
       setUser(JSON.parse(storedUser))
     }
     
-    // دریافت آمار داشبورد
+    // دریافت آمار دا شب ورد
     const fetchDashboardData = async () => {
       try {
         setLoading(true)
         const data = await getPackageStats()
         setDashboardData(data)
       } catch (err: any) {
-        console.error('خطا در دریافت آمار داشبورد:', err)
-        setError(err.message || 'خطا در دریافت اطلاعات داشبورد')
+        console.error('خطا در دریافت آمار دا شب ورد:', err)
+        setError(err.message || 'خطا در دریافت اطلاعات دا شب ورد')
       } finally {
         setLoading(false)
       }
@@ -125,7 +125,7 @@ export default function Dashboard() {
     <main className="px-6 py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-2">
-          {user?.role === 'super-admin' ? 'داشبورد مدیریت کل' : 'داشبورد مدیریت'}
+          {user?.role === 'super-admin' ? 'داشبورد مدیریت کل' : 'دا شب ورد مدیریت'}
         </h1>
         <p className="text-dark-text-secondary">
           به پنل مدیریت تورنگار خوش آمدید. در اینجا می‌توانید آمار و وضعیت سیستم را مشاهده کنید.

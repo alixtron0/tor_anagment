@@ -98,10 +98,10 @@ const PersianDatePicker = ({
     const firstDayOfMonth = currentMonth.clone().startOf('jMonth')
     const daysInMonth = currentMonth.jDaysInMonth()
     
-    // تعیین روز هفته برای اولین روز ماه (0 = شنبه، 6 = جمعه)
+    // تعیین شب هفته برای اولین شب ماه (0 = شنبه، 6 = جمعه)
     const firstDayOfWeek = firstDayOfMonth.day()
     
-    // تنظیم شنبه به عنوان روز اول هفته
+    // تنظیم شنبه به عنوان شب اول هفته
     const startOffset = (firstDayOfWeek + 1) % 7
     
     const days = []
@@ -148,12 +148,12 @@ const PersianDatePicker = ({
     }
   }, [isOpen])
 
-  // بررسی آیا روز انتخاب شده است
+  // بررسی آیا شب انتخاب شده است
   const isSelectedDay = (day: moment.Moment) => {
     return selectedDate && day.format('jYYYY/jMM/jDD') === selectedDate.format('jYYYY/jMM/jDD')
   }
 
-  // بررسی آیا روز امروز است
+  // بررسی آیا شب امروز است
   const isToday = (day: moment.Moment) => {
     return day.format('jYYYY/jMM/jDD') === moment().locale('fa').format('jYYYY/jMM/jDD')
   }

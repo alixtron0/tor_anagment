@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 const Airline = require('../models/Airline');
 const Route = require('../models/Route');
 const City = require('../models/City');
+const FloatingTicket = require('../models/FloatingTicket');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fontkit = require('@pdf-lib/fontkit');
 const fs = require('fs');
@@ -604,7 +605,7 @@ router.post('/generate', [
                 const price = parseInt(flightInfo.price) || 0;
                 const tax = parseInt(flightInfo.tax) || 0;
                 const total = price + tax;
-                field.setText(total.toString());
+                setTextWithSkyBlueColor(field, total.toString());
                 console.log(`Setting total field: price ${price} + tax ${tax} = total ${total}`);
             } else if (fieldName === 'aircraft') {
                 // اطمینان حاصل کنیم که نام هواپیما به درستی تنظیم می‌شود
@@ -623,9 +624,9 @@ router.post('/generate', [
                     console.log(`Using flightInfo.aircraft: "${aircraftText}"`);
                 }
                 console.log(`Setting aircraft field to: "${aircraftText}"`);
-                field.setText(aircraftText);
+                setTextWithSkyBlueColor(field, aircraftText);
             } else {
-                field.setText(valueToSet);
+                setTextWithSkyBlueColor(field, valueToSet);
             }
             
             // قرار دادن متن در وسط فیلد
@@ -704,6 +705,35 @@ router.post('/generate', [
     try {
         fs.writeFileSync(filePath, finalPdfBytes);
         console.log(`Generated PDF with ${passengers.length} passengers saved to: ${filePath}`);
+
+        // --- ذخیره اطلاعات بلیط در دیتابیس ---
+        try {
+            const floatingTicket = new FloatingTicket({
+                passengers,
+                flightInfo: {
+                    ...flightInfo,
+                    origin,
+                    destination,
+                    routeId: sourceType === 'route' && route ? route._id : undefined
+                },
+                airline: airline ? {
+                    _id: airline._id,
+                    name: airline.name,
+                    englishName: airline.englishName,
+                    logo: airline.logo,
+                    aircraftModel: airline.aircraftModel
+                } : undefined,
+                sourceType,
+                pdfPath: filePath,
+                createdBy: req.user.id
+            });
+            
+            await floatingTicket.save();
+            console.log(`Floating ticket data saved to database with ID: ${floatingTicket._id}`);
+        } catch (dbError) {
+            console.error('Error saving floating ticket data to database:', dbError);
+            // ادامه روند اجرا حتی در صورت خطا در ذخیره‌سازی دیتابیس
+        }
 
         // --- زمان‌بندی حذف فایل پس از 10 دقیقه ---
         const delayMinutes = 10;
@@ -1683,6 +1713,651 @@ async function insertLogoAsImage(pdfDoc, logoFilename) {
   } catch (err) {
       console.error(`Failed to load logo as image:`, err);
       return false;
+  }
+}
+
+/**
+ * @route   GET /api/floating-ticket/history
+ * @desc    دریافت تاریخچه بلیط‌های شناور
+ * @access  خصوصی
+ */
+router.get('/history', auth, async (req, res) => {
+  try {
+    // پارامترهای صفحه‌بندی
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    
+    // پارامترهای مرتب‌سازی
+    const sort = req.query.sort || '-createdAt'; // پیش‌فرض: جدیدترین بلیط‌ها اول
+
+    // فیلترهای جستجو
+    const filters = {};
+    
+    // اگر کاربر admin+ نباشد، فقط بلیط‌های خودش را نشان بده
+    if (req.user.role !== 'super-admin' && req.user.role !== 'admin') {
+      filters.createdBy = req.user.id;
+    }
+    
+    // جستجو در اطلاعات پرواز
+    if (req.query.origin) {
+      filters['flightInfo.origin'] = { $regex: req.query.origin, $options: 'i' };
+    }
+    
+    if (req.query.destination) {
+      filters['flightInfo.destination'] = { $regex: req.query.destination, $options: 'i' };
+    }
+    
+    if (req.query.date) {
+      filters['flightInfo.date'] = req.query.date;
+    }
+    
+    if (req.query.flightNumber) {
+      filters['flightInfo.flightNumber'] = { $regex: req.query.flightNumber, $options: 'i' };
+    }
+    
+    if (req.query.airline) {
+      filters['airline.name'] = { $regex: req.query.airline, $options: 'i' };
+    }
+
+    // جستجو در اطلاعات مسافران
+    if (req.query.passengerName) {
+      const nameRegex = { $regex: req.query.passengerName, $options: 'i' };
+      filters.$or = [
+        { 'passengers.englishFirstName': nameRegex },
+        { 'passengers.englishLastName': nameRegex }
+      ];
+    }
+    
+    if (req.query.documentNumber) {
+      filters['passengers.documentNumber'] = { $regex: req.query.documentNumber, $options: 'i' };
+    }
+
+    // محدوده زمانی
+    if (req.query.dateFrom) {
+      const fromDate = new Date(req.query.dateFrom);
+      filters.createdAt = { $gte: fromDate };
+    }
+    
+    if (req.query.dateTo) {
+      const toDate = new Date(req.query.dateTo);
+      if (filters.createdAt) {
+        filters.createdAt.$lte = toDate;
+      } else {
+        filters.createdAt = { $lte: toDate };
+      }
+    }
+
+    // اجرای کوئری با populate کردن اطلاعات createdBy
+    const tickets = await FloatingTicket.find(filters)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .populate('createdBy', 'fullName role');
+    
+    // محاسبه کل رکوردها برای صفحه‌بندی
+    const totalTickets = await FloatingTicket.countDocuments(filters);
+    
+    res.json({
+      tickets,
+      pagination: {
+        page,
+        limit,
+        totalPages: Math.ceil(totalTickets / limit),
+        totalRecords: totalTickets
+      }
+    });
+  } catch (err) {
+    console.error('خطا در دریافت تاریخچه بلیط‌های شناور:', err.message);
+    res.status(500).json({ message: 'خطای سرور در دریافت تاریخچه بلیط‌های شناور' });
+  }
+});
+
+/**
+ * @route   GET /api/floating-ticket/history/:id
+ * @desc    دریافت جزئیات یک بلیط شناور
+ * @access  خصوصی
+ */
+router.get('/history/:id', auth, async (req, res) => {
+  try {
+    const ticket = await FloatingTicket.findById(req.params.id).populate('createdBy', 'fullName role');
+    
+    if (!ticket) {
+      return res.status(404).json({ message: 'بلیط مورد نظر یافت نشد' });
+    }
+    
+    // بررسی دسترسی: فقط super-admin، admin یا سازنده بلیط می‌توانند آن را مشاهده کنند
+    if (req.user.role !== 'super-admin' && req.user.role !== 'admin' && 
+        ticket.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'شما اجازه دسترسی به این بلیط را ندارید' });
+    }
+    
+    res.json(ticket);
+  } catch (err) {
+    console.error('خطا در دریافت جزئیات بلیط شناور:', err.message);
+    res.status(500).json({ message: 'خطای سرور در دریافت جزئیات بلیط شناور' });
+  }
+});
+
+/**
+ * @route   POST /api/floating-ticket/regenerate/:id
+ * @desc    تولید مجدد یک بلیط شناور
+ * @access  خصوصی
+ */
+router.post('/regenerate/:id', auth, async (req, res) => {
+  try {
+    const ticket = await FloatingTicket.findById(req.params.id);
+    
+    if (!ticket) {
+      return res.status(404).json({ message: 'بلیط مورد نظر یافت نشد' });
+    }
+    
+    // بررسی دسترسی
+    if (req.user.role !== 'super-admin' && req.user.role !== 'admin' && 
+        ticket.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'شما اجازه تولید مجدد این بلیط را ندارید' });
+    }
+    
+    // به‌روزرسانی درخواست با داده‌های بلیط
+    const regenerateData = {
+      passengers: ticket.passengers,
+      flightInfo: ticket.flightInfo,
+      sourceType: ticket.sourceType,
+      airline: ticket.airline,
+      route: ticket.flightInfo.routeId ? { _id: ticket.flightInfo.routeId } : undefined
+    };
+    
+    // تولید پی‌دی‌اف با استفاده از همان کدی که در مسیر /generate استفاده می‌شود
+    
+    // --- مسیر قالب و فونت --- 
+    const templatePath = path.join(__dirname, '..', 'assets', 'templates', 'template.pdf');
+    const fontPath = path.join(__dirname, '..', 'assets', 'fonts', 'ttf', 'Vazirmatn-Regular.ttf');
+
+    // --- خواندن فایل‌ها --- 
+    let templateBytes, vazirFontBytes;
+    try {
+      templateBytes = fs.readFileSync(templatePath);
+      console.log('PDF template read successfully.');
+    } catch (err) {
+        console.error("CRITICAL: Could not read PDF template file:", err);
+        return res.status(500).json({ message: 'خطا در خواندن فایل قالب PDF.' });
+    }
+    try {
+      vazirFontBytes = fs.readFileSync(fontPath);
+      console.log('Vazir font file read successfully.');
+    } catch (err) {
+        console.warn("Could not read Vazir font file:", err, "Proceeding without custom font.");
+        vazirFontBytes = null; // ادامه بدون فونت وزیر
+    }
+
+    // ایجاد یک فایل PDF خروجی نهایی که همه صفحات مسافران را در آن قرار خواهیم داد
+    const finalPdfDoc = await PDFDocument.create();
+    if (vazirFontBytes) {
+      finalPdfDoc.registerFontkit(fontkit);
+    }
+
+    // پردازش هر مسافر و ایجاد صفحه مربوط به آن
+    for (const passenger of regenerateData.passengers) {
+      // --- بارگذاری PDF و ثبت Fontkit برای هر مسافر --- 
+      let pdfDoc;
+      try {
+        pdfDoc = await PDFDocument.load(templateBytes);
+        pdfDoc.registerFontkit(fontkit); 
+        console.log(`PDF Template loaded for passenger ${passenger.englishFirstName} ${passenger.englishLastName}`);
+      } catch (loadError) {
+        console.error('CRITICAL: Error loading PDF template or registering fontkit:', loadError);
+        return res.status(500).json({ message: 'خطای حیاتی در بارگذاری قالب PDF.' });
+      }
+      
+      // --- جاسازی فونت --- 
+      let vazirFont = null; // مقداردهی اولیه
+      if (vazirFontBytes) {
+        try {
+          vazirFont = await pdfDoc.embedFont(vazirFontBytes);
+        } catch (fontEmbedError) {
+            console.error("ERROR: Could not embed Vazir font:", fontEmbedError);
+        }
+      }
+        
+      // --- دریافت فرم و فیلدها --- 
+      let form;
+      try {
+         form = pdfDoc.getForm();
+      } catch (formError) {
+          console.error('CRITICAL: Error getting form from PDF:', formError);
+          if (formError.message.includes('does not contain a form')) {
+               console.warn("The PDF template does not seem to contain an AcroForm.");
+          }
+          return res.status(500).json({ message: 'خطای حیاتی در پردازش فرم PDF.' });
+      }
+      
+      // --- نگاشت داده‌ها به نام فیلدها --- 
+      const fieldDataMap = {
+        'from': regenerateData.flightInfo.origin || '',
+        'to': regenerateData.flightInfo.destination || '',
+        'date': regenerateData.flightInfo.date ? formatPersianDate(regenerateData.flightInfo.date) : '',
+        'time': regenerateData.flightInfo.time ? formatTimeToHours24(regenerateData.flightInfo.time) : '',
+        'name': passenger.englishFirstName || '',
+        'familiy': passenger.englishLastName || '',
+        'pnumber': passenger.documentNumber || '',
+        'pexpiry': passenger.passportExpiry ? formatPersianDate(passenger.passportExpiry) : '',
+        'flightn': regenerateData.flightInfo.flightNumber || '',
+        'aircraft': regenerateData.airline && regenerateData.airline.aircraftModel ? 
+                      regenerateData.airline.aircraftModel : 
+                      regenerateData.flightInfo.aircraft || '',
+        'price': regenerateData.flightInfo.price || '',
+        'tax': regenerateData.flightInfo.tax || '',
+        'total': regenerateData.flightInfo.price && regenerateData.flightInfo.tax ? 
+                 String(parseInt(regenerateData.flightInfo.price) + parseInt(regenerateData.flightInfo.tax)) : '',
+        'logo_af_image': regenerateData.airline && regenerateData.airline.logo ? regenerateData.airline.logo : '',
+        'age': passenger.birthDate ? calculateAgeCategory(passenger.birthDate) : '---',
+        'fromair': regenerateData.flightInfo.fromair || '',
+        'toair': regenerateData.flightInfo.toair || '',
+        'fromAirportCode': regenerateData.flightInfo.fromAirportCode || '',
+        'toAirportCode': regenerateData.flightInfo.toAirportCode || ''
+      };
+
+      // پر کردن فیلدها
+      for (const fieldName in fieldDataMap) {
+        try {
+          // پردازش ویژه برای فیلد logo_af_image
+          if (fieldName === 'logo_af_image') {
+            console.log("Processing logo_af_image field in regenerate");
+            // تلاش برای درج لوگوی ایرلاین
+            if (regenerateData.airline && regenerateData.airline.logo) {
+              // دریافت فیلد logo_af_image
+              try {
+                const fields = form.getFields();
+                const logoField = fields.find(field => field.getName() === 'logo_af_image');
+                
+                if (logoField) {
+                  console.log(`Found logo field with type: ${logoField.constructor.name}`);
+                  
+                  // خواندن فایل لوگو
+                  const logoPath = path.join(__dirname, '..', 'uploads', 'airlines', path.basename(regenerateData.airline.logo));
+                  let logoImage = null;
+                  
+                  if (fs.existsSync(logoPath)) {
+                    try {
+                      const logoBuffer = fs.readFileSync(logoPath);
+                      
+                      // بارگذاری تصویر با توجه به نوع فایل
+                      if (logoPath.toLowerCase().endsWith('.png')) {
+                        logoImage = await pdfDoc.embedPng(logoBuffer);
+                      } else if (logoPath.toLowerCase().endsWith('.jpg') || logoPath.toLowerCase().endsWith('.jpeg')) {
+                        logoImage = await pdfDoc.embedJpg(logoBuffer);
+                      } else {
+                        // تلاش برای بارگذاری با فرمت‌های مختلف
+                        try {
+                          logoImage = await pdfDoc.embedPng(logoBuffer);
+                        } catch (e) {
+                          try {
+                            logoImage = await pdfDoc.embedJpg(logoBuffer);
+                          } catch (e2) {
+                            console.error("Could not embed image as PNG or JPG");
+                          }
+                        }
+                      }
+                      
+                      if (logoImage) {
+                        // تنظیم تصویر روی فیلد با توجه به نوع فیلد
+                        if (logoField.constructor.name === 'PDFButton') {
+                          try {
+                            const button = form.getButton('logo_af_image');
+                            if (button) {
+                              button.setImage(logoImage);
+                              console.log("Successfully set button image icon in regenerate");
+                            }
+                          } catch (buttonError) {
+                            console.error("Error setting button image:", buttonError);
+                          }
+                        } else {
+                          try {
+                            form.getTextField('logo_af_image').setImage(logoImage);
+                            console.log("Successfully set text field image in regenerate");
+                          } catch (textFieldError) {
+                            console.error("Error setting image to text field:", textFieldError);
+                          }
+                        }
+                      }
+                    } catch (logoError) {
+                      console.error("Error processing logo:", logoError);
+                    }
+                  } else {
+                    console.warn(`Logo file not found at ${logoPath}`);
+                    
+                    // جستجو در مسیرهای دیگر
+                    const airlineDir = path.join(__dirname, '..', 'uploads', 'airlines');
+                    if (fs.existsSync(airlineDir)) {
+                      const files = fs.readdirSync(airlineDir);
+                      
+                      // یافتن اولین فایل تصویر
+                      for (const file of files) {
+                        if (file.toLowerCase().endsWith('.png') || file.toLowerCase().endsWith('.jpg') || file.toLowerCase().endsWith('.jpeg')) {
+                          const fullPath = path.join(airlineDir, file);
+                          
+                          try {
+                            const logoBuffer = fs.readFileSync(fullPath);
+                            let embedLogo = null;
+                            
+                            if (file.toLowerCase().endsWith('.png')) {
+                              embedLogo = await pdfDoc.embedPng(logoBuffer);
+                            } else if (file.toLowerCase().endsWith('.jpg') || file.toLowerCase().endsWith('.jpeg')) {
+                              embedLogo = await pdfDoc.embedJpg(logoBuffer);
+                            }
+                            
+                            if (embedLogo) {
+                              // تنظیم لوگو روی فیلد
+                              if (logoField.constructor.name === 'PDFButton') {
+                                try {
+                                  const button = form.getButton('logo_af_image');
+                                  if (button) {
+                                    button.setImage(embedLogo);
+                                    console.log(`Successfully set button image with generic logo: ${file}`);
+                                    break;
+                                  }
+                                } catch (buttonError) {
+                                  console.error("Error setting button image:", buttonError);
+                                }
+                              } else {
+                                try {
+                                  form.getTextField('logo_af_image').setImage(embedLogo);
+                                  console.log(`Successfully set text field image with generic logo: ${file}`);
+                                  break;
+                                } catch (textFieldError) {
+                                  console.error("Error setting image to text field:", textFieldError);
+                                }
+                              }
+                            }
+                          } catch (error) {
+                            console.error(`Error processing generic logo ${file}:`, error);
+                          }
+                        }
+                      }
+                    }
+                  }
+                } else {
+                  console.warn("logo_af_image field not found in regenerate function");
+                }
+              } catch (logoFieldError) {
+                console.error("Error processing logo_af_image field:", logoFieldError);
+              }
+            }
+            
+            // ادامه به فیلد بعدی بعد از پردازش لوگو
+            continue;
+          }
+          
+          const field = form.getTextField(fieldName);
+          if (field) {
+            const valueToSet = String(fieldDataMap[fieldName]);
+            setTextWithSkyBlueColor(field, valueToSet);
+            
+            // قرار دادن متن در وسط فیلد
+            try {
+                field.setAlignment('Center');
+            } catch (alignmentError) {
+                console.warn(`Could not set alignment for field '${fieldName}'`);
+            }
+            
+            if (vazirFont) {
+               try {
+                   field.updateAppearances(vazirFont);
+               } catch (appearanceError) {
+                   console.error(`ERROR: Could not update appearances for field '${fieldName}'`);
+               }
+            }
+          } 
+        } catch (fieldError) {
+            console.error(`Error processing field '${fieldName}':`, fieldError);
+        }
+      }
+      
+      // پس‌زمینه سازی فرم
+      try {
+        form.flatten();
+      } catch (flattenError) {
+         console.error('Error flattening the PDF form:', flattenError);
+      }
+
+      // اضافه کردن صفحه به PDF نهایی
+      try {
+        const pdfBytes = await pdfDoc.save();
+        const loadedPdf = await PDFDocument.load(pdfBytes);
+        const [passengerPage] = await finalPdfDoc.copyPages(loadedPdf, [0]);
+        finalPdfDoc.addPage(passengerPage);
+      } catch (err) {
+        console.error(`Error adding page for passenger ${passenger.englishFirstName}:`, err);
+      }
+    }
+    
+    // ذخیره PDF نهایی
+    let finalPdfBytes;
+    try {
+      finalPdfBytes = await finalPdfDoc.save();
+    } catch (saveError) {
+      console.error('Error saving final PDF:', saveError);
+      return res.status(500).json({ message: 'خطا در ذخیره‌سازی PDF نهایی.' });
+    }
+    
+    // ذخیره فایل PDF در سرور
+    const generatedDir = path.join(__dirname, '..', 'assets', 'generated');
+    if (!fs.existsSync(generatedDir)){
+        fs.mkdirSync(generatedDir, { recursive: true });
+    }
+
+    const uniqueFilename = `ticket-${uuidv4()}.pdf`;
+    const filePath = path.join(generatedDir, uniqueFilename);
+
+    try {
+        fs.writeFileSync(filePath, finalPdfBytes);
+        console.log(`Generated PDF with ${regenerateData.passengers.length} passengers saved to: ${filePath}`);
+
+        // زمان‌بندی حذف فایل پس از 10 دقیقه
+        const delayMinutes = 10;
+        const delayMilliseconds = delayMinutes * 60 * 1000;
+        setTimeout(() => {
+            try {
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                    console.log(`Deleted temporary file: ${filePath}`);
+                }
+            } catch (deleteError) {
+                console.error(`Error deleting temporary file ${filePath}:`, deleteError);
+            }
+        }, delayMilliseconds);
+        
+        // ارسال لینک دانلود به فرانت‌اند
+        const downloadUrl = `/api/floating-ticket/download/${uniqueFilename}`;
+        res.json({ downloadUrl, passengerCount: regenerateData.passengers.length });
+
+    } catch (writeError) {
+        console.error(`Error writing PDF file to ${filePath}:`, writeError);
+        return res.status(500).json({ message: 'خطا در ذخیره فایل PDF در سرور.' });
+    }
+  } catch (err) {
+    console.error('خطا در تولید مجدد بلیط شناور:', err.message);
+    res.status(500).json({ message: 'خطای سرور در تولید مجدد بلیط شناور' });
+  }
+});
+
+/**
+ * @route   DELETE /api/floating-ticket/history/:id
+ * @desc    حذف یک بلیط شناور
+ * @access  خصوصی
+ */
+router.delete('/history/:id', auth, async (req, res) => {
+  try {
+    const ticket = await FloatingTicket.findById(req.params.id);
+    
+    if (!ticket) {
+      return res.status(404).json({ message: 'بلیط مورد نظر یافت نشد' });
+    }
+    
+    // بررسی دسترسی: فقط super-admin، admin یا سازنده بلیط می‌توانند آن را حذف کنند
+    if (req.user.role !== 'super-admin' && req.user.role !== 'admin' && 
+        ticket.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'شما اجازه حذف این بلیط را ندارید' });
+    }
+    
+    // حذف فایل PDF در صورت وجود
+    if (ticket.pdfPath && fs.existsSync(ticket.pdfPath)) {
+      try {
+        fs.unlinkSync(ticket.pdfPath);
+        console.log(`PDF file deleted: ${ticket.pdfPath}`);
+      } catch (fileError) {
+        console.error(`Error deleting PDF file: ${ticket.pdfPath}`, fileError);
+        // ادامه روند حذف حتی اگر فایل حذف نشود
+      }
+    }
+    
+    // حذف رکورد از دیتابیس
+    await FloatingTicket.findByIdAndDelete(req.params.id);
+    
+    res.json({ message: 'بلیط با موفقیت حذف شد' });
+  } catch (err) {
+    console.error('خطا در حذف بلیط شناور:', err.message);
+    res.status(500).json({ message: 'خطای سرور در حذف بلیط شناور' });
+  }
+});
+
+/**
+ * @route   PUT /api/floating-ticket/history/:id
+ * @desc    ویرایش یک بلیط شناور
+ * @access  خصوصی
+ */
+router.put('/history/:id', [
+  auth,
+  [
+    check('passengers', 'اطلاعات مسافران الزامی است').isArray({ min: 1 }),
+    check('flightInfo', 'اطلاعات پرواز الزامی است').isObject(),
+    check('flightInfo.date', 'تاریخ پرواز الزامی است').notEmpty()
+  ]
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    // بررسی وجود بلیط
+    const ticket = await FloatingTicket.findById(req.params.id);
+    
+    if (!ticket) {
+      return res.status(404).json({ message: 'بلیط مورد نظر یافت نشد' });
+    }
+    
+    // بررسی دسترسی
+    if (req.user.role !== 'super-admin' && req.user.role !== 'admin' && 
+        ticket.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'شما اجازه ویرایش این بلیط را ندارید' });
+    }
+
+    const { passengers, flightInfo, airline, sourceType } = req.body;
+    
+    // بررسی مقادیر مبدأ و مقصد
+    let origin = flightInfo.origin;
+    let destination = flightInfo.destination;
+    let routeId = flightInfo.routeId;
+
+    // اگر مسیر عوض شده باشد، باید اطلاعات جدید را از دیتابیس بگیریم
+    if (sourceType === 'route' && routeId) {
+      try {
+        const routeData = await Route.findById(routeId);
+        if (routeData) {
+          origin = routeData.origin;
+          destination = routeData.destination;
+        }
+      } catch (routeError) {
+        console.error('خطا در دریافت اطلاعات مسیر:', routeError);
+      }
+    }
+    // اگر نوع منبع "city" باشد، مقادیر ارسالی را استفاده می‌کنیم
+    else if (sourceType === 'city') {
+      if (flightInfo.originCityId) {
+        try {
+          const originCity = await City.findById(flightInfo.originCityId);
+          if (originCity) {
+            origin = originCity.name;
+          }
+        } catch (cityError) {
+          console.error('خطا در دریافت اطلاعات شهر مبدا:', cityError);
+        }
+      }
+      
+      if (flightInfo.destinationCityId) {
+        try {
+          const destinationCity = await City.findById(flightInfo.destinationCityId);
+          if (destinationCity) {
+            destination = destinationCity.name;
+          }
+        } catch (cityError) {
+          console.error('خطا در دریافت اطلاعات شهر مقصد:', cityError);
+        }
+      }
+    }
+
+    // اطمینان از وجود مبدأ و مقصد
+    if (!origin || !destination) {
+      return res.status(400).json({ message: 'مبدأ و مقصد پرواز الزامی است' });
+    }
+
+    // به‌روزرسانی اطلاعات بلیط
+    const updatedTicket = {
+      passengers,
+      flightInfo: {
+        ...flightInfo,
+        origin,
+        destination
+      },
+      airline: airline ? {
+        _id: airline._id,
+        name: airline.name,
+        englishName: airline.englishName,
+        logo: airline.logo,
+        aircraftModel: airline.aircraftModel
+      } : ticket.airline,
+      sourceType,
+      updatedAt: Date.now()
+    };
+
+    // ذخیره تغییرات
+    const result = await FloatingTicket.findByIdAndUpdate(
+      req.params.id, 
+      updatedTicket,
+      { new: true } // بازگرداندن مستند به‌روزرسانی شده
+    );
+
+    res.json({
+      message: 'بلیط با موفقیت به‌روزرسانی شد',
+      ticket: result
+    });
+  } catch (err) {
+    console.error('خطا در به‌روزرسانی بلیط شناور:', err.message);
+    res.status(500).json({ message: 'خطای سرور در به‌روزرسانی بلیط شناور' });
+  }
+});
+
+/**
+ * تابع کمکی برای تنظیم متن با رنگ آبی آسمانی و اندازه کوچکتر
+ * @param {PDFTextField} field - فیلد متنی PDF
+ * @param {string} text - متن مورد نظر
+ * @param {number} fontSize - اندازه فونت (به صورت اختیاری)
+ */
+function setTextWithSkyBlueColor(field, text, fontSize = 9) {
+  try {
+    // تنظیم رنگ آبی آسمانی
+    field.setFontColor(rgb(0.53, 0.81, 0.92));
+    
+    // تنظیم اندازه فونت کوچکتر
+    field.setFontSize(fontSize);
+    
+    // تنظیم متن
+    field.setText(text || '');
+  } catch (error) {
+    console.error(`Error setting text with custom formatting: ${error.message}`);
+    // در صورت خطا، از روش معمولی استفاده می‌کنیم
+    field.setText(text || '');
   }
 }
 

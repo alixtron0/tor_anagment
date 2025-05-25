@@ -53,6 +53,14 @@ const PackageSchema = new mongoose.Schema({
     returnAirline: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Airline'
+    },
+    departureFlightNumber: {
+      type: String,
+      trim: true
+    },
+    returnFlightNumber: {
+      type: String,
+      trim: true
     }
   },
   basePrice: {

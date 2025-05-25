@@ -31,6 +31,14 @@ export default function AirlineSelect({
 }: AirlineSelectProps) {
   const [airlines, setAirlines] = useState<Airline[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedValue, setSelectedValue] = useState<string>(defaultValue || '');
+
+  useEffect(() => {
+    console.log(`AirlineSelect - Default Value for ${label}:`, defaultValue);
+    if (defaultValue) {
+      setSelectedValue(defaultValue);
+    }
+  }, [defaultValue, label]);
 
   useEffect(() => {
     const fetchAirlines = async () => {
@@ -42,6 +50,12 @@ export default function AirlineSelect({
           }
         });
         setAirlines(response.data);
+        
+        if (defaultValue) {
+          const selectedAirline = response.data.find((airline: Airline) => airline._id === defaultValue);
+          console.log(`Selected airline for ${label}:`, selectedAirline ? selectedAirline.name : 'Not found');
+        }
+        
         setLoading(false);
       } catch (error) {
         console.error('خطا در دریافت لیست ایرلاین‌ها:', error);
@@ -50,10 +64,11 @@ export default function AirlineSelect({
     };
 
     fetchAirlines();
-  }, []);
+  }, [defaultValue, label]);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
+    setSelectedValue(value);
     if (onChange) onChange(value);
     if (onAirlineChange) onAirlineChange(value);
   };
@@ -65,13 +80,17 @@ export default function AirlineSelect({
         <select
           {...register(name)}
           onChange={handleChange}
-          defaultValue={defaultValue}
+          value={selectedValue}
           className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all appearance-none bg-white text-gray-900"
           disabled={loading}
         >
           <option value="">انتخاب ایرلاین</option>
           {airlines.map((airline) => (
-            <option key={airline._id} value={airline._id}>
+            <option 
+              key={airline._id} 
+              value={airline._id}
+              selected={airline._id === selectedValue}
+            >
               {airline.name} ({airline.code})
             </option>
           ))}

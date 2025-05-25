@@ -54,7 +54,7 @@ export default function AuthPage() {
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('user', JSON.stringify(response.data.user))
       
-      // هدایت به داشبورد
+      // هدایت به دا شب ورد
       router.push('/dashboard')
     } catch (err: any) {
       setError(

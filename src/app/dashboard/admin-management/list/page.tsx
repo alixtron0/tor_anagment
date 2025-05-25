@@ -38,7 +38,7 @@ export default function AdminList() {
       const parsedUser = JSON.parse(storedUser)
       setUser(parsedUser)
       
-      // اگر سوپر ادمین نیست، به صفحه داشبورد منتقل می‌شود
+      // اگر سوپر ادمین نیست، به صفحه دا شب ورد منتقل می‌شود
       if (parsedUser.role !== 'super-admin') {
         router.push('/dashboard')
         return
@@ -121,21 +121,21 @@ export default function AdminList() {
   
   if (loading && admins.length === 0) {
     return (
-      <div className="flex justify-center items-center min-h-[60vh] bg-white rounded-xl shadow-sm">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center min-h-[60vh] bg-white rounded-xl shadow-sm dark:bg-slate-800">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 dark:border-sky-500"></div>
       </div>
     )
   }
   
   return (
-    <main className="px-6 py-8 bg-white rounded-xl shadow-sm">
+    <main className="px-6 py-8 bg-white rounded-xl shadow-sm dark:bg-slate-900">
       <div className="mb-8">
         <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-          <h1 className="text-2xl font-bold text-gray-800">لیست ادمین‌ها</h1>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-slate-200">لیست ادمین‌ها</h1>
           
           <button
             onClick={() => router.push('/dashboard/admin-management/add')}
-            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white py-2.5 px-5 rounded-lg transition-colors shadow-md"
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white py-2.5 px-5 rounded-lg transition-colors shadow-md dark:bg-sky-600 dark:hover:bg-sky-700"
           >
             <FaUserPlus />
             <span>افزودن ادمین جدید</span>
@@ -149,25 +149,25 @@ export default function AdminList() {
       
       {/* نمایش خطا یا پیام موفقیت */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 px-5 py-4 rounded-lg mb-6">
+        <div className="bg-red-50 border border-red-200 text-red-600 px-5 py-4 rounded-lg mb-6 dark:bg-red-900/50 dark:border-red-700/60 dark:text-red-400">
           {error}
         </div>
       )}
       
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-600 px-5 py-4 rounded-lg mb-6">
+        <div className="bg-green-50 border border-green-200 text-green-600 px-5 py-4 rounded-lg mb-6 dark:bg-green-900/50 dark:border-green-700/60 dark:text-green-400">
           {success}
         </div>
       )}
       
       {/* جدول ادمین‌ها */}
-      <div className="bg-white rounded-xl overflow-hidden shadow-md border border-gray-100">
-        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-          <h3 className="text-lg font-bold text-gray-800">لیست ادمین‌ها</h3>
+      <div className="bg-white rounded-xl overflow-hidden shadow-md border border-gray-100 dark:bg-slate-800 dark:border-slate-700">
+        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 dark:bg-slate-700/50 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-slate-200">لیست ادمین‌ها</h3>
           
           <button
             onClick={() => setShowPasswords(!showPasswords)}
-            className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors"
+            className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors dark:text-slate-400 dark:hover:text-sky-500"
           >
             {showPasswords ? <FaEyeSlash /> : <FaEye />}
             <span className="text-sm">{showPasswords ? 'پنهان کردن رمزها' : 'نمایش رمزها'}</span>
@@ -176,14 +176,14 @@ export default function AdminList() {
         
         <div className="p-5">
           {admins.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
+            <div className="text-center text-gray-500 py-8 dark:text-slate-400">
               هیچ ادمینی در سیستم ثبت نشده است.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="text-right text-gray-500 border-b border-gray-100">
+                  <tr className="text-right text-gray-500 border-b border-gray-100 dark:text-slate-400 dark:border-slate-700">
                     <th className="pb-4 font-medium">نام و نام خانوادگی</th>
                     <th className="pb-4 font-medium">شماره موبایل</th>
                     <th className="pb-4 font-medium">رمز عبور</th>
@@ -194,28 +194,28 @@ export default function AdminList() {
                 </thead>
                 <tbody>
                   {admins.map((admin) => (
-                    <tr key={admin._id} className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors">
-                      <td className="py-4 text-gray-800">{admin.fullName}</td>
-                      <td className="py-4 ltr text-center text-gray-800">{admin.phone}</td>
-                      <td className="py-4 text-gray-800">
+                    <tr key={admin._id} className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors dark:border-slate-700 dark:hover:bg-slate-700/50">
+                      <td className="py-4 text-gray-800 dark:text-slate-200">{admin.fullName}</td>
+                      <td className="py-4 ltr text-center text-gray-800 dark:text-slate-200">{admin.phone}</td>
+                      <td className="py-4 text-gray-800 dark:text-slate-200">
                         {showPasswords ? admin.password : '••••••••'}
                       </td>
                       <td className="py-4">
                         <span className={`px-3 py-1 rounded-full text-xs 
-                          ${admin.role === 'super-admin' ? 'bg-blue-100 text-blue-700' : 
-                             admin.role === 'admin+' ? 'bg-emerald-100 text-emerald-700' : 
-                             'bg-green-100 text-green-700'}`}
+                          ${admin.role === 'super-admin' ? 'bg-blue-100 text-blue-700 dark:bg-sky-700/50 dark:text-sky-300' : 
+                             admin.role === 'admin+' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-700/50 dark:text-emerald-300' : 
+                             'bg-green-100 text-green-700 dark:bg-green-700/50 dark:text-green-300'}`}
                         >
                           {admin.role === 'super-admin' ? 'مدیر کل' : 
                            admin.role === 'admin+' ? 'همکار' : 'ادمین'}
                         </span>
                       </td>
-                      <td className="py-4 text-gray-700">{formatDate(admin.createdAt)}</td>
+                      <td className="py-4 text-gray-700 dark:text-slate-300">{formatDate(admin.createdAt)}</td>
                       <td className="py-4">
                         <div className="flex items-center justify-center">
                           <button
                             onClick={() => confirmDelete(admin)}
-                            className="p-2.5 text-red-400 hover:text-red-300 transition-colors rounded-full hover:bg-red-500/20"
+                            className="p-2.5 text-red-400 hover:text-red-300 transition-colors rounded-full hover:bg-red-500/20 dark:text-red-500 dark:hover:text-red-400 dark:hover:bg-red-600/30"
                             title="حذف"
                             disabled={admin.role === 'super-admin'}
                           >
@@ -247,7 +247,7 @@ export default function AdminList() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ type: "spring", damping: 20, stiffness: 300 }}
-              className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-w-md w-full"
+              className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-w-md w-full dark:bg-slate-800 dark:border-slate-700"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="bg-gradient-to-r from-red-500 to-red-600 p-4 flex justify-between items-center">
@@ -266,16 +266,16 @@ export default function AdminList() {
               </div>
 
               <div className="p-6">
-                <p className="text-gray-700 mb-6">
+                <p className="text-gray-700 mb-6 dark:text-slate-300">
                   آیا از حذف کاربر <span className="font-bold">{deleteModal.adminName}</span> اطمینان دارید؟
                   <br />
-                  <span className="text-red-500 mt-2 block text-sm">این عملیات غیرقابل بازگشت می‌باشد.</span>
+                  <span className="text-red-500 mt-2 block text-sm dark:text-red-400">این عملیات غیرقابل بازگشت می‌باشد.</span>
                 </p>
 
                 <div className="flex gap-3 justify-end mt-6">
                   <button
                     onClick={closeDeleteModal}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 px-5 rounded-lg transition-colors"
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 px-5 rounded-lg transition-colors dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-300"
                   >
                     انصراف
                   </button>

@@ -589,7 +589,7 @@ function calculateAge(birthDate) {
   const birth = new Date(birthDate);
   let age = today.getFullYear() - birth.getFullYear();
   
-  // تصحیح سن بر اساس ماه و روز تولد
+  // تصحیح سن بر اساس ماه و شب تولد
   if (
     today.getMonth() < birth.getMonth() || 
     (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())

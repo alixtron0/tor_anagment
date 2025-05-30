@@ -1,0 +1,25 @@
+# Dockerfile برای سرور Express
+FROM node:20-alpine
+
+# تنظیم دایرکتوری کاری
+WORKDIR /app
+
+# کپی فایل‌های package.json و package-lock.json
+COPY package*.json ./
+
+# نصب وابستگی‌ها
+RUN npm ci
+
+# کپی فایل‌های سرور
+COPY server ./server
+COPY .env ./
+COPY uploads ./uploads
+
+# ایجاد پوشه uploads اگر وجود نداشته باشد
+RUN mkdir -p uploads
+
+# پورت مورد استفاده
+EXPOSE 5000
+
+# اجرای سرور
+CMD ["node", "server/server.js"]

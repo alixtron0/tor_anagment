@@ -1000,7 +1000,7 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
       
       try {
         // استفاده از آدرس نسبی API داخلی
-        const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/airports/info/${packageData.route.origin}/${packageData.route.destination}`);
+        const airportInfo = await axios.get(`http://localhost:5000/api/routes/airports/info/${packageData.route.origin}/${packageData.route.destination}`);
         if (airportInfo.data) {
           // استخراج اطلاعات فرودگاه‌ها
           fromair = airportInfo.data.originAirport?.name || '';
@@ -1037,7 +1037,7 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
       
       try {
         // استفاده از آدرس نسبی API داخلی با معکوس کردن مبدا و مقصد
-        const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/airports/info/${packageData.route.destination}/${packageData.route.origin}`);
+        const airportInfo = await axios.get(`http://localhost:5000/api/routes/airports/info/${packageData.route.destination}/${packageData.route.origin}`);
         if (airportInfo.data) {
           // استخراج اطلاعات فرودگاه‌ها
           fromair = airportInfo.data.originAirport?.name || '';
@@ -1609,7 +1609,7 @@ router.post('/reservation/:id/generate-tickets', auth, async (req, res) => {
       
       try {
         // استفاده از آدرس نسبی API داخلی
-        const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/airports/info/${packageData.route.origin}/${packageData.route.destination}`);
+        const airportInfo = await axios.get(`http://localhost:5000/api/routes/airports/info/${packageData.route.origin}/${packageData.route.destination}`);
         if (airportInfo.data) {
           // استخراج اطلاعات فرودگاه‌ها
           fromair = airportInfo.data.originAirport?.name || '';
@@ -1646,7 +1646,7 @@ router.post('/reservation/:id/generate-tickets', auth, async (req, res) => {
       
       try {
         // استفاده از آدرس نسبی API داخلی با معکوس کردن مبدا و مقصد
-        const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/airports/info/${packageData.route.destination}/${packageData.route.origin}`);
+        const airportInfo = await axios.get(`http://localhost:5000/api/routes/airports/info/${packageData.route.destination}/${packageData.route.origin}`);
         if (airportInfo.data) {
           // استخراج اطلاعات فرودگاه‌ها
           fromair = airportInfo.data.originAirport?.name || '';
@@ -2438,7 +2438,7 @@ router.post('/reservation/:id/passenger/:passengerId/generate-ticket', auth, asy
       
       try {
         // استفاده از آدرس نسبی API داخلی
-        const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/airports/info/${packageData.route.origin}/${packageData.route.destination}`);
+        const airportInfo = await axios.get(`http://localhost:5000/api/routes/airports/info/${packageData.route.origin}/${packageData.route.destination}`);
         if (airportInfo.data) {
           // استخراج اطلاعات فرودگاه‌ها
           fromair = airportInfo.data.originAirport?.name || '';
@@ -2475,7 +2475,7 @@ router.post('/reservation/:id/passenger/:passengerId/generate-ticket', auth, asy
       
       try {
         // استفاده از آدرس نسبی API داخلی با معکوس کردن مبدا و مقصد
-        const airportInfo = await axios.get(`http://185.94.99.35:5000/api/routes/airports/info/${packageData.route.destination}/${packageData.route.origin}`);
+        const airportInfo = await axios.get(`http://localhost:5000/api/routes/airports/info/${packageData.route.destination}/${packageData.route.origin}`);
         if (airportInfo.data) {
           // استخراج اطلاعات فرودگاه‌ها
           fromair = airportInfo.data.originAirport?.name || '';

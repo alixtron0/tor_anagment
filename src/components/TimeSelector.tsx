@@ -198,7 +198,7 @@ export default function TimeSelector({ value, onChange, label, className }: Time
                 onKeyDown={handleKeyDown}
                 onBlur={saveEditedTime}
                 className="flex-1 text-xl font-mono font-semibold text-gray-800 bg-transparent border-none focus:outline-none focus:ring-0"
-                placeholder="ساعت:دقیقه"
+                placeholder="دقیقه:ساعت"
                 maxLength={5}
               />
             </div>
@@ -206,7 +206,7 @@ export default function TimeSelector({ value, onChange, label, className }: Time
             <div className="flex items-center cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
               <FaClock className="ml-2 text-indigo-500 group-hover:text-indigo-600 transition-colors" />
               <span className="text-xl font-mono font-semibold text-gray-800">
-                {hours.toString().padStart(2, '0')}:{minutes.toString().padStart(2, '0')}
+                {minutes.toString().padStart(2, '0')}:{hours.toString().padStart(2, '0')}
               </span>
             </div>
           )}
@@ -254,34 +254,6 @@ export default function TimeSelector({ value, onChange, label, className }: Time
                 </div>
 
                 <div className="flex justify-center gap-8">
-                  {/* انتخابگر ساعت */}
-                  <div className="flex flex-col items-center">
-                    <button 
-                      type="button"
-                      onClick={incrementHour}
-                      className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-full transition-colors"
-                    >
-                      <FaChevronUp size={20} />
-                    </button>
-                    
-                    <div className="relative my-2 w-16 h-12 flex items-center justify-center">
-                      <div className="absolute inset-0 bg-gradient-to-b from-white via-transparent to-white pointer-events-none z-10"></div>
-                      <div className="text-3xl font-mono font-bold text-gray-800">
-                        {hours.toString().padStart(2, '0')}
-                      </div>
-                    </div>
-                    
-                    <button 
-                      type="button"
-                      onClick={decrementHour}
-                      className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-full transition-colors"
-                    >
-                      <FaChevronDown size={20} />
-                    </button>
-                  </div>
-                  
-                  <div className="text-3xl font-bold text-gray-400 self-center">:</div>
-                  
                   {/* انتخابگر دقیقه */}
                   <div className="flex flex-col items-center">
                     <button 
@@ -307,6 +279,34 @@ export default function TimeSelector({ value, onChange, label, className }: Time
                       <FaChevronDown size={20} />
                     </button>
                   </div>
+                  
+                  <div className="text-3xl font-bold text-gray-400 self-center">:</div>
+                  
+                  {/* انتخابگر ساعت */}
+                  <div className="flex flex-col items-center">
+                    <button 
+                      type="button"
+                      onClick={incrementHour}
+                      className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-full transition-colors"
+                    >
+                      <FaChevronUp size={20} />
+                    </button>
+                    
+                    <div className="relative my-2 w-16 h-12 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-gradient-to-b from-white via-transparent to-white pointer-events-none z-10"></div>
+                      <div className="text-3xl font-mono font-bold text-gray-800">
+                        {hours.toString().padStart(2, '0')}
+                      </div>
+                    </div>
+                    
+                    <button 
+                      type="button"
+                      onClick={decrementHour}
+                      className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-full transition-colors"
+                    >
+                      <FaChevronDown size={20} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* زمان‌های پیشنهادی */}
@@ -318,7 +318,7 @@ export default function TimeSelector({ value, onChange, label, className }: Time
                         key={time}
                         type="button"
                         onClick={() => {
-                          const [h, m] = time.split(':')
+                          const [m, h] = time.split(':')
                           const newHour = parseInt(h, 10)
                           const newMinute = parseInt(m, 10)
                           setHours(newHour)
@@ -327,7 +327,7 @@ export default function TimeSelector({ value, onChange, label, className }: Time
                           setIsOpen(false)
                         }}
                         className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                          `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}` === time
+                          `${minutes.toString().padStart(2, '0')}:${hours.toString().padStart(2, '0')}` === time
                             ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
                             : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-100'
                         }`}

@@ -237,9 +237,6 @@ export default function PackageManagement() {
         {/* هدر صفحه */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 bg-white rounded-2xl p-6 shadow-lg border-b-4 border-indigo-500">
           <div className="flex items-center mb-4 md:mb-0">
-            <div className="bg-gradient-to-br from-indigo-500 to-blue-600 p-3 rounded-full mr-4 text-white shadow-md">
-              <FaRoute size={24} />
-            </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-800">مدیریت پکیج‌های سفر</h1>
               <p className="text-gray-500 text-sm">مدیریت و مشاهده پکیج‌های سفر</p>

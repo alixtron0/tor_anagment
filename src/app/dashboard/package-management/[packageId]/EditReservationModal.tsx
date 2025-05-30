@@ -30,6 +30,7 @@ interface Reservation {
     infant: number;
   };
   status: 'pending' | 'confirmed' | 'canceled';
+  name?: string;
 }
 
 interface Package {
@@ -78,7 +79,8 @@ export default function EditReservationModal({
       adult: 0,
       child: 0,
       infant: 0
-    }
+    },
+    name: ''
   })
   
   // بارگذاری اطلاعات پکیج و رزرو
@@ -116,7 +118,8 @@ export default function EditReservationModal({
             adult: packageResponse.data.basePrice || 0,
             child: packageResponse.data.basePrice ? Math.round(packageResponse.data.basePrice * 0.7) : 0,
             infant: packageResponse.data.infantPrice || 0
-          }
+          },
+          name: reservationResponse.data.name || ''
         })
         
       } catch (error) {
@@ -309,6 +312,18 @@ export default function EditReservationModal({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6">
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-medium mb-2">نام رزرو</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="نام رزرو (اختیاری)"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+              />
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* نوع رزرو */}
               <div>

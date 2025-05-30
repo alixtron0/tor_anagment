@@ -10,6 +10,7 @@ import PriceInput from '@/components/PriceInput'
 import CustomCheckbox from '@/components/CustomCheckbox'
 import AirlineSelect from '@/components/AirlineSelect'
 import PersianDatePicker from '@/components/PersianDatePicker'
+import TimeSelector from '@/components/TimeSelector'
 
 interface Route {
   _id: string
@@ -651,7 +652,7 @@ export default function AddPackageModal({
 
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        'http://185.94.99.35:5000/api/upload',
+        'http://185.94.99.35:5000/api/uploads/upload',
         formData,
         {
           headers: {
@@ -1080,14 +1081,12 @@ export default function AddPackageModal({
                         />
                         
                         {/* زمان پرواز رفت */}
-                        <div>
-                          <label className="block mb-2 font-medium text-gray-700">ساعت پرواز (رفت)</label>
-                          <input
-                            type="time"
-                            {...register('startTime')}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all bg-white text-gray-900"
-                          />
-                        </div>
+                        <TimeSelector
+                          label="ساعت پرواز (رفت)"
+                          value={watch('startTime') || '00:00'}
+                          onChange={(time) => setValue('startTime', time)}
+                          className="mb-4"
+                        />
                         
                         {/* شماره پرواز رفت */}
                         <div>
@@ -1145,14 +1144,12 @@ export default function AddPackageModal({
                         />
                         
                         {/* زمان پرواز برگشت */}
-                        <div>
-                          <label className="block mb-2 font-medium text-gray-700">ساعت پرواز (برگشت)</label>
-                          <input
-                            type="time"
-                            {...register('endTime')}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all bg-white text-gray-900"
-                          />
-                        </div>
+                        <TimeSelector
+                          label="ساعت پرواز (برگشت)"
+                          value={watch('endTime') || '00:00'}
+                          onChange={(time) => setValue('endTime', time)}
+                          className="mb-4"
+                        />
                         
                         {/* شماره پرواز برگشت */}
                         <div>
@@ -1269,7 +1266,7 @@ export default function AddPackageModal({
                       </div>
 
                       <div>
-                        <label className="block mb-2 font-medium text-gray-700">مدت اقامت (روز)</label>
+                        <label className="block mb-2 font-medium text-gray-700">مدت اقامت (شب)</label>
                         <input
                           type="number"
                           {...register(`hotels.${index}.stayDuration` as const)}

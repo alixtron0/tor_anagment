@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { FaBed, FaUserPlus, FaEdit, FaTrash, FaExchangeAlt, FaUser, FaUsers, FaChild, FaBaby, FaMale, FaFemale, FaChevronDown, FaChevronUp, FaCog } from 'react-icons/fa'
 
@@ -65,7 +65,16 @@ export default function RoomCard({
   const [showPassengers, setShowPassengers] = useState(true)
   const [showActions, setShowActions] = useState(false)
   
-  // گروه‌بندی مسافران بر اساس رده سنی
+  // لاگ کردن اطلاعات مسافران برای دیباگ
+  useEffect(() => {
+    console.log('Room ID:', room._id);
+    console.log('Passengers for this room:', passengers);
+    passengers.forEach(p => {
+      console.log(`Passenger ${p.firstName} ${p.lastName} - Age Category: ${p.ageCategory}`);
+    });
+  }, [room._id, passengers]);
+  
+  // گروه‌بندی مسافران بر اساس رده سنی - با بررسی دقیق‌تر
   const adults = passengers.filter(p => p.ageCategory === 'adult')
   const children = passengers.filter(p => p.ageCategory === 'child')
   const infants = passengers.filter(p => p.ageCategory === 'infant')
@@ -151,18 +160,34 @@ export default function RoomCard({
       <div className="p-4 flex-1 flex flex-col">
         {/* آمار مسافران */}
         <div className="flex flex-wrap gap-2 mb-3">
-          <div className="flex items-center gap-1 bg-blue-50 text-blue-700 rounded-lg px-2 py-1 text-sm">
-            <FaUsers />
-            <span>{adults.length}</span>
-          </div>
-          <div className="flex items-center gap-1 bg-amber-50 text-amber-700 rounded-lg px-2 py-1 text-sm">
-            <FaChild />
-            <span>{children.length}</span>
-          </div>
-          <div className="flex items-center gap-1 bg-pink-50 text-pink-700 rounded-lg px-2 py-1 text-sm">
-            <FaBaby />
-            <span>{infants.length}</span>
-          </div>
+          {/* نمایش تعداد مسافران بر اساس رده سنی */}
+          {passengers.map((passenger, index) => {
+            // نمایش آیکون مناسب برای هر مسافر بر اساس رده سنی
+            let AgeIcon = FaUser; // آیکون پیش‌فرض
+            let bgColor = 'bg-blue-50';
+            let textColor = 'text-blue-700';
+            
+            if (passenger.ageCategory === 'infant') {
+              AgeIcon = FaBaby;
+              bgColor = 'bg-pink-50';
+              textColor = 'text-pink-700';
+            } else if (passenger.ageCategory === 'child') {
+              AgeIcon = FaChild;
+              bgColor = 'bg-amber-50';
+              textColor = 'text-amber-700';
+            } else {
+              AgeIcon = FaUsers;
+            }
+            
+            return (
+              <div key={index} className={`flex items-center gap-1 ${bgColor} ${textColor} rounded-lg px-2 py-1 text-sm`}>
+                <AgeIcon />
+                <span>1</span>
+              </div>
+            );
+          })}
+          
+          {/* آمار مسافران بر اساس جنسیت */}
           <div className="flex items-center gap-1 bg-indigo-50 text-indigo-700 rounded-lg px-2 py-1 text-sm">
             <FaMale />
             <span>{passengers.filter(p => p.gender === 'male').length}</span>

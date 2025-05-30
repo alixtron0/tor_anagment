@@ -14,7 +14,8 @@ app.use(express.json({ extended: false }));
 app.use(cors());
 
 // Static folder for uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+console.log('Upload path:', path.join(__dirname, '../uploads'));
 
 // Connect to MongoDB
 const connectDB = async () => {

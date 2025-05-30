@@ -604,43 +604,7 @@ export default function RouteManagement() {
                     </div>
                   </div>
 
-                  {/* بخش اطلاعات اضافی مسیر */}
-                  <div className="space-y-4 border border-gray-200 rounded-xl p-6 bg-gray-50 md:col-span-2">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium text-gray-800">اطلاعات تکمیلی مسیر</h3>
-                      <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">جدید</span>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">مسافت (کیلومتر)</label>
-                        <input
-                          type="number"
-                          {...register('distance', { 
-                            setValueAs: (v) => v === '' ? undefined : parseFloat(v)
-                          })}
-                          className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all text-gray-800 placeholder-gray-400"
-                          placeholder="مثال: 350"
-                          min="0"
-                          step="1"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">زمان پرواز (دقیقه)</label>
-                        <input
-                          type="number"
-                          {...register('flightTime', { 
-                            setValueAs: (v) => v === '' ? undefined : parseFloat(v) 
-                          })}
-                          className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all text-gray-800 placeholder-gray-400"
-                          placeholder="مثال: 60"
-                          min="0"
-                          step="1"
-                        />
-                      </div>
-                    </div>
-                  </div>
                 </div>
                 
                 <div className="flex justify-center gap-4">

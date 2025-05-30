@@ -271,10 +271,10 @@ router.post('/generate', [
         'aircraft': airline && airline.aircraftModel ? 
                       airline.aircraftModel : 
                       flightInfo.aircraft || '',
-        'price': flightInfo.price || '',
-        'tax': flightInfo.tax || '',
+        'price': flightInfo.price ? formatNumber(flightInfo.price) : '',
+        'tax': flightInfo.tax ? formatNumber(flightInfo.tax) : '',
         'total': flightInfo.price && flightInfo.tax ? 
-                 String(parseInt(flightInfo.price) + parseInt(flightInfo.tax)) : '',
+                 formatNumber(parseInt(flightInfo.price.toString().replace(/,/g, '')) + parseInt(flightInfo.tax.toString().replace(/,/g, ''))) : '',
         'logo_af_image': airline && airline.logo ? airline.logo : '',
         'age': passenger.birthDate ? calculateAgeCategory(passenger.birthDate) : '---',
         // اضافه کردن فیلدهای فرودگاه
@@ -602,11 +602,11 @@ router.post('/generate', [
 
             // اگر فیلد قیمت کل است، مطمئن شویم که به درستی محاسبه شده
             if (fieldName === 'total' && flightInfo.price && flightInfo.tax) {
-                const price = parseInt(flightInfo.price) || 0;
-                const tax = parseInt(flightInfo.tax) || 0;
+                const price = parseInt(flightInfo.price.toString().replace(/,/g, '')) || 0;
+                const tax = parseInt(flightInfo.tax.toString().replace(/,/g, '')) || 0;
                 const total = price + tax;
-                setTextWithSkyBlueColor(field, total.toString());
-                console.log(`Setting total field: price ${price} + tax ${tax} = total ${total}`);
+                setTextWithSkyBlueColor(field, formatNumber(total));
+                console.log(`Setting total field: price ${price} + tax ${tax} = total ${formatNumber(total)}`);
             } else if (fieldName === 'aircraft') {
                 // اطمینان حاصل کنیم که نام هواپیما به درستی تنظیم می‌شود
                 let aircraftText = "";
@@ -788,6 +788,24 @@ router.post('/generate', [
 //     res.status(500).json({ message: `خطای سرور در دریافت بلیط: ${err.message}` });
 //   }
 // });
+
+/**
+ * فرمت‌دهی اعداد با جداکننده هزارگان
+ * @param {number|string} number - عدد یا رشته عددی برای فرمت‌دهی
+ * @returns {string} عدد فرمت‌شده با جداکننده هزارگان
+ */
+function formatNumber(number) {
+  if (!number) return '';
+  
+  // تبدیل به عدد اگر رشته است
+  const num = typeof number === 'string' ? parseFloat(number.replace(/,/g, '')) : number;
+  
+  // بررسی معتبر بودن عدد
+  if (isNaN(num)) return number;
+  
+  // فرمت‌دهی با جداکننده هزارگان
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
 
 /**
  * تبدیل متن انگلیسی به فارسی

@@ -26,7 +26,11 @@ const PriceInput: React.FC<PriceInputProps> = ({
   const [isFocused, setIsFocused] = useState(false);
   
   const formatNumber = (value: string | number): string => {
-    if (!value) return '';
+    // اگر مقدار undefined یا null باشد، رشته خالی برگردان
+    if (value === undefined || value === null) return '';
+    
+    // اگر مقدار صفر باشد، صفر برگردان
+    if (value === 0 || value === '0') return '0';
     
     // تبدیل به رشته و حذف همه کاراکترهای غیر عددی
     const numStr = value.toString().replace(/[^\d]/g, '');
@@ -50,7 +54,9 @@ const PriceInput: React.FC<PriceInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // حذف همه کاراکترهای غیر عددی و کاما
     const rawValue = e.target.value.replace(/[^\d]/g, '');
-    const numericValue = parseInt(rawValue) || 0;
+    
+    // اگر ورودی خالی باشد، مقدار را صفر در نظر بگیر
+    const numericValue = rawValue === '' ? 0 : parseInt(rawValue);
     
     setDisplayValue(formatNumber(numericValue));
     
@@ -69,6 +75,7 @@ const PriceInput: React.FC<PriceInputProps> = ({
         ...register(name, {
           setValueAs: (value: string | number) => {
             if (typeof value === 'number') return value;
+            if (value === '' || value === '0') return 0;
             return parseInt(value.replace(/[^\d]/g, '')) || 0;
           }
         }),

@@ -81,6 +81,10 @@ const ReservationSchema = new mongoose.Schema({
     unique: true,
     sparse: true
   },
+  name: {
+    type: String,
+    trim: true
+  },
   createdAt: {
     type: Date,
     default: Date.now

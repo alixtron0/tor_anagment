@@ -807,15 +807,15 @@ router.put('/:id', auth, async (req, res) => {
 
 /**
  * @route   DELETE /api/packages/:id
- * @desc    حذف پکیج
+ * @desc    حذف پکیج به همراه تمام رزروها و مسافران مرتبط با آن
  * @access  خصوصی
  */
 router.delete('/:id', auth, async (req, res) => {
   try {
     // بررسی وجود مدل‌ها
-    if (!Package) {
-      console.error('مدل Package یافت نشد');
-      return res.status(500).json({ message: 'خطای سرور: مدل Package یافت نشد' });
+    if (!Package || !Reservation || !Passenger || !Room) {
+      console.error('مدل‌های مورد نیاز یافت نشدند');
+      return res.status(500).json({ message: 'خطای سرور: مدل‌های مورد نیاز یافت نشدند' });
     }
 
     const package = await Package.findById(req.params.id);
@@ -824,9 +824,35 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'پکیج مورد نظر یافت نشد' });
     }
 
+    // 1. ابتدا تمام رزروهای مرتبط با این بسته را پیدا می‌کنیم
+    const reservations = await Reservation.find({ package: req.params.id });
+    console.log(`تعداد ${reservations.length} رزرو مرتبط با بسته ${req.params.id} پیدا شد`);
+    
+    // 2. برای هر رزرو، مسافران و اتاق‌های مرتبط را حذف می‌کنیم
+    for (const reservation of reservations) {
+      // حذف مسافران مرتبط با این رزرو
+      const deletedPassengers = await Passenger.deleteMany({ reservation: reservation._id });
+      console.log(`تعداد ${deletedPassengers.deletedCount} مسافر مرتبط با رزرو ${reservation._id} حذف شد`);
+      
+      // حذف اتاق‌های مرتبط با این رزرو
+      const deletedRooms = await Room.deleteMany({ reservation: reservation._id });
+      console.log(`تعداد ${deletedRooms.deletedCount} اتاق مرتبط با رزرو ${reservation._id} حذف شد`);
+    }
+    
+    // 3. حذف تمام رزروهای مرتبط با این بسته
+    const deletedReservations = await Reservation.deleteMany({ package: req.params.id });
+    console.log(`تعداد ${deletedReservations.deletedCount} رزرو مرتبط با بسته ${req.params.id} حذف شد`);
+    
+    // 4. در نهایت خود بسته را حذف می‌کنیم
     await Package.deleteOne({ _id: req.params.id });
     
-    res.json({ message: 'پکیج با موفقیت حذف شد' });
+    res.json({ 
+      message: 'پکیج با موفقیت حذف شد', 
+      details: {
+        reservationsDeleted: deletedReservations.deletedCount,
+        passengersDeleted: reservations.reduce((total, res) => total + (res.count || 0), 0)
+      }
+    });
   } catch (err) {
     console.error('خطا در حذف پکیج:', err.message);
     if (err.kind === 'ObjectId') {
@@ -1150,9 +1176,9 @@ router.post('/:id/generate-tickets', auth, async (req, res) => {
         ticketTotal = ticketPrice + ticketTax;
         
         // به‌روزرسانی مقادیر در فیلدها
-        fieldDataMap['price'] = ticketPrice.toString();
-        fieldDataMap['tax'] = ticketTax.toString();
-        fieldDataMap['total'] = ticketTotal.toString();
+        fieldDataMap['price'] = formatNumber(ticketPrice);
+        fieldDataMap['tax'] = formatNumber(ticketTax);
+        fieldDataMap['total'] = formatNumber(ticketTotal);
         
         // لاگ کردن مقادیر فیلدها برای دیباگ
         console.log(`====== مقادیر فیلدها برای مسافر ${passenger.englishFirstName} ${passenger.englishLastName} - ${ticketTypeText} ======`);
@@ -1750,9 +1776,9 @@ router.post('/reservation/:id/generate-tickets', auth, async (req, res) => {
         ticketTotal = ticketPrice + ticketTax;
         
         // به‌روزرسانی مقادیر در فیلدها
-        fieldDataMap['price'] = ticketPrice.toString();
-        fieldDataMap['tax'] = ticketTax.toString();
-        fieldDataMap['total'] = ticketTotal.toString();
+        fieldDataMap['price'] = formatNumber(ticketPrice);
+        fieldDataMap['tax'] = formatNumber(ticketTax);
+        fieldDataMap['total'] = formatNumber(ticketTotal);
         
         // بررسی نام‌های جایگزین برای فیلدها - ممکن است نام‌های فیلدها در قالب متفاوت باشند
         const alternativeFieldNames = {
@@ -2206,6 +2232,20 @@ router.get('/stats/summary', auth, async (req, res) => {
 });
 
 // توابع کمکی
+
+// تابع فرمت‌دهی اعداد با جداکننده هزارگان
+function formatNumber(number) {
+  if (!number) return '';
+  
+  // تبدیل به عدد اگر رشته است
+  const num = typeof number === 'string' ? parseFloat(number) : number;
+  
+  // بررسی معتبر بودن عدد
+  if (isNaN(num)) return number;
+  
+  // فرمت‌دهی با جداکننده هزارگان
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
 
 // تبدیل تاریخ به فرمت فارسی
 function formatPersianDate(dateString) {

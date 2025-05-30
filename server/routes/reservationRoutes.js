@@ -267,7 +267,9 @@ router.post('/package/:packageId', [
       room,
       services = [],
       totalPrice,
-      sellingPrices = { adult: 0, child: 0, infant: 0 }
+      sellingPrices = { adult: 0, child: 0, infant: 0 },
+      name = '',
+      status = 'confirmed'
     } = req.body;
     
     // ایجاد رزرو جدید
@@ -283,11 +285,12 @@ router.post('/package/:packageId', [
       services,
       totalPrice,
       sellingPrices,
+      name,
       createdBy: {
         user: userId,
         fullName: userFullName
       },
-      status: 'pending'
+      status: status || 'confirmed'
     });
     
     const reservation = await newReservation.save();
@@ -299,6 +302,84 @@ router.post('/package/:packageId', [
   } catch (err) {
     console.error('خطا در ایجاد رزرو:', err);
     res.status(500).json({ message: `خطای سرور در ایجاد رزرو: ${err.message}` });
+  }
+});
+
+/**
+ * @route   PUT /api/reservations/:id
+ * @desc    به‌روزرسانی اطلاعات رزرو
+ * @access  خصوصی
+ */
+router.put('/:id', auth, async (req, res) => {
+  try {
+    // بررسی وجود رزرو
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      return res.status(404).json({ message: 'رزرو مورد نظر یافت نشد' });
+    }
+    
+    const {
+      type,
+      count,
+      admin,
+      room,
+      services,
+      totalPrice,
+      sellingPrices,
+      name
+    } = req.body;
+    
+    // بررسی ظرفیت پکیج
+    if (count) {
+      const packageData = await Package.findById(reservation.package);
+      if (!packageData) {
+        return res.status(404).json({ message: 'پکیج مورد نظر یافت نشد' });
+      }
+      
+      // محاسبه تعداد رزروهای فعلی بدون در نظر گرفتن رزرو فعلی
+      const existingReservationsCount = await Reservation.aggregate([
+        { 
+          $match: { 
+            package: new mongoose.Types.ObjectId(reservation.package), 
+            status: { $ne: 'canceled' },
+            _id: { $ne: new mongoose.Types.ObjectId(req.params.id) }
+          } 
+        },
+        { $group: { _id: null, totalCount: { $sum: '$count' } } }
+      ]);
+      
+      const currentCount = existingReservationsCount.length > 0 ? existingReservationsCount[0].totalCount : 0;
+      const remainingCapacity = packageData.capacity - currentCount;
+      
+      if (count > remainingCapacity) {
+        return res.status(400).json({ 
+          message: `ظرفیت کافی برای به‌روزرسانی رزرو وجود ندارد. ظرفیت باقیمانده: ${remainingCapacity} نفر` 
+        });
+      }
+    }
+    
+    // به‌روزرسانی فیلدها
+    if (type) reservation.type = type;
+    if (count) reservation.count = count;
+    if (type === 'admin' && admin) reservation.admin = admin;
+    if (room) reservation.room = room;
+    if (services) reservation.services = services;
+    if (totalPrice) reservation.totalPrice = totalPrice;
+    if (sellingPrices) reservation.sellingPrices = sellingPrices;
+    if (name !== undefined) reservation.name = name;
+    
+    await reservation.save();
+    
+    res.json({
+      message: 'رزرو با موفقیت به‌روزرسانی شد',
+      reservation
+    });
+  } catch (err) {
+    console.error('خطا در به‌روزرسانی رزرو:', err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'رزرو مورد نظر یافت نشد' });
+    }
+    res.status(500).json({ message: `خطای سرور در به‌روزرسانی رزرو: ${err.message}` });
   }
 });
 

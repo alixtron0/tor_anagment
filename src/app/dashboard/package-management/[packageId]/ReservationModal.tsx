@@ -29,6 +29,11 @@ interface ReservationType {
   count: number
   admin?: string
   services: string[]
+  room?: string
+  adults?: number
+  children?: number
+  infants?: number
+  name?: string
 }
 
 // کامپوننت اصلی
@@ -58,7 +63,8 @@ function ReservationModalComponent({
     defaultValues: {
       type: 'self',
       count: 1,
-      services: []
+      services: [],
+      name: ''
     }
   })
 
@@ -263,7 +269,9 @@ function ReservationModalComponent({
           adults,
           children,
           infants,
-          sellingPrices
+          sellingPrices,
+          room: 'double', // اضافه کردن فیلد اجباری نوع اتاق
+          status: 'confirmed' // تنظیم وضعیت به تایید شده به صورت خودکار
         },
         {
           headers: {
@@ -275,6 +283,7 @@ function ReservationModalComponent({
       
       console.log('Reservation creation response:', response.data)
       toast.success('رزرو با موفقیت ثبت شد')
+      // فقط onSuccess را فراخوانی می‌کنیم و اجازه می‌دهیم کامپوننت والد مودال را ببندد
       onSuccess()
     } catch (error: any) {
       console.error('خطا در ثبت رزرو:', error)
@@ -310,7 +319,6 @@ function ReservationModalComponent({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      onClick={onClose}
     >
       <motion.div
         className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
@@ -318,7 +326,6 @@ function ReservationModalComponent({
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* هدر مودال */}
         <div className="sticky top-0 z-10 bg-indigo-600 text-white p-5 rounded-t-2xl flex justify-between items-center">
@@ -433,6 +440,17 @@ function ReservationModalComponent({
               )}
             </div>
           )}
+
+          {/* نام رزرو */}
+          <div className="mb-6">
+            <label className="block text-gray-700 font-medium mb-2">نام رزرو</label>
+            <input
+              type="text"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all"
+              placeholder="نام رزرو (اختیاری)"
+              {...register("name")}
+            />
+          </div>
 
           {/* تعداد رزرو */}
           <div className="mb-6">

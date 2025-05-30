@@ -222,20 +222,31 @@ router.post('/', [
     const childCount = allPassengers.filter(p => calculateAgeCategory(p.birthDate) === 'child').length;
     const infantCount = allPassengers.filter(p => calculateAgeCategory(p.birthDate) === 'infant').length;
     
-    // بررسی تطابق با تعداد در رزرو
-    if (ageCategory === 'adult' && adultCount >= reservationExists.adults) {
+    // بررسی تعداد کل مسافران در رزرو
+    const totalPassengersInReservation = adultCount + childCount + infantCount;
+    const totalAllowedPassengers = reservationExists.adults + reservationExists.children + reservationExists.infants;
+    
+    // اگر تعداد کل مسافران به حداکثر مجاز رسیده باشد
+    if (totalPassengersInReservation >= totalAllowedPassengers) {
+      return res.status(400).json({ 
+        message: `تعداد کل مسافران (${totalPassengersInReservation}) به حداکثر مجاز (${totalAllowedPassengers}) رسیده است` 
+      });
+    }
+    
+    // بررسی تطابق با تعداد در رزرو - فقط اگر مقدار بزرگتر از صفر باشد
+    if (ageCategory === 'adult' && reservationExists.adults > 0 && adultCount >= reservationExists.adults) {
       return res.status(400).json({ 
         message: `تعداد بزرگسالان (${adultCount}) به حداکثر مجاز (${reservationExists.adults}) رسیده است` 
       });
     }
     
-    if (ageCategory === 'child' && childCount >= reservationExists.children) {
+    if (ageCategory === 'child' && reservationExists.children > 0 && childCount >= reservationExists.children) {
       return res.status(400).json({ 
         message: `تعداد کودکان (${childCount}) به حداکثر مجاز (${reservationExists.children}) رسیده است` 
       });
     }
     
-    if (ageCategory === 'infant' && infantCount >= reservationExists.infants) {
+    if (ageCategory === 'infant' && reservationExists.infants > 0 && infantCount >= reservationExists.infants) {
       return res.status(400).json({ 
         message: `تعداد نوزادان (${infantCount}) به حداکثر مجاز (${reservationExists.infants}) رسیده است` 
       });

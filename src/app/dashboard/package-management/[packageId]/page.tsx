@@ -45,6 +45,7 @@ interface Reservation {
   totalPrice: number;
   status: 'pending' | 'confirmed' | 'canceled';
   createdAt: string;
+  name?: string;
   admin?: {
     _id: string;
     fullName: string;
@@ -823,10 +824,10 @@ export default function PackageDetails() {
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
                     <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نوع رزرو</th>
+                    <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نام رزرو</th>
                     <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تعداد</th>
                     <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">مبلغ کل</th>
                     <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">قیمت فروش</th>
-                    <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">وضعیت</th>
                     <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">رزرو کننده</th>
                     <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاریخ ثبت</th>
                     <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">عملیات</th>
@@ -859,6 +860,11 @@ export default function PackageDetails() {
                             )}
                           </span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-medium text-gray-900">
+                          {reservation.name || '-'}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex flex-col">
@@ -924,21 +930,7 @@ export default function PackageDetails() {
                           <span className="text-xs text-gray-500">تنظیم نشده</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                          reservation.status === 'pending' ? 'bg-yellow-50 text-yellow-700' :
-                          reservation.status === 'confirmed' ? 'bg-green-50 text-green-700' :
-                          'bg-red-50 text-red-700'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                            reservation.status === 'pending' ? 'bg-yellow-500' :
-                            reservation.status === 'confirmed' ? 'bg-green-500' :
-                            'bg-red-500'
-                          }`}></span>
-                          {reservation.status === 'pending' ? 'در انتظار تایید' :
-                            reservation.status === 'confirmed' ? 'تایید شده' : 'لغو شده'}
-                        </span>
-                      </td>
+
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center ml-2 text-gray-700 font-medium">

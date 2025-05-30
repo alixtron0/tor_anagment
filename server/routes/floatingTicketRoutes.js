@@ -1010,19 +1010,27 @@ router.get('/download/:filename', (req, res) => {
   }
 
   // تنظیم هدرهای CORS
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+  res.setHeader('Access-Control-Allow-Origin', '*'); // اجازه دسترسی به همه دامنه‌ها
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,x-auth-token,Authorization');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
   res.setHeader('Access-Control-Allow-Credentials', true);
 
   // ارسال فایل برای دانلود با نام مشخص
+  // از متد download استفاده می‌کنیم ولی در صورت خطا دیگر پاسخ HTTP جدید ارسال نمی‌کنیم
+  // چون ممکن است هدرها قبلاً ارسال شده باشند
   res.download(filePath, `tickets-${Date.now()}.pdf`, (err) => {
     if (err) {
+      // فقط لاگ خطا بدون ارسال پاسخ HTTP جدید
       console.error(`Error sending file ${filename} for download:`, err);
-      return res.status(500).json({ message: 'خطا در دانلود فایل' });
+      // اگر هدرها هنوز ارسال نشده‌اند، می‌توانیم پاسخ خطا بفرستیم
+      if (!res.headersSent) {
+        return res.status(500).json({ message: 'خطا در دانلود فایل' });
+      }
+      // در غیر این صورت فقط لاگ می‌کنیم و کاری نمی‌کنیم
+    } else {
+      console.log(`File ${filename} sent successfully for download.`);
     }
-    console.log(`File ${filename} sent successfully for download.`);
   });
 });
 

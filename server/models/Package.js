@@ -156,7 +156,28 @@ const PackageSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
+
+// متد برای فرمت کردن اطلاعات هتل‌ها به صورت متنی
+PackageSchema.methods.getHotelsFormatted = function() {
+  if (!this.hotels || this.hotels.length === 0) {
+    return 'بدون هتل';
+  }
+  
+  return this.hotels.map(hotelItem => {
+    const hotelName = hotelItem.hotel && typeof hotelItem.hotel === 'object' && hotelItem.hotel.name 
+      ? hotelItem.hotel.name 
+      : 'هتل';
+    
+    const hotelCity = hotelItem.hotel && typeof hotelItem.hotel === 'object' && hotelItem.hotel.city
+      ? hotelItem.hotel.city
+      : '';
+      
+    return `${hotelName} ${hotelCity} ${hotelItem.stayDuration} شب`;
+  }).join(' ');
+};
 
 module.exports = mongoose.model('Package', PackageSchema); 

@@ -27,7 +27,9 @@ import {
   FaRegBell,
   FaPhone,
   FaMoon,
-  FaSun
+  FaSun,
+  FaUserShield,
+  FaImages
 } from 'react-icons/fa'
 
 // تعریف متغیرهای رنگی اصلی برای استفاده در سراسر کامپوننت
@@ -222,6 +224,13 @@ const menuItemsData: MenuItem[] = [
         roles: ['super-admin', 'admin']
       },
 
+      {
+        title: 'کتابخانه تصاویر',
+        path: '/dashboard/image-library',
+        icon: <FaImages />,
+        roles: ['super-admin', 'admin']
+      },
+
     ]
   },
 
@@ -245,6 +254,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   ])
   const [notificationOpen, setNotificationOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(false);
+  const [showCredit, setShowCredit] = useState(false);
   
   const router = useRouter()
   const pathname = usePathname()
@@ -1079,36 +1089,61 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   transition={{ duration: 0.3, delay: 0.2 }}
                   className={`px-4 pt-6 mt-4 border-t ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}
                 >
-                  <div className={`rounded-2xl overflow-hidden shadow-lg ${darkMode ? 'shadow-sky-500/5 border-slate-700' : 'shadow-blue-500/10 border-indigo-100'} border`}>
-                    <div className={`${darkMode ? 'bg-gradient-to-r from-sky-700 to-indigo-800' : 'bg-gradient-to-r from-blue-600 to-indigo-600'} p-4 relative`}>
-                      <div className={`absolute -right-6 -top-6 w-16 h-16 rounded-full ${darkMode ? 'bg-sky-600/20' : 'bg-blue-400/20'} backdrop-blur-xl`}></div>
-                      <div className={`absolute -left-6 -bottom-6 w-24 h-24 rounded-full ${darkMode ? 'bg-indigo-600/20' : 'bg-indigo-400/20'} backdrop-blur-xl`}></div>
-                      <h3 className={`${darkMode ? 'text-sky-300' : 'text-white'} font-bold text-lg relative z-10`}>علی فراست</h3>
-                      <p className={`${darkMode ? 'text-sky-400/80' : 'text-blue-100'} text-xs relative z-10`}>توسعه‌دهنده وب‌سایت</p>
-                    </div>
-                    
-                    <div className={`${darkMode ? 'bg-gradient-to-br from-slate-800 to-slate-700/70' : 'bg-gradient-to-br from-white to-blue-50'} p-4`}>
-                      <div className="flex items-center mb-3">
-                        <div className={`w-8 h-8 rounded-lg ${darkMode ? 'bg-slate-700 text-sky-400' : 'bg-blue-100 text-blue-600'} flex items-center justify-center ml-3`}>
-                          <FiGlobe className="text-sm" />
-                        </div>
-                        <div>
-                          <p className={`text-xs ${darkMode ? 'text-slate-300' : 'text-blue-900'} font-medium`}>وب‌سایت شخصی</p>
-                          <a href="https://web.xtr.lol" target="_blank" rel="noopener noreferrer" className={`text-xs ${darkMode ? 'text-sky-400 hover:underline' : 'text-blue-600 hover:underline'}`}>web.xtr.lol</a>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center">
-                        <div className={`w-8 h-8 rounded-lg ${darkMode ? 'bg-slate-700 text-indigo-400' : 'bg-indigo-100 text-indigo-600'} flex items-center justify-center ml-3`}>
-                          <FaPhone className="text-sm" />
-                        </div>
-                        <div>
-                          <p className={`text-xs ${darkMode ? 'text-slate-300' : 'text-blue-900'} font-medium`}>تماس</p>
-                          <a href="tel:+989134398990" className={`text-xs ${darkMode ? 'text-indigo-400 hover:underline' : 'text-indigo-600 hover:underline'}`}>۰۹۱۳۴۳۹۸۹۹۰</a>
-                        </div>
-                      </div>
-                    </div>
+                  {/* دکمه راهنما */}
+                  <div className="flex justify-center">
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowCredit(!showCredit)}
+                      className={`w-10 h-10 rounded-full ${darkMode ? 'bg-slate-700 text-sky-400 hover:bg-slate-600' : 'bg-blue-100 text-blue-600 hover:bg-blue-200'} flex items-center justify-center shadow-md transition-colors`}
+                    >
+                      <span className="text-xl font-bold">؟</span>
+                    </motion.button>
                   </div>
+                  
+                  {/* باکس اطلاعات توسعه‌دهنده */}
+                  <AnimatePresence>
+                    {showCredit && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                        className="mt-4"
+                      >
+                        <div className={`rounded-2xl overflow-hidden shadow-lg ${darkMode ? 'shadow-sky-500/5 border-slate-700' : 'shadow-blue-500/10 border-indigo-100'} border`}>
+                          <div className={`${darkMode ? 'bg-gradient-to-r from-sky-700 to-indigo-800' : 'bg-gradient-to-r from-blue-600 to-indigo-600'} p-4 relative`}>
+                            <div className={`absolute -right-6 -top-6 w-16 h-16 rounded-full ${darkMode ? 'bg-sky-600/20' : 'bg-blue-400/20'} backdrop-blur-xl`}></div>
+                            <div className={`absolute -left-6 -bottom-6 w-24 h-24 rounded-full ${darkMode ? 'bg-indigo-600/20' : 'bg-indigo-400/20'} backdrop-blur-xl`}></div>
+                            <h3 className={`${darkMode ? 'text-sky-300' : 'text-white'} font-bold text-lg relative z-10`}>علی فراست</h3>
+                            <p className={`${darkMode ? 'text-sky-400/80' : 'text-blue-100'} text-xs relative z-10`}>توسعه‌دهنده وب‌سایت</p>
+                          </div>
+                          
+                          <div className={`${darkMode ? 'bg-gradient-to-br from-slate-800 to-slate-700/70' : 'bg-gradient-to-br from-white to-blue-50'} p-4`}>
+                            <div className="flex items-center mb-3">
+                              <div className={`w-8 h-8 rounded-lg ${darkMode ? 'bg-slate-700 text-sky-400' : 'bg-blue-100 text-blue-600'} flex items-center justify-center ml-3`}>
+                                <FiGlobe className="text-sm" />
+                              </div>
+                              <div>
+                                <p className={`text-xs ${darkMode ? 'text-slate-300' : 'text-blue-900'} font-medium`}>وب‌سایت شخصی</p>
+                                <a href="https://web.xtr.lol" target="_blank" rel="noopener noreferrer" className={`text-xs ${darkMode ? 'text-sky-400 hover:underline' : 'text-blue-600 hover:underline'}`}>web.xtr.lol</a>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center">
+                              <div className={`w-8 h-8 rounded-lg ${darkMode ? 'bg-slate-700 text-indigo-400' : 'bg-indigo-100 text-indigo-600'} flex items-center justify-center ml-3`}>
+                                <FaPhone className="text-sm" />
+                              </div>
+                              <div>
+                                <p className={`text-xs ${darkMode ? 'text-slate-300' : 'text-blue-900'} font-medium`}>تماس</p>
+                                <a href="tel:+989134398990" className={`text-xs ${darkMode ? 'text-indigo-400 hover:underline' : 'text-indigo-600 hover:underline'}`}>۰۹۱۳۴۳۹۸۹۹۰</a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               )}
             </AnimatePresence>

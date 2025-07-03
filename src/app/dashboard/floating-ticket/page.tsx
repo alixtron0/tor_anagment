@@ -1270,11 +1270,37 @@ export default function FloatingTicket() {
                       <input
                         type="text"
                         value={passenger.documentNumber}
-                        onChange={(e) => updatePassenger(passenger.id, 'documentNumber', e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder={passenger.documentType === 'passport' ? 'شماره پاسپورت' : 'کد ملی'}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // اگر نوع سند کد ملی است، فقط اعداد را بپذیر و حداکثر ۱۰ رقم
+                          if (passenger.documentType === 'nationalId') {
+                            // فقط اعداد را قبول کن و حداکثر ۱۰ رقم
+                            if (/^\d{0,10}$/.test(value)) {
+                              updatePassenger(passenger.id, 'documentNumber', value);
+                            }
+                          } else {
+                            // برای پاسپورت محدودیتی نداریم
+                            updatePassenger(passenger.id, 'documentNumber', value);
+                          }
+                        }}
+                        className={`w-full bg-gray-50 border ${
+                          passenger.documentType === 'nationalId' && 
+                          passenger.documentNumber.length > 0 && 
+                          passenger.documentNumber.length !== 10
+                            ? 'border-red-300 focus:ring-red-500'
+                            : 'border-gray-300 focus:ring-indigo-500'
+                        } rounded-lg p-3 focus:outline-none focus:ring-2`}
+                        placeholder={passenger.documentType === 'passport' ? 'شماره پاسپورت' : 'کد ملی (۱۰ رقم)'}
                         dir="ltr"
+                        maxLength={passenger.documentType === 'nationalId' ? 10 : undefined}
                       />
+                      {passenger.documentType === 'nationalId' && 
+                       passenger.documentNumber.length > 0 && 
+                       passenger.documentNumber.length !== 10 && (
+                        <p className="mt-1 text-xs text-red-500">
+                          کد ملی باید دقیقاً ۱۰ رقم باشد. {10 - passenger.documentNumber.length} رقم دیگر وارد کنید.
+                        </p>
+                      )}
                     </div>
                     
                     <div>

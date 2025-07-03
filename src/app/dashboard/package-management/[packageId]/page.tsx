@@ -681,11 +681,8 @@ export default function PackageDetails() {
               </div>
               <div className="text-gray-500 text-xs">هتل‌ها</div>
             </div>
-            <div className="text-lg font-bold text-gray-900">
-              {packageData.hotels?.length || 0}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {packageData.hotels && packageData.hotels.length > 0 ? 'هتل' : 'بدون هتل'}
+            <div className="text-sm font-bold text-gray-900 line-clamp-2">
+              {packageData.hotelsFormatted || (packageData.hotels && packageData.hotels.length > 0 ? `${packageData.hotels.length} هتل` : 'بدون هتل')}
             </div>
           </div>
           
@@ -752,11 +749,26 @@ export default function PackageDetails() {
               </div>
               <div className="text-gray-500 text-xs">تاریخ سفر</div>
             </div>
-            <div className="text-xs font-bold text-gray-900 leading-tight">
+            <div className="text-base font-bold text-blue-700 leading-tight">
               {formatDate(packageData.startDate)}
+              {packageData.startTime && packageData.startTime !== "00:00" && (
+                <span className="mr-1 text-xs bg-blue-50 px-1.5 py-0.5 rounded text-blue-700">
+                  ساعت {packageData.startTime}
+                </span>
+              )}
             </div>
-            <div className="text-xs font-bold text-gray-900 mt-0.5 leading-tight">
-              تا {formatDate(packageData.endDate)}
+            <div className="text-sm text-gray-700 mt-1 leading-tight flex items-center">
+              <span>تا {formatDate(packageData.endDate)}</span>
+              {packageData.endTime && packageData.endTime !== "00:00" && (
+                <span className="mr-1 text-xs bg-blue-50 px-1.5 py-0.5 rounded text-blue-700">
+                  ساعت {packageData.endTime}
+                </span>
+              )}
+            </div>
+            <div className="mt-1">
+              <span className="bg-blue-100 px-2 py-0.5 rounded text-sm font-medium text-blue-700">
+                {calculateDuration(packageData.startDate, packageData.endDate)} روز
+              </span>
             </div>
           </div>
         </div>

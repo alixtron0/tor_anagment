@@ -196,7 +196,6 @@ export default function PassengerModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      onClick={onClose}
     >
       <motion.div
         className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
@@ -334,19 +333,51 @@ export default function PassengerModal({
               <label className="block text-gray-700 font-medium mb-2">
                 شماره ملی <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 ${errors.nationalId ? 'border-red-300' : 'border-gray-300'}`}
-                placeholder="شماره ملی 10 رقمی"
-                {...register("nationalId", { 
+              <Controller
+                name="nationalId"
+                control={control}
+                rules={{
                   required: "شماره ملی الزامی است",
                   pattern: {
                     value: /^\d{10}$/,
-                    message: "شماره ملی باید 10 رقم باشد"
+                    message: "شماره ملی باید دقیقاً 10 رقم باشد"
                   }
-                })}
+                }}
+                render={({ field }) => (
+                  <input
+                    type="text"
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 ${
+                      errors.nationalId || 
+                      (field.value && field.value.length > 0 && field.value.length !== 10) 
+                        ? 'border-red-300 focus:ring-red-400' 
+                        : 'border-gray-300 focus:ring-indigo-400'
+                    }`}
+                    placeholder="شماره ملی 10 رقمی"
+                    maxLength={10}
+                    value={field.value || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // فقط اعداد را بپذیر
+                      if (/^\d*$/.test(value)) {
+                        field.onChange(value);
+                      }
+                    }}
+                    onKeyPress={(e) => {
+                      // فقط اعداد را بپذیر
+                      if (!/[0-9]/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                  />
+                )}
+                
               />
               {errors.nationalId && <p className="mt-1 text-red-500 text-sm">{errors.nationalId.message}</p>}
+              {!errors.nationalId && watch("nationalId") && watch("nationalId").length > 0 && watch("nationalId").length !== 10 && (
+                <p className="mt-1 text-red-500 text-sm">
+                  کد ملی باید دقیقاً ۱۰ رقم باشد. {10 - watch("nationalId").length} رقم دیگر وارد کنید.
+                </p>
+              )}
             </div>
             
             <div>

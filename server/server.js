@@ -52,6 +52,7 @@ app.use('/api/passengers', require('./routes/passengerRoutes'));
 app.use('/api/contactinfo', require('./routes/contactInfoRoutes'));
 app.use('/api/uploads', require('./routes/uploadRoutes'));
 app.use('/api/floating-ticket', require('./routes/floatingTicketRoutes'));
+app.use('/api/image-library', require('./routes/imageLibraryRoutes'));
 
 
 // Simple route for testing

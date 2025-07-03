@@ -143,6 +143,10 @@ router.post(
       if (req.file) {
         newHotel.mainImage = `/uploads/hotels/${req.file.filename}`;
       }
+      // اگر تصویر از کتابخانه انتخاب شده باشد
+      else if (req.body.imageFromLibrary) {
+        newHotel.mainImage = req.body.imageFromLibrary;
+      }
 
       const hotel = await newHotel.save();
       res.json(hotel);
@@ -221,13 +225,17 @@ router.put(
       // اگر تصویر جدید آپلود شده باشد
       if (req.file) {
         // حذف تصویر قبلی اگر وجود داشته باشد
-        if (hotel.mainImage) {
+        if (hotel.mainImage && !hotel.mainImage.includes('/image-library/')) {
           const oldImagePath = path.join(__dirname, '..', hotel.mainImage);
           if (fs.existsSync(oldImagePath)) {
             fs.unlinkSync(oldImagePath);
           }
         }
         hotel.mainImage = `/uploads/hotels/${req.file.filename}`;
+      }
+      // اگر تصویر از کتابخانه انتخاب شده باشد
+      else if (req.body.imageFromLibrary) {
+        hotel.mainImage = req.body.imageFromLibrary;
       }
 
       await hotel.save();

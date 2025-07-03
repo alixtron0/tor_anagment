@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import ClientUpload from '@/components/ClientUpload';
 
 // تعریف طرح اعتبارسنجی فرم
 const hotelSchema = z.object({
@@ -178,6 +179,15 @@ export default function HotelManagement() {
     }
   };
 
+  // انتخاب تصویر از کامپوننت ClientUpload
+  const handleImageSelect = (imageUrl: string) => {
+    setImagePreview(imageUrl);
+    // اگر تصویر از کتابخانه انتخاب شده باشد، فایل را null می‌کنیم
+    if (imageUrl.includes('http://185.94.99.35:5000')) {
+      setImageFile(null);
+    }
+  };
+
   // ارسال فرم
   const onSubmit = async (data: HotelFormData) => {
     try {
@@ -194,7 +204,14 @@ export default function HotelManagement() {
       formData.append('checkInTime', '14:00'); // مقدار پیش‌فرض
       formData.append('checkOutTime', '12:00'); // مقدار پیش‌فرض
       
-      if (imageFile) {
+      // اگر تصویر از کتابخانه انتخاب شده باشد
+      if (imagePreview && imagePreview.includes('http://185.94.99.35:5000')) {
+        // استخراج مسیر نسبی تصویر از URL کامل
+        const imagePath = imagePreview.replace('http://185.94.99.35:5000', '');
+        formData.append('imageFromLibrary', imagePath);
+      } 
+      // اگر فایل آپلود شده باشد
+      else if (imageFile) {
         formData.append('mainImage', imageFile);
       }
 
@@ -446,46 +463,12 @@ export default function HotelManagement() {
               <div className="space-y-1 md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700">تصویر هتل</label>
                 <div className="flex flex-wrap items-center gap-4">
-                  <div>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleImageChange}
-                      accept="image/jpeg,image/png,image/webp"
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all flex items-center shadow-sm"
-                    >
-                      <FaUpload className="ml-2" />
-                      انتخاب تصویر هتل
-                    </button>
-                    {imageFile && <span className="text-gray-700 mr-2 text-sm">{imageFile.name}</span>}
-                  </div>
-                  
-                  {imagePreview && (
-                    <div className="relative w-24 h-24 border border-gray-200 rounded-lg overflow-hidden bg-white p-1 shadow-sm">
-                      <img 
-                        src={imagePreview} 
-                        alt="Hotel Preview" 
-                        className="w-full h-full object-contain"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setImagePreview(null);
-                          setImageFile(null);
-                          if (fileInputRef.current) fileInputRef.current.value = '';
-                        }}
-                        className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-bl-lg text-xs"
-                        title="حذف تصویر"
-                      >
-                        <FaTrash size={10} />
-                      </button>
-                    </div>
-                  )}
+                  <ClientUpload 
+                    onSelect={handleImageSelect}
+                    defaultImage={imagePreview || ''}
+                    title="انتخاب تصویر هتل"
+                    buttonText="انتخاب تصویر"
+                  />
                 </div>
               </div>
               

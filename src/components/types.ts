@@ -69,6 +69,7 @@ export interface Package {
   servicesFee: number;
   capacity: number;
   hotels: HotelStay[];
+  hotelsFormatted?: string;
   services: Service[];
   rooms: {
     single: RoomOption;

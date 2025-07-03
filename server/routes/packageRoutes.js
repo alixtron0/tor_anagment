@@ -61,7 +61,25 @@ router.get('/', auth, async (req, res) => {
       })
       .sort({ createdAt: -1 });
     
-    res.json(packages);
+    // اضافه کردن فیلد hotelsFormatted به هر پکیج
+    const packagesWithFormattedHotels = packages.map(pkg => {
+      const pkgObj = pkg.toObject();
+      
+      // فرمت کردن اطلاعات هتل‌ها
+      if (pkgObj.hotels && pkgObj.hotels.length > 0) {
+        pkgObj.hotelsFormatted = pkgObj.hotels.map(hotelItem => {
+          const hotelName = hotelItem.hotel && hotelItem.hotel.name ? hotelItem.hotel.name : 'هتل';
+          const hotelCity = hotelItem.hotel && hotelItem.hotel.city ? hotelItem.hotel.city : '';
+          return `${hotelName} ${hotelCity} ${hotelItem.stayDuration} شب`;
+        }).join(' ');
+      } else {
+        pkgObj.hotelsFormatted = 'بدون هتل';
+      }
+      
+      return pkgObj;
+    });
+    
+    res.json(packagesWithFormattedHotels);
   } catch (err) {
     console.error('خطا در دریافت پکیج‌ها:', err.message);
     res.status(500).json({ message: `خطای سرور در دریافت پکیج‌ها: ${err.message}` });
@@ -116,7 +134,21 @@ router.get('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'شما اجازه دسترسی به این پکیج خصوصی را ندارید' });
     }
     
-    res.json(package);
+    // اضافه کردن فیلد hotelsFormatted به پکیج
+    const packageObj = package.toObject();
+    
+    // فرمت کردن اطلاعات هتل‌ها
+    if (packageObj.hotels && packageObj.hotels.length > 0) {
+      packageObj.hotelsFormatted = packageObj.hotels.map(hotelItem => {
+        const hotelName = hotelItem.hotel && hotelItem.hotel.name ? hotelItem.hotel.name : 'هتل';
+        const hotelCity = hotelItem.hotel && hotelItem.hotel.city ? hotelItem.hotel.city : '';
+        return `${hotelName} ${hotelCity} ${hotelItem.stayDuration} شب`;
+      }).join(' ');
+    } else {
+      packageObj.hotelsFormatted = 'بدون هتل';
+    }
+    
+    res.json(packageObj);
   } catch (err) {
     console.error('خطا در دریافت پکیج:', err.message);
     if (err.kind === 'ObjectId') {

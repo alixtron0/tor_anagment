@@ -11,6 +11,7 @@ import CustomCheckbox from '@/components/CustomCheckbox'
 import AirlineSelect from '@/components/AirlineSelect'
 import PersianDatePicker from '@/components/PersianDatePicker'
 import TimeSelector from '@/components/TimeSelector'
+import ClientUpload from '@/components/ClientUpload'
 
 interface Route {
   _id: string
@@ -641,46 +642,18 @@ export default function AddPackageModal({
     }
   }, [isOpen])
 
-  // اضافه کردن هندلر آپلود تصویر
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const formData = new FormData();
-      formData.append('image', file);
-
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        'http://185.94.99.35:5000/api/uploads/upload',
-        formData,
-        {
-          headers: {
-            'x-auth-token': token,
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
-
-      console.log('Upload response:', response.data);
-
-      // نمایش پیش‌نمایش تصویر
-      setImagePreview(URL.createObjectURL(file));
-      
-      // ذخیره مسیر تصویر در فرم
-      setValue('image', response.data.path);
-      
-      toast.success('تصویر با موفقیت آپلود شد');
-    } catch (error: any) {
-      console.error('خطا در آپلود تصویر:', error);
-      
-      // نمایش خطای دقیق‌تر
-      if (error.response) {
-        console.error('Server error data:', error.response.data);
-        toast.error(error.response.data.message || 'خطا در آپلود تصویر');
-      } else {
-        toast.error('خطا در ارتباط با سرور');
-      }
+  // انتخاب تصویر از کامپوننت ClientUpload
+  const handleImageSelect = (imageUrl: string) => {
+    setImagePreview(imageUrl);
+    
+    // استخراج مسیر نسبی تصویر از URL کامل
+    if (imageUrl.includes('http://185.94.99.35:5000')) {
+      const relativePath = imageUrl.replace('http://185.94.99.35:5000', '');
+      setValue('image', relativePath);
+    } else if (imageUrl) {
+      setValue('image', imageUrl);
+    } else {
+      setValue('image', '');
     }
   };
 
@@ -999,38 +972,15 @@ export default function AddPackageModal({
                 <div className="space-y-2">
                   <label className="block font-medium text-gray-700">تصویر پکیج</label>
                   <div className="flex items-center gap-4">
-                    <div className="relative w-32 h-32 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center overflow-hidden hover:border-primary transition-colors">
-                      {imagePreview ? (
-                        <>
-                          <img src={imagePreview} alt="پیش‌نمایش" className="w-full h-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setImagePreview('');
-                              setValue('image', '');
-                            }}
-                            className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full text-xs"
-                            title="حذف تصویر"
-                          >
-                            <FaTimes />
-                          </button>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-gray-400 hover:text-primary transition-colors">
-                          <FaUpload className="text-2xl mb-1" />
-                          <span className="text-xs">آپلود تصویر</span>
-                        </div>
-                      )}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                      />
-                    </div>
+                    <ClientUpload 
+                      onSelect={handleImageSelect}
+                      defaultImage={imagePreview || ''}
+                      title="انتخاب تصویر پکیج"
+                      buttonText="انتخاب تصویر"
+                    />
                     <div className="flex-1">
-                      <p className="text-sm text-gray-600 mb-2">فرمت‌های مجاز: JPG، PNG، WEBP، GIF</p>
-                      <p className="text-sm text-gray-600">بدون محدودیت حجم</p>
+                      <p className="text-sm text-gray-600 mb-2">می‌توانید از کتابخانه تصاویر انتخاب کنید یا تصویر جدید آپلود کنید</p>
+                      <p className="text-sm text-gray-600">فرمت‌های مجاز: JPG، PNG، WEBP</p>
                     </div>
                   </div>
                 </div>

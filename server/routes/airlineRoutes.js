@@ -140,6 +140,11 @@ router.post('/', [
       createdBy: req.user.id
     });
 
+    // اگر تصویر از کتابخانه انتخاب شده باشد
+    if (req.body.imageFromLibrary) {
+      newAirline.logo = req.body.imageFromLibrary;
+    }
+
     airline = await newAirline.save();
     console.log('Airline created successfully:', airline); // لاگ نتیجه ایجاد
 
@@ -209,7 +214,7 @@ router.put('/:id', [
     }
 
     // بررسی وجود لوگوی قبلی و حذف آن در صورت آپلود فایل جدید
-    if (req.file && airline.logo) {
+    if ((req.file || req.body.imageFromLibrary) && airline.logo && !airline.logo.includes('/image-library/')) {
       const oldLogoPath = path.join(__dirname, '..', airline.logo);
       console.log('Attempting to delete old logo:', oldLogoPath); // لاگ مسیر حذف فایل قدیمی
       if (fs.existsSync(oldLogoPath)) {
@@ -224,6 +229,8 @@ router.put('/:id', [
     airline.name = name;
     if (req.file) {
       airline.logo = `/uploads/airlines/${req.file.filename}`;
+    } else if (req.body.imageFromLibrary) {
+      airline.logo = req.body.imageFromLibrary;
     }
     airline.aircraftModel = aircraftModel || airline.aircraftModel;
     airline.description = description || airline.description;

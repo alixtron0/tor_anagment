@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
+import ClientUpload from '@/components/ClientUpload';
 
 // تعریف طرح اعتبارسنجی فرم
 const airlineSchema = z.object({
@@ -103,6 +104,15 @@ export default function AirlineManagement() {
     }
   };
 
+  // انتخاب تصویر از کامپوننت ClientUpload
+  const handleImageSelect = (imageUrl: string) => {
+    setLogoPreview(imageUrl);
+    // اگر تصویر از کتابخانه انتخاب شده باشد، فایل را null می‌کنیم
+    if (imageUrl.includes('http://185.94.99.35:5000')) {
+      setLogoFile(null);
+    }
+  };
+
   // ارسال فرم
   const onSubmit = async (data: AirlineFormData) => {
     try {
@@ -114,7 +124,14 @@ export default function AirlineManagement() {
       formData.append('aircraftModel', data.aircraftModel || '');
       formData.append('description', data.description || '');
       
-      if (logoFile) {
+      // اگر تصویر از کتابخانه انتخاب شده باشد
+      if (logoPreview && logoPreview.includes('http://185.94.99.35:5000')) {
+        // استخراج مسیر نسبی تصویر از URL کامل
+        const imagePath = logoPreview.replace('http://185.94.99.35:5000', '');
+        formData.append('imageFromLibrary', imagePath);
+      } 
+      // اگر فایل آپلود شده باشد
+      else if (logoFile) {
         formData.append('logo', logoFile);
       }
 
@@ -327,51 +344,12 @@ export default function AirlineManagement() {
               <div className="md:col-span-2">
                 <label className="block text-lg font-medium text-gray-700 mb-2 dark:text-slate-300">لوگو</label>
                 <div className="flex flex-wrap items-center gap-6">
-                  <div className="relative group">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleLogoChange}
-                      accept="image/jpeg,image/png,image/svg+xml"
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-6 py-4 bg-blue-100 text-blue-600 rounded-xl hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all flex items-center group-hover:shadow-lg dark:bg-sky-700/50 dark:text-sky-400 dark:hover:bg-sky-600/50 dark:focus:ring-sky-500"
-                    >
-                      <FaUpload className="ml-3" size={18} />
-                      <span>انتخاب فایل لوگو</span>
-                    </button>
-                  </div>
-                  
-                  {logoFile && (
-                    <span className="text-gray-600 text-sm px-4 py-2 bg-gray-100 rounded-lg border border-gray-200 dark:text-slate-400 dark:bg-slate-700 dark:border-slate-600">
-                      {logoFile.name}
-                    </span>
-                  )}
-                  
-                  {logoPreview && (
-                    <div className="relative w-24 h-24 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 p-2 shadow-lg dark:border-slate-600 dark:bg-slate-700">
-                      <img 
-                        src={logoPreview} 
-                        alt="Logo Preview" 
-                        className="w-full h-full object-contain"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLogoPreview(null);
-                          setLogoFile(null);
-                          if (fileInputRef.current) fileInputRef.current.value = '';
-                        }}
-                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-md text-xs dark:bg-red-600 dark:text-red-100"
-                        title="حذف تصویر"
-                      >
-                        <FaTrash size={10} />
-                      </button>
-                    </div>
-                  )}
+                  <ClientUpload 
+                    onSelect={handleImageSelect}
+                    defaultImage={logoPreview || ''}
+                    title="انتخاب لوگوی شرکت هواپیمایی"
+                    buttonText="انتخاب لوگو"
+                  />
                 </div>
               </div>
               

@@ -417,12 +417,17 @@ export default function PackageManagement() {
                             <div className="bg-blue-100 p-1.5 rounded-full">
                               <FaCalendarAlt className="text-blue-600 text-sm" />
                             </div>
-                            <span className="mr-1 text-sm text-gray-700">
-                              {formatDate(pkg.startDate)} {pkg.startTime && `(${pkg.startTime})`} تا {formatDate(pkg.endDate)} {pkg.endTime && `(${pkg.endTime})`}
-                            </span>
-                            <span className="mr-1 bg-blue-50 px-1.5 py-0.5 rounded text-xs text-blue-700">
-                              {calculateDuration(pkg.startDate, pkg.endDate)} روز
-                            </span>
+                            <div className="mr-1">
+                              <div className="text-base font-bold text-blue-700">
+                                {formatDate(pkg.startDate)} {pkg.startTime && `(${pkg.startTime})`}
+                              </div>
+                              <div className="text-sm text-gray-600 flex items-center">
+                                <span>تا {formatDate(pkg.endDate)}</span>
+                                <span className="mr-1 bg-blue-50 px-1.5 py-0.5 rounded text-xs text-blue-700">
+                                  {calculateDuration(pkg.startDate, pkg.endDate)} روز
+                                </span>
+                              </div>
+                            </div>
                           </div>
                           
                           <div className="flex items-center">
@@ -430,7 +435,7 @@ export default function PackageManagement() {
                               <FaHotel className="text-purple-600 text-sm" />
                             </div>
                             <span className="mr-1 text-sm text-gray-700">
-                              {pkg.hotels?.length || 0} هتل
+                              {pkg.hotelsFormatted || (pkg.hotels?.length || 0) + ' هتل'}
                             </span>
                           </div>
                           

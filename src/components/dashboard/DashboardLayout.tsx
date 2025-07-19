@@ -404,7 +404,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="absolute inset-2 rounded-full border-t-4 border-l-4 border-indigo-500/60 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
               <div className="absolute inset-4 rounded-full border-t-4 border-b-4 border-blue-400/50 animate-spin" style={{ animationDuration: '2s' }}></div>
               <div className="absolute inset-0 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center">
-                <Image src="/logo.jpg" alt="تورنگار" width={40} height={40} className="rounded-full" />
+                <Image src="/logo.jpg" alt="عتبات تور" width={40} height={40} className="rounded-full" />
               </div>
             </div>
             <h3 className="mt-6 text-blue-700 font-medium">در حال بارگذاری پنل مدیریت</h3>
@@ -427,12 +427,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl ${darkMode ? 'bg-gradient-to-br from-sky-600 to-indigo-700' : 'bg-gradient-to-br from-blue-500 to-indigo-600'} p-0.5 shadow-lg ${darkMode ? 'shadow-sky-500/20' : 'shadow-blue-500/20'} overflow-hidden`}>
               <div className={`w-full h-full rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white'} flex items-center justify-center`}>
-                <Image src="/logo.jpg" alt="تورنگار" width={24} height={24} className="rounded-full" />
+                <Image src="/logo.jpg" alt="عتبات تور" width={24} height={24} className="rounded-full" />
               </div>
             </div>
             <div>
               <h1 className={`text-lg font-bold ${darkMode ? 'text-sky-400' : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text'}`}>
-                تورنگار
+                عتبات تور
               </h1>
               <p className={`text-[10px] ${darkMode ? 'text-slate-400' : 'text-slate-500'} -mt-1`}>سامانه مدیریت مسافرتی</p>
             </div>
@@ -714,7 +714,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <div className={`w-12 h-12 rounded-xl ${darkMode ? 'bg-gradient-to-br from-sky-600 to-indigo-700' : 'bg-gradient-to-br from-blue-500 to-indigo-600'} p-0.5 flex items-center justify-center shadow-lg ${darkMode ? 'shadow-sky-500/20' : 'shadow-blue-500/20'} overflow-hidden`}>
                   <div className={`w-full h-full rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white'} flex items-center justify-center`}>
-                    <Image src="/logo.jpg" alt="تورنگار" width={40} height={40} className="rounded-full" />
+                    <Image src="/logo.jpg" alt="عتبات تور" width={40} height={40} className="rounded-full" />
                   </div>
                 </div>
                 <AnimatePresence>
@@ -731,7 +731,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         animate={{ y: [0, -2, 0] }}
                         transition={{ repeat: 0, duration: 0.5 }}
                       >
-                        تورنگار
+                        عتبات تور
                       </motion.h1>
                       <div className={`h-0.5 w-12 ${darkMode ? 'bg-gradient-to-r from-sky-500/30 to-indigo-500/30' : 'bg-gradient-to-r from-blue-500/30 to-indigo-500/30'} rounded-full`}></div>
                       <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>سامانه مدیریت مسافرتی</p>

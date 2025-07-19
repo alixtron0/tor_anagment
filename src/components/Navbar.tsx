@@ -14,7 +14,7 @@ export default function Navbar() {
         <div className="flex h-20 items-center justify-between">
           {/* لوگو */}
           <div className="flex-shrink-0">
-            <h1 className="text-2xl font-bold text-white">تورنگار</h1>
+            <h1 className="text-2xl font-bold text-white">عتبات تور</h1>
           </div>
 
           {/* منوی اصلی */}

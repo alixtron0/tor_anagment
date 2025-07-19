@@ -216,7 +216,7 @@ const TicketTemplate: React.FC<TicketTemplateProps> = ({ ticketData, downloadabl
       pdf.setProperties({
         title: `بلیط پرواز ${ticketData.passenger.englishFirstName} ${ticketData.passenger.englishLastName}`,
         subject: `پرواز ${ticketData.flightInfo.origin} به ${ticketData.flightInfo.destination}`,
-        creator: 'سیستم مدیریت تورنگار'
+        creator: 'سیستم مدیریت عتبات تور'
       });
       
       // محاسبه ابعاد تصویر در PDF

@@ -240,9 +240,41 @@ export default function FloatingTicketHistory() {
     router.push(`/dashboard/floating-ticket/edit/${ticketId}`);
   };
 
-  // تبدیل تاریخ به فرمت فارسی
-  const formatDate = (dateString: string) => {
-    return moment(dateString).locale('fa').format('jYYYY/jMM/jDD HH:mm');
+
+  
+  // تبدیل تاریخ پرواز به فرمت فارسی
+  const formatPersianDate = (dateString: string) => {
+    // اگر تاریخ به فرمت yyyy/mm/dd است (فرمت شمسی)
+    if (dateString.includes('/')) {
+      const dateParts = dateString.split('/');
+      if (dateParts.length === 3) {
+        const year = parseInt(dateParts[0]);
+        const month = parseInt(dateParts[1]);
+        const day = parseInt(dateParts[2]);
+        
+        // ماه‌های شمسی
+        const persianMonths = [
+          'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+          'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+        ];
+        
+        // اگر سال کمتر از 1500 است، احتمالاً شمسی است
+        if (year < 1500) {
+          return `${day} ${persianMonths[month-1]} ${year}`;
+        } else {
+          // تبدیل تاریخ میلادی به شمسی
+          return moment(dateString, 'YYYY/MM/DD').locale('fa').format('jD jMMMM jYYYY');
+        }
+      }
+    }
+    
+    // اگر تاریخ در قالب دیگری است، از moment استفاده می‌کنیم
+    try {
+      return moment(dateString).locale('fa').format('jD jMMMM jYYYY');
+    } catch (error) {
+      console.error('خطا در تبدیل تاریخ:', error);
+      return dateString;
+    }
   };
 
   // تغییر صفحه
@@ -474,17 +506,7 @@ export default function FloatingTicketHistory() {
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       ایرلاین
                     </th>
-                    <th 
-                      className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={() => handleSort('createdAt')}
-                    >
-                      <div className="flex items-center">
-                        <span>تاریخ ایجاد</span>
-                        {sortField === 'createdAt' && (
-                          sortDirection === 'asc' ? <FaArrowUp className="mr-1" /> : <FaArrowDown className="mr-1" />
-                        )}
-                      </div>
-                    </th>
+
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       عملیات
                     </th>
@@ -497,7 +519,7 @@ export default function FloatingTicketHistory() {
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className="flex flex-col">
                             <span className="font-medium text-gray-800">
-                              {ticket.flightInfo.date}
+                              {formatPersianDate(ticket.flightInfo.date)}
                             </span>
                             {ticket.flightInfo.time && (
                               <span className="text-xs text-gray-500 flex items-center mt-1">
@@ -555,16 +577,7 @@ export default function FloatingTicketHistory() {
                             <span className="text-gray-400 text-sm">تعیین نشده</span>
                           )}
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="flex flex-col">
-                            <span className="text-gray-800">
-                              {formatDate(ticket.createdAt)}
-                            </span>
-                            <span className="text-xs text-gray-500 mt-1">
-                              توسط: {ticket.createdBy?.fullName || '---'}
-                            </span>
-                          </div>
-                        </td>
+
                         <td className="px-4 py-4 whitespace-nowrap text-center">
                           <div className="flex items-center justify-center space-x-2 space-x-reverse">
                             <button
@@ -606,7 +619,7 @@ export default function FloatingTicketHistory() {
                       {/* جزئیات بیشتر مسافران */}
                       {detailsId === ticket._id && (
                         <tr>
-                          <td colSpan={6} className="px-4 py-4 bg-indigo-50/70">
+                          <td colSpan={5} className="px-4 py-4 bg-indigo-50/70">
                             <div className="overflow-x-auto">
                               <table className="min-w-full">
                                 <thead>

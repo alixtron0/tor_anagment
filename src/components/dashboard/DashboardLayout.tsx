@@ -2,6 +2,7 @@
 import { useState, useEffect, ReactNode, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import { FiPackage, FiHome, FiMonitor, FiGlobe, FiTrello } from "react-icons/fi";
 import { 
@@ -394,9 +395,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // صفحه بارگذاری با طراحی مدرن
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-white flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 via-indigo-50 to-blue-50">
         <div className="relative">
-          <div className="absolute -inset-4 rounded-full bg-blue-500/10 blur-xl animate-pulse"></div>
           <div className="absolute -inset-10 rounded-full bg-indigo-500/5 blur-2xl animate-pulse" style={{ animationDelay: '0.2s' }}></div>
           <div className="relative flex flex-col items-center">
             <div className="w-20 h-20 relative">
@@ -404,7 +404,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="absolute inset-2 rounded-full border-t-4 border-l-4 border-indigo-500/60 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
               <div className="absolute inset-4 rounded-full border-t-4 border-b-4 border-blue-400/50 animate-spin" style={{ animationDuration: '2s' }}></div>
               <div className="absolute inset-0 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center">
-                <FaPlane className="text-blue-600 text-xl animate-bounce" style={{ animationDuration: '1.2s' }} />
+                <Image src="/logo.jpg" alt="تورنگار" width={40} height={40} className="rounded-full" />
               </div>
             </div>
             <h3 className="mt-6 text-blue-700 font-medium">در حال بارگذاری پنل مدیریت</h3>
@@ -427,7 +427,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl ${darkMode ? 'bg-gradient-to-br from-sky-600 to-indigo-700' : 'bg-gradient-to-br from-blue-500 to-indigo-600'} p-0.5 shadow-lg ${darkMode ? 'shadow-sky-500/20' : 'shadow-blue-500/20'} overflow-hidden`}>
               <div className={`w-full h-full rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white'} flex items-center justify-center`}>
-                <FaPlane className={`${darkMode ? 'text-sky-400' : 'text-blue-600'}`} />
+                <Image src="/logo.jpg" alt="تورنگار" width={24} height={24} className="rounded-full" />
               </div>
             </div>
             <div>
@@ -713,14 +713,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 transition={{ duration: 0.3 }}
               >
                 <div className={`w-12 h-12 rounded-xl ${darkMode ? 'bg-gradient-to-br from-sky-600 to-indigo-700' : 'bg-gradient-to-br from-blue-500 to-indigo-600'} p-0.5 flex items-center justify-center shadow-lg ${darkMode ? 'shadow-sky-500/20' : 'shadow-blue-500/20'} overflow-hidden`}>
-                  <div className={`w-full h-full rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white'} flex items-center justify-center p-2`}>
-                    <motion.div
-                      animate={{ rotate: [0, 360] }}
-                      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                      className="relative w-full h-full"
-                    >
-                      <FaPlane className={`${darkMode ? 'text-sky-400' : 'text-blue-600'} text-xl absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2`} />
-                    </motion.div>
+                  <div className={`w-full h-full rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white'} flex items-center justify-center`}>
+                    <Image src="/logo.jpg" alt="تورنگار" width={40} height={40} className="rounded-full" />
                   </div>
                 </div>
                 <AnimatePresence>

@@ -354,10 +354,10 @@ export default function AuthPage() {
                     <div className={`relative flex items-center gap-3 ${
                       isDarkMode ? 'text-white' : 'text-white'
                     }`}>
-                      <div className="p-3 rounded-xl bg-white/20 backdrop-blur-md">
-                        <MdOutlineFlightTakeoff className="text-2xl" />
+                      <div className="p-1 rounded-xl bg-white/20 backdrop-blur-md">
+                        <Image src="/logo.jpg" alt="عتبات تور" width={50} height={50} className="rounded-lg" />
                       </div>
-                      <div className="text-2xl font-bold">تورنگار</div>
+                      <div className="text-2xl font-bold">عتبات تور</div>
                     </div>
                   </motion.div>
                 </div>
@@ -379,7 +379,7 @@ export default function AuthPage() {
                     transition={{ duration: 0.6, delay: 0.4 }}
                     className="text-white/70 text-sm lg:text-base max-w-md leading-relaxed text-center lg:text-right"
                   >
-                    با استفاده از سیستم مدیریت تورنگار، تمام فرایندهای کاری آژانس مسافرتی خود را ساده‌تر و هوشمندتر انجام دهید.
+                    با استفاده از سیستم مدیریت عتبات تور، تمام فرایندهای کاری آژانس مسافرتی خود را ساده‌تر و هوشمندتر انجام دهید.
                   </motion.p>
                   
                   {/* مزیت‌ها */}
@@ -411,7 +411,7 @@ export default function AuthPage() {
                     transition={{ duration: 0.6, delay: 0.8 }}
                     className="text-white/50 text-xs"
                   >
-                    © تورنگار ۱۴۰۲ - تمامی حقوق محفوظ است
+                    © عتبات تور ۱۴۰۲ - تمامی حقوق محفوظ است
                   </motion.p>
                 </div>
               </div>

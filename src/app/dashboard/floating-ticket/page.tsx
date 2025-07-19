@@ -454,6 +454,11 @@ export default function FloatingTicket() {
     if (passengers.length === 0) {
       return reactToastify.error('حداقل یک مسافر اضافه کنید')
     }
+    
+    // بررسی انتخاب شرکت هواپیمایی
+    if (!selectedAirline) {
+      return reactToastify.error('لطفاً شرکت هواپیمایی را انتخاب کنید')
+    }
 
     try {
       setIsExporting(true);
@@ -606,6 +611,11 @@ export default function FloatingTicket() {
       !flightInfo.date.trim()
     ) {
       return reactToastify.error('لطفاً مسیر و تاریخ پرواز را مشخص کنید')
+    }
+    
+    // بررسی انتخاب شرکت هواپیمایی
+    if (!selectedAirline) {
+      return reactToastify.error('لطفاً شرکت هواپیمایی را انتخاب کنید')
     }
     
     try {
@@ -932,7 +942,10 @@ export default function FloatingTicket() {
             </div>
             
             <div>
-              <label className="block text-gray-700 mb-2">شرکت هواپیمایی (اختیاری)</label>
+              <label className="block text-gray-700 mb-2 flex items-center">
+                شرکت هواپیمایی
+                <span className="text-red-500 mr-1">*</span>
+              </label>
               <select
                 value={selectedAirline?._id || ''}
                 onChange={(e) => {
@@ -952,10 +965,8 @@ export default function FloatingTicket() {
                     
                     // استفاده از مدل هواپیمای ذخیره شده در ایرلاین
                     if (airline.aircraftModel) {
-                      console.log(`Using airline.aircraftModel: ${airline.aircraftModel}`);
                       updateFlightInfo('aircraft', airline.aircraftModel);
                     } else {
-                      console.log("No aircraftModel found in airline");
                       updateFlightInfo('aircraft', airline.englishName ? `${airline.englishName} Aircraft` : '');
                     }
                     
@@ -982,14 +993,11 @@ export default function FloatingTicket() {
                     // دریافت اطلاعات کامل و به‌روزرسانی
                     fetchAirlineDetails(airlineId).then(detailedAirline => {
                       if (detailedAirline) {
-                        console.log("Received detailed airline info:", detailedAirline);
-                        
                         // به‌روزرسانی state با اطلاعات کامل
                         setSelectedAirline(detailedAirline);
                         
                         // اگر aircraftModel در اطلاعات دقیق وجود دارد، از آن استفاده کنیم
                         if (detailedAirline.aircraftModel) {
-                          console.log(`Using detailed airline.aircraftModel: ${detailedAirline.aircraftModel}`);
                           updateFlightInfo('aircraft', detailedAirline.aircraftModel);
                         }
                       }
@@ -997,12 +1005,12 @@ export default function FloatingTicket() {
                   }
                 }}
                 className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                required
               >
                 <option value="">انتخاب شرکت هواپیمایی</option>
                 {airlines.map(airline => (
                   <option key={airline._id} value={airline._id}>
-                    {airline.name} ({airline.englishName || ''})
-                    {airline.aircraftModel ? ` - ${airline.aircraftModel}` : ''}
+                    {airline.name}
                   </option>
                 ))}
               </select>

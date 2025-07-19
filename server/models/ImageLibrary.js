@@ -15,6 +15,10 @@ const ImageLibrarySchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  serverPath: {
+    type: String,
+    trim: true
+  },
   filename: {
     type: String,
     required: true,

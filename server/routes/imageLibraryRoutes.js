@@ -9,12 +9,24 @@ const ImageLibrary = require('../models/ImageLibrary');
 // تنظیمات آپلود فایل
 const storage = multer.diskStorage({
   destination: function(req, file, cb) {
-    const uploadDir = path.join(__dirname, '../../uploads/library');
-    console.log('Image Library upload directory:', uploadDir);
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    // ذخیره در هر دو مسیر سرور و فرانت
+    const serverUploadDir = path.join(__dirname, '../uploads/library');
+    const frontUploadDir = path.join(__dirname, '../../uploads/library');
+    
+    console.log('Server Image Library upload directory:', serverUploadDir);
+    console.log('Front Image Library upload directory:', frontUploadDir);
+    
+    // اطمینان از وجود هر دو مسیر
+    if (!fs.existsSync(serverUploadDir)) {
+      fs.mkdirSync(serverUploadDir, { recursive: true });
     }
-    cb(null, uploadDir);
+    
+    if (!fs.existsSync(frontUploadDir)) {
+      fs.mkdirSync(frontUploadDir, { recursive: true });
+    }
+    
+    // ابتدا در مسیر سرور ذخیره می‌کنیم
+    cb(null, serverUploadDir);
   },
   filename: function(req, file, cb) {
     cb(null, `image-${Date.now()}${path.extname(file.originalname)}`);
@@ -52,16 +64,30 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
     }
 
     const { name, category, tags } = req.body;
+    
+    // کپی فایل به مسیر فرانت
+    const serverFilePath = req.file.path;
+    const frontFilePath = path.join(__dirname, '../../uploads/library', req.file.filename);
+    
+    // کپی فایل از مسیر سرور به مسیر فرانت
+    try {
+      fs.copyFileSync(serverFilePath, frontFilePath);
+      console.log(`File copied from ${serverFilePath} to ${frontFilePath}`);
+    } catch (copyError) {
+      console.error('Error copying file to front path:', copyError);
+      // ادامه می‌دهیم حتی اگر کپی با خطا مواجه شود
+    }
 
     // ایجاد رکورد جدید در کتابخانه تصاویر
     const newImage = new ImageLibrary({
       name: name || req.file.originalname,
       path: `/uploads/library/${req.file.filename}`,
+      serverPath: `/server/uploads/library/${req.file.filename}`, // مسیر سرور را نیز ذخیره می‌کنیم
       filename: req.file.filename,
       size: req.file.size,
       mimetype: req.file.mimetype,
       category: category || 'general',
-      tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+      tags: tags ? JSON.parse(tags) : [],
       createdBy: req.user.id
     });
 
@@ -146,9 +172,19 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     // حذف فایل از سرور
-    const filePath = path.join(__dirname, '../..', image.path);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    const serverFilePath = path.join(__dirname, '..', image.path);
+    const frontFilePath = path.join(__dirname, '../..', image.path);
+    
+    // حذف از مسیر سرور
+    if (fs.existsSync(serverFilePath)) {
+      fs.unlinkSync(serverFilePath);
+      console.log(`Deleted file from server path: ${serverFilePath}`);
+    }
+    
+    // حذف از مسیر فرانت
+    if (fs.existsSync(frontFilePath)) {
+      fs.unlinkSync(frontFilePath);
+      console.log(`Deleted file from front path: ${frontFilePath}`);
     }
 
     // حذف رکورد از دیتابیس
@@ -179,7 +215,7 @@ router.put('/:id', auth, async (req, res) => {
     // بروزرسانی اطلاعات
     if (name) image.name = name;
     if (category) image.category = category;
-    if (tags) image.tags = tags.split(',').map(tag => tag.trim());
+    if (tags) image.tags = Array.isArray(tags) ? tags : JSON.parse(tags);
 
     await image.save();
 

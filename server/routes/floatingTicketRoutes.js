@@ -898,13 +898,16 @@ function formatPersianDate(dateString) {
       return '';
     }
     
+    // استفاده از جلالی-مومنت برای تبدیل تاریخ میلادی به شمسی
+    const jalaliMoment = require('jalali-moment');
+    
     // همه تاریخ‌ها را به عنوان میلادی در نظر بگیر و به شمسی تبدیل کن
     let mDate;
     
     // بررسی فرمت‌های مختلف تاریخ
     if (dateString.includes('-')) {
       // فرمت ISO (YYYY-MM-DD)
-      mDate = moment(dateString, 'YYYY-MM-DD');
+      mDate = jalaliMoment(dateString, 'YYYY-MM-DD');
     } 
     else if (dateString.includes('/')) {
       // فرمت YYYY/MM/DD یا MM/DD/YYYY
@@ -912,22 +915,25 @@ function formatPersianDate(dateString) {
       if (parts.length === 3) {
         if (parts[0].length === 4) {
           // تاریخ در فرمت YYYY/MM/DD است (احتمالاً میلادی)
-          mDate = moment(dateString, 'YYYY/MM/DD');
+          const normalizedDate = dateString.replace(/\//g, '-');
+          mDate = jalaliMoment(normalizedDate, 'YYYY-MM-DD');
         } else {
           // فرمت MM/DD/YYYY
-          mDate = moment(dateString, 'MM/DD/YYYY');
+          mDate = jalaliMoment(dateString, 'MM/DD/YYYY');
         }
       }
     } 
     else {
       // سایر فرمت‌ها
-      mDate = moment(dateString);
+      mDate = jalaliMoment(dateString);
     }
     
     // بررسی اعتبار تاریخ
     if (mDate && mDate.isValid()) {
       // تبدیل به شمسی با فرمت YYYY/MM/DD
-      return mDate.format('jYYYY/jMM/jDD');
+      const jalaliDate = mDate.locale('fa').format('jYYYY/jMM/jDD');
+      console.log(`تبدیل تاریخ: ${dateString} (میلادی) به ${jalaliDate} (شمسی)`);
+      return jalaliDate;
     }
     
     console.warn(`تاریخ '${dateString}' با فرمت نامعتبر یا ناشناخته. برگرداندن همان تاریخ.`);

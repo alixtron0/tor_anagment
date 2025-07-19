@@ -910,8 +910,8 @@ function formatExcelDate(dateString) {
             normalizedDate = dateString.replace(/\//g, '-');
         }
         
-        // تبدیل تاریخ میلادی به شمسی
-        const jalaliDate = jalaliMoment(normalizedDate).locale('fa').format('jYYYY/jMM/jDD');
+        // تبدیل تاریخ میلادی به شمسی با استفاده از فرمت دقیق
+        const jalaliDate = jalaliMoment(normalizedDate, 'YYYY-MM-DD').locale('fa').format('jYYYY/jMM/jDD');
         
         console.log(`تبدیل تاریخ: ${dateString} (میلادی) به ${jalaliDate} (شمسی)`);
         

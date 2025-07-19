@@ -570,7 +570,7 @@ router.get('/:id/hotel-report', auth, async (req, res) => {
     
     // تنظیم پاسخ HTTP
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="hotel-report-${package.name.replace(/\s+/g, '-')}.xlsx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(`hotel-report-${package.name.replace(/\s+/g, '-')}.xlsx`)}"`);
     
     // ارسال فایل
     await workbook.xlsx.write(res);
@@ -2304,7 +2304,7 @@ function formatPersianDate(dateString) {
     // تبدیل فرمت yyyy/mm/dd به فرمت قابل پردازش برای جاوااسکریپت
     const normalizedDate = dateString.replace(/\//g, '-');
     
-    // تبدیل به تاریخ شمسی
+    // تبدیل به تاریخ شمسی - استفاده از فرمت دقیق برای ورودی
     const jalaliDate = jalaliMoment(normalizedDate, 'YYYY-MM-DD').locale('fa').format('jYYYY/jMM/jDD');
     
     // لاگ برای اطمینان از تبدیل صحیح
